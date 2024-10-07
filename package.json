@@ -1,0 +1,27 @@
+{
+  "name": "web3-script",
+  "version": "1.0.0",
+  "description": "币圈交互系列脚本",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "gaohongxiang",
+  "license": "MIT",
+  "dependencies": {
+    "bip32": "^5.0.0-rc.0",
+    "bip39": "^3.1.0",
+    "bitcoinjs-lib": "^6.1.6",
+    "ccxt": "^4.4.10",
+    "csv-parse": "^5.5.6",
+    "csv-stringify": "^6.5.1",
+    "dotenv": "^16.4.5",
+    "ecpair": "^2.1.0",
+    "ethers": "^6.13.3",
+    "socks-proxy-agent": "^8.0.4",
+    "tiny-secp256k1": "^2.2.3",
+    "xlsx": "^0.18.5"
+  }
+}

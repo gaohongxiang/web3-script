@@ -1,0 +1,32 @@
+{
+    "币安api示例账户":{
+        "main":{
+            "apiKey": "加密后的key",
+            "apiSecret": "加密后的secret",
+            "apiProxy": ["socks5代理,不加密。创建api时设置只允许受信任的api访问,增加安全性","socks5://xxx:xxx@xxx:xxx"]
+        },
+        "sub1":{
+            "apiKey": "加密后的key",
+            "apiSecret": "加密后的secret",
+            "apiProxy": ["socks5代理,不加密。创建api时设置只允许受信任的api访问,增加安全性","socks5://xxx:xxx@xxx:xxx"]
+        }
+    },
+
+
+
+    "欧意api示例账户":{
+        "main":{
+            "apiKey": "加密后的key",
+            "apiSecret": "加密后的secret",
+            "apiPassword": "加密后的密码",
+            "apiProxy": ["socks5代理,不加密。创建api时设置只允许受信任的api访问,增加安全性","socks5://xxx:xxx@xxx:xxx"]
+        },
+        "sub1":{
+            "subAccountName":"xxxxxx",
+            "apiKey": "加密后的key",
+            "apiSecret": "加密后的secret",
+            "apiPassword": "加密后的密码",
+            "apiProxy": ["socks5代理,不加密。创建api时设置只允许受信任的api访问,增加安全性","socks5://xxx:xxx@xxx:xxx"]
+        }
+    }
+}

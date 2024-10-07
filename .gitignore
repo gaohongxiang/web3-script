@@ -1,3 +1,9 @@
+/data
+example.js
+index.js
+
+.DS_Store
+
 # Logs
 logs
 *.log
