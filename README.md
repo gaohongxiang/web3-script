@@ -23,13 +23,13 @@ git clone https://github.com/gaohongxiang/web3-script.git
 cd web3-script
 npm install
 ```
-#### 配置文件
+#### 2、配置文件
 
 `.env-example`是示例配置文件，实际使用中需要同目录下创建`.env`文件，内容根据实际情况修改。
 
-#### 数据文件
+#### 3、数据文件
 
-数据文件全部放在`data`目录下。
+数据文件全部放在`data`目录下。根据用到的模块随时添加相应的文件。
 
 ##### 交易所文件,如 `binance.json`、`okx.json`。
 ```
@@ -80,7 +80,7 @@ indexId,address,enPrivateKey,enMnemonic
 
 ##### `token.json`
 
-此文件是一些常用的evm系token的合约信息，如address、abi、decimals。可以自行添加token。
+此文件是一些常用的evm系token的合约信息，如address、abi、decimals，详见`data/token.json`。可以自行添加token。
 
 ## 各模块使用示例
 
@@ -164,7 +164,6 @@ id,address,enPrivateKey
 - okx提现需要把提现地址添加进免验证提币地址白名单里才可以
 
 #### 1、创建交易所api文件，并加密api各数据
-```
 
 查看crypt-module加解密模块示例
 
