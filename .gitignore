@@ -1,6 +1,6 @@
-/data
+data/*
+!data/token.json
 example.js
-index.js
 
 .DS_Store
 
