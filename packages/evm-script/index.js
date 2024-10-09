@@ -17,24 +17,45 @@ let network,rpc;
  */
 export function getNetworkProvider(chain) {
 	chain = chain.toLowerCase();
-	const alchemyApi = parsed.alchemyApi;
+	const infuraKey = parsed.infuraKey;
 	if (['eth', 'ethereum', 'erc20'].includes(chain)) {
 		network = 'ethereum';
-		rpc = `https://eth-mainnet.g.alchemy.com/v2/${alchemyApi}`;
+		rpc = `https://mainnet.infura.io/v3/${infuraKey}`;
 	} else if (['arb', 'arbitrum'].includes(chain)) {
 		network = 'arbitrum';
-		rpc = `https://arb-mainnet.g.alchemy.com/v2/${alchemyApi}`;
+		rpc = `https://arbitrum-mainnet.infura.io/v3/${infuraKey}`;
 	} else if (['op', 'optimism'].includes(chain)) {
 		network = 'optimism';
-		rpc = `https://opt-mainnet.g.alchemy.com/v2/${alchemyApi}`;
-	} else if (['matic', 'pol', 'polygon'].includes(chain)) {
-		network = 'polygon';
-		rpc = `https://polygon-mainnet.g.alchemy.com/v2/${alchemyApi}`;
+		rpc = `https://optimism-mainnet.infura.io/v3/${infuraKey}`;
 	} else if (['zk', 'zks', 'zksync'].includes(chain)) {
 		network = 'zksync';
-		rpc = `https://zksync-mainnet.g.alchemy.com/v2/${alchemyApi}`;
+		rpc = `https://zksync-mainnet.infura.io/v3/${infuraKey}`;
+	} else if (['base'].includes(chain)) {
+		network = 'base';
+		rpc = `https://base-mainnet.infura.io/v3/${infuraKey}`;
+	} else if (['linea'].includes(chain)) {
+		network = 'linea';
+		rpc = `https://linea-mainnet.infura.io/v3/${infuraKey}`;
+	} else if (['blast'].includes(chain)) {
+		network = 'blast';
+		rpc = `https://blast-mainnet.infura.io/v3/${infuraKey}`;
+	} else if (['scroll'].includes(chain)) {
+		network = 'scroll';
+		rpc = `https://scroll-mainnet.infura.io/v3/${infuraKey}`;
+	} else if (['bsc', 'bep20'].includes(chain)) {
+		network = 'bsc';
+		rpc = `https://bsc-mainnet.infura.io/v3/${infuraKey}`;
+	} else if (['opbnb'].includes(chain)) {
+		network = 'opbnb';
+		rpc = `https://opbnb-mainnet.infura.io/v3/${infuraKey}`;
+	} else if (['matic', 'pol', 'polygon'].includes(chain)) {
+		network = 'polygon';
+		rpc = `https://polygon-mainnet.infura.io/v3/${infuraKey}`;
+	} else if (['avax', 'avalanche', 'avax-c'].includes(chain)) {
+		network = 'avalanche c-chain';
+		rpc = `https://avalanche-mainnet.infura.io/v3/${infuraKey}`;
 	} else {
-		console.log('链不存在, 请重新输入')
+		console.log('链不存在, 请重新输入。')
 		return
 	}
 
@@ -111,12 +132,11 @@ export async function getWallet(enPrivateKey, provider) {
  *
  * @param {string} address - 要查询余额的地址。
  * @param {string} token - 代币名称（大小写不敏感）。
- * @param {string} params.chain - 代币所在链。
- * @param {Object} options - 可选参数对象。
- * @param {string} [options.tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
+ * @param {string} chain - 代币所在链。
+ * @param {string} tokenFile='./data/token.json' - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @returns {Promise<string|null>} - 返回代币余额（以字符串形式），如果出错则返回 null。
  */
-export async function getBalance(address, token, chain, { tokenFile = './data/token.json' } = {}) {
+export async function getBalance({ address, token, chain, tokenFile = './data/token.json' }) {
 	token = token.toUpperCase();
 	let tokenBalance;
 	const { provider } = getNetworkProvider(chain);
@@ -164,7 +184,7 @@ export async function transfer({ enPrivateKey, toAddress, token, value, chain, t
 			};
 			// 发送交易，获得收据
 			const receipt = await wallet.sendTransaction(tx);
-			console.log('等待交易在区块链确认（需要几分钟）');
+			console.log('等待交易在区块链确认...');
 			await receipt.wait(); // 等待链上确认交易
 			console.log(`交易哈希: ${receipt.hash}`); // 打印交易详情
 			console.log(`地址 ${fromAddress} 发送后 ${token} 余额: ${ethers.formatEther(await provider.getBalance(fromAddress))}`);
@@ -176,7 +196,7 @@ export async function transfer({ enPrivateKey, toAddress, token, value, chain, t
 			value = ethers.parseUnits(value.toString(), tokenDecimals);
 			console.log(`地址 ${fromAddress} 发送前 ${token} 余额: ${ethers.formatUnits(await tokenContract.balanceOf(fromAddress), tokenDecimals)}`);
 			const receipt = await tokenContract.transfer(toAddress, value);
-			console.log('等待交易在区块链确认（需要几分钟）');
+			console.log('等待交易在区块链确认...');
 			await receipt.wait();
 			console.log(`交易哈希: ${receipt.hash}`); // 打印交易详情
 			// iv. 打印交易后余额
