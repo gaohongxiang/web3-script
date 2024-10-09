@@ -3,17 +3,34 @@ import XLSX from 'xlsx';
 import { parse } from 'csv-parse';  
 
 /**
- * 从指定的 CSV 文件中读取数据并返回解析后的结果。
+ * 从指定的 CSV 文件中读取数据并返回解析后的结果。第一行的第一个标点符号作为分隔符
  * @param {string} csvFile - 要读取的 CSV 文件路径（必填）。
- * @param {Object} [options={}] - 可选参数对象。
- * @param {string} [options.sep=','] - 用于分隔字段的字符，默认为逗号。
  * @returns {Promise<Array<Object>|null>} - 返回一个 Promise，解析为包含每一行数据的对象数组。如果读取失败，则返回 null。
  */
-export async function getCsvData(csvFile, { sep=',' } = {} ) {
+export async function getCsvData( csvFile ) {
     try{
-        const results = [];
+        
         const fileStream = fs.createReadStream(csvFile);
-        const parser = fileStream.pipe(parse({
+
+         // 读取第一行以确定分隔符
+         const firstLine = await new Promise((resolve, reject) => {
+            let line = '';
+            fileStream.on('data', chunk => {
+                line += chunk;
+                const lines = line.split('\n');
+                if (lines.length > 1) {
+                    fileStream.destroy(); // 读取到第二行后停止读取
+                    resolve(lines[0]); // 返回第一行
+                }
+            });
+            fileStream.on('error', reject);
+            fileStream.on('end', () => resolve(line)); // 如果文件结束，返回读取的内容
+        });
+        // 获取第一行的第一个标点符号作为分隔符
+        const sep = firstLine.match(/[:|,]/) ? firstLine.match(/[:|,]/)[0] : ','; // 默认分隔符为逗号
+
+        const results = [];
+        const parser = fs.createReadStream(csvFile).pipe(parse({
             columns:true, // 第一行为列名
             delimiter: sep, // 分隔符为sep，默认逗号
             skip_empty_lines: true, // 跳过空行
@@ -21,11 +38,12 @@ export async function getCsvData(csvFile, { sep=',' } = {} ) {
             quote: false, // 用于包围字段的字符，该字段周围是否存在引号是可选的，并且会自动检测。false禁用引号检测（abi很多引号，不需要检测）
         }));
 
-        let index = 1; // 初始化 index_id 的值
+        let index = 1; // 初始化 indexId 的值
         for await (const row of parser) {
-            // 检查是否存在 index_id 字段，如果不存在，则添加 index_id，并递增。后面各个文件数据通过index_id来拼接
+            // 检查是否存在 indexId 字段，如果不存在，则添加 indexId，并递增。后面各个文件数据通过indexId来拼接
             if (!row.indexId) {
-                row.indexId = index++;
+                const indexId = index++;
+                row.indexId = indexId.toString();
             }
             results.push(row);
         }
@@ -41,14 +59,38 @@ export async function getCsvData(csvFile, { sep=',' } = {} ) {
  * 从指定的 CSV 文件中读取数据，并将指定列的数据转存到临时文件。
  * @param {string} csvFile - 要读取的 CSV 文件路径（必填）。
  * @param {string} columnName - 要提取的列名（必填）。
- * @param {string} tempFile - 临时文件的路径（必填）。
- * @param {string} [sep=','] - CSV 文件的分隔符，默认为逗号。
+ * @param {string} [tempFile='./data/temp.csv'] - 临时文件的路径，用于存储提取的数据，默认为 './data/temp.csv'。
  * @returns {Promise<void>} - 返回一个 Promise，表示操作的完成。
  */
-export async function getCsvDataByColumnName(csvFile, columnName, tempFile, { sep=',' } = {} ) {
+export async function getCsvDataByColumnName(csvFile, columnName, tempFile='./data/temp.csv' ) {
     try{
         const fileStream = fs.createReadStream(csvFile);
-        const parser = fileStream.pipe(parse({
+
+         // 读取第一行以确定分隔符
+         const firstLine = await new Promise((resolve, reject) => {
+            let line = '';
+            fileStream.on('data', chunk => {
+                line += chunk;
+                const lines = line.split('\n');
+                if (lines.length > 1) {
+                    fileStream.destroy(); // 读取到第二行后停止读取
+                    resolve(lines[0]); // 返回第一行
+                }
+            });
+            fileStream.on('error', reject);
+            fileStream.on('end', () => resolve(line)); // 如果文件结束，返回读取的内容
+        });
+        // 获取第一行的第一个标点符号作为分隔符
+        const sep = firstLine.match(/[:|,]/) ? firstLine.match(/[:|,]/)[0] : ','; // 默认分隔符为逗号
+
+         // 检查第一行是否包含 columnName
+        const columnNames = firstLine.split(sep); // 根据分隔符分割列名
+        if (!columnNames.includes(columnName)) {
+            console.error(`列名 "${columnName}" 不存在于文件中.`);
+            return; // 如果不存在，返回
+        }
+
+        const parser = fs.createReadStream(csvFile).pipe(parse({
             delimiter: sep, // 分隔符为sep，默认逗号
             columns: true, // 第一行为列名
             skip_empty_lines: true, // 跳过空行
@@ -77,9 +119,9 @@ export async function getCsvDataByColumnName(csvFile, columnName, tempFile, { se
  * @param {string} options.fieldMappings.user_agent - 映射原始列名 'User Agent' 为新字段名 'user_agent'。
  */
 export async function getExcelData(excelFile, { sheetIndex = 0, fieldMappings = {
-    index_id: '序号', // 将 '序号' 映射为 'index_id'
-    browser_id: 'ID', // 将 'ID' 映射为 'browser_id'
-    user_agent: 'User Agent', // 将 'User Agent' 映射为 'user_agent'
+    indexId: '序号', // 将 '序号' 映射为 'index_id'
+    browserId: 'ID', // 将 'ID' 映射为 'browser_id'
+    userAgent: 'User Agent', // 将 'User Agent' 映射为 'user_agent'
 }} = {} ) {
     try {
         const workbook = XLSX.readFile(excelFile); // 读取 Excel 文件
@@ -92,6 +134,7 @@ export async function getExcelData(excelFile, { sheetIndex = 0, fieldMappings = 
             for (const [newKey, oldKey] of Object.entries(fieldMappings)) {
                 newRow[newKey] = row[oldKey]; // 使用 mappings 进行重命名
             }
+            newRow.indexId = newRow.indexId.toString(); // 转换为字符串
             return newRow;
         });
 
