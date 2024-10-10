@@ -139,7 +139,7 @@ export async function getExcelData(excelFile, { sheetIndex = 0, fieldMappings = 
         });
 
         // 排序数据
-        const sortedData = filteredData.sort((a, b) => a.index_id - b.index_id);
+        const sortedData = filteredData.sort((a, b) => a.indexId - b.indexId);
         return sortedData;
     } catch (error) {
         console.error('读取Excel文件失败:', error); // 错误处理
