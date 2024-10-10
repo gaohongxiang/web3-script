@@ -197,7 +197,9 @@ export async function transfer({ enPrivateKey, toAddress, token, value, chain, p
 		const fromAddress = await wallet.getAddress();
 		if (mainTokens.includes(token)) {
 			value = ethers.parseEther(value.toString());
-			console.log(`地址 ${fromAddress} 发送前 ${token} 余额: ${ethers.formatEther(await provider.getBalance(fromAddress))}`);
+			const beforeBalance = await provider.getBalance(fromAddress);
+			console.log(`地址 ${fromAddress} 发送前 ${token} 余额: ${ethers.formatEther(beforeBalance)}`);
+			if(beforeBalance < value){console.log('地址余额不足, 无法完成转账');return};
 			// 构造交易请求，参数：to为接收地址，value为ETH数额
 			const tx = {
 				to: toAddress,
@@ -215,7 +217,9 @@ export async function transfer({ enPrivateKey, toAddress, token, value, chain, p
 			const { tokenAddr, tokenAbi, tokenDecimals } = tokenInfo;
 			const tokenContract = new ethers.Contract(tokenAddr, tokenAbi, wallet);
 			value = ethers.parseUnits(value.toString(), tokenDecimals);
-			console.log(`地址 ${fromAddress} 发送前 ${token} 余额: ${ethers.formatUnits(await tokenContract.balanceOf(fromAddress), tokenDecimals)}`);
+			const beforeBalance = await tokenContract.balanceOf(fromAddress);
+			console.log(`地址 ${fromAddress} 发送前 ${token} 余额: ${ethers.formatUnits(beforeBalance, tokenDecimals)}`);
+			if(beforeBalance < value){console.log('地址余额不足, 无法完成转账');return};
 			const receipt = await tokenContract.transfer(toAddress, value);
 			console.log('等待交易在区块链确认...');
 			await receipt.wait();
