@@ -29,7 +29,7 @@ npm install
 
 #### 3、数据文件
 
-数据文件全部放在`data`目录下。根据用到的模块随时添加相应的文件。
+数据文件全部放在`data`目录下。根据用到的模块随时添加相应的文件。主要用到三种格式文件：`.csv`、`.json`、`.xlsx`
 
 ##### 交易所文件,如 `binance.json`、`okx.json`。
 ```
@@ -69,7 +69,10 @@ npm install
 
 ##### 钱包文件，如`ethWallet.csv`、`btcWallet.csv`等
 
-此类文件采用csv类型，存放地址，助记词、私钥等敏感字段必须加密存储，如何加密请看crypt-module部分。基本字段如下所示，根据实际情况增删
+此类文件采用csv类型，存放地址，第一个字段统一为indexId，方便后续多文件组合数据，如果不加此字段，程序读取文件时会自动添加。
+
+基本字段如下所示，根据实际情况增删。助记词、私钥等敏感字段必须加密存储，如何加密请看crypt-module部分。
+
 ```
 indexId,address,enPrivateKey,enMnemonic
 1,xxx,xxx,xxx
@@ -148,6 +151,30 @@ id,address,enPrivateKey
 >tips：通过第2、3条enPrivateKey数据可知，就算相同的数据加密出来也是不一样的，提高安全性。
 
 目前大的应用场景就是使用`enCryptColumn`批量加密钱包文件的私钥、助记词等字段，安全存储。使用的时候用到哪个就用`deCryptText`解密。
+
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+
+### utils-module 工具库模块
+
+使用示例
+```
+import { generateEthWallet, generateBtcWallet } from './packages/utils-module/generateWallet.js'
+import { getCsvData, getCsvDataByColumnName } from './packages/utils-module/utils.js'
+
+// 批量生成eth地址，字段：indexId,ethAddress,enEthPrivateKey,enEthMnemonic。敏感字段加密存储
+await generateEthWallet()
+// 批量生成eth地址，字段：indexId,ethAddress,enBtcPrivateKey,enBtcMnemonic。敏感字段加密存储
+await generateBtcWallet()
+
+// 从指定的 CSV 文件中读取数据并返回解析后的结果
+await getCsvData('./data/wallet.csv')
+
+// 从指定的 CSV 文件中读取数据，并将指定列的数据转存到临时文件。
+// 参数；csvFile, columnName, tempFile='./data/temp.csv'
+await getCsvDataByColumnName('./data/wallet.csv', 'address')
+```
+
 
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
