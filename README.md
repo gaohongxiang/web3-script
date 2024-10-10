@@ -117,10 +117,10 @@ import { enCryptText, deCryptText, enCryptColumn, deCryptColumn } from './packag
 const text = 'hello web3';
 // 加密(相同文本每次加密结果也不同)
 const enText = await enCryptText(text);
-console.log(enText)
+console.log(enText);
 //解密
 const text = await deCryptText(enText);
-console.log(text)
+console.log(text);
 ```
 
 2、加密某列文本
@@ -163,16 +163,16 @@ import { generateEthWallet, generateBtcWallet } from './packages/utils-module/ge
 import { getCsvData, getCsvDataByColumnName } from './packages/utils-module/utils.js'
 
 // 批量生成eth地址，字段：indexId,ethAddress,enEthPrivateKey,enEthMnemonic。敏感字段加密存储
-await generateEthWallet()
-// 批量生成eth地址，字段：indexId,ethAddress,enBtcPrivateKey,enBtcMnemonic。敏感字段加密存储
-await generateBtcWallet()
+await generateEthWallet();
+// 批量生成eth地址，字段：indexId,btcAddress,enBtcPrivateKey,enBtcMnemonic。敏感字段加密存储
+await generateBtcWallet();
 
 // 从指定的 CSV 文件中读取数据并返回解析后的结果
-await getCsvData('./data/wallet.csv')
+await getCsvData('./data/wallet.csv');
 
 // 从指定的 CSV 文件中读取数据，并将指定列的数据转存到临时文件。
 // 参数；csvFile, columnName, tempFile='./data/temp.csv'
-await getCsvDataByColumnName('./data/wallet.csv', 'address')
+await getCsvDataByColumnName('./data/wallet.csv', 'address');
 ```
 
 
@@ -198,11 +198,11 @@ import { withdraw as okxWithdraw } from "./packages/exchange-script/okx.js";
 
 // binance转账
 // 参数：{ account, chain, toAddress, coin, amount, apiFile='./data/binance.json' }
-await binanceWithdraw({ account:'你的binance交易所账户，跟api文件里要对应', chain:'optimism', toAddress:'接收地址', coin:'usdt', amount:5 })
+await binanceWithdraw({ account:'你的binance交易所账户，跟api文件里要对应', chain:'optimism', toAddress:'接收地址', coin:'usdt', amount:5 });
 
 // okx转账
 // 参数：{ account, chain, toAddress, coin, amount, apiFile='./data/okx.json' }
-await okxWithdraw({ account:'你的okx交易所账户，跟api文件里要对应', chain:'optimism', toAddress:'接收地址', coin:'usdt', amount:5 })
+await okxWithdraw({ account:'你的okx交易所账户，跟api文件里要对应', chain:'optimism', toAddress:'接收地址', coin:'usdt', amount:5 });
 
 ```
 
@@ -242,12 +242,12 @@ import { transfer, speedUp, splitUTXO } from './packages/utxo-script/index.js';
 
 const fromAddresses = await getCsvData('./data/fromWallet.csv');
 // 用第几个地址发送代币
-const fromAddress = fromAddresses[0]
-const enBtcMnemonic = fromAddress.enBtcMnemonic
+const fromAddress = fromAddresses[0];
+const enBtcMnemonic = fromAddress.enBtcMnemonic;
 
 // 发送交易（引申：如果toWallet文件中有多个相同地址，即是拆分utxo）
 // 参数：{ enBtcMnemonic, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed='high', highGasRate=1.1, csvFile = './data/wallet.csv' } 
-await transfer({ enBtcMnemonic, chain : 'fractal', filterMinUTXOSize : 10000, csvFile : './data/toWallet.csv' } )
+await transfer({ enBtcMnemonic, chain : 'fractal', filterMinUTXOSize : 10000, csvFile : './data/toWallet.csv' } );
 
 // 加速交易
 // 参数：{ enBtcMnemonic, txid, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed='high', highGasRate=1.1 }
@@ -314,15 +314,15 @@ import { transfer as evmTransfer, getBalance as evmGetBalance, listenContract } 
 
 // 获取地址余额
 // 参数：{ address, token, chain, tokenFile = './data/token.json' }
-const balance = await evmGetBalance({ address: '0x28C6c06298d514Db089934071355E5743bf21d60', token: 'eth', chain: 'base' })
+const balance = await evmGetBalance({ address: '0x28C6c06298d514Db089934071355E5743bf21d60', token: 'eth', chain: 'base' });
 
 // 发送代币
 //参数：{ enPrivateKey, toAddress, token, value, chain, tokenFile = './data/token.json' }
-await evmTransfer({ enPrivateKey, toAddress: 'xxxxxx', token: 'bnb', value: 0.002, chain: 'bsc' })
+await evmTransfer({ enPrivateKey, toAddress: 'xxxxxx', token: 'bnb', value: 0.002, chain: 'bsc' });
 
 // 监听
 //参数： { listenAddress, listenToken, chain, tokenFile = './data/token.json', direction = 'in' }
-// await listenContract({ listenAddress:'0x28C6c06298d514Db089934071355E5743bf21d60', listenToken:'usdt', chain:'eth', direction : 'in' }) 
+await listenContract({ listenAddress:'0x28C6c06298d514Db089934071355E5743bf21d60', listenToken:'usdt', chain:'eth', direction : 'in' }) ;
 
 ```
 
