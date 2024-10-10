@@ -162,10 +162,10 @@ id,address,enPrivateKey
 import { generateEthWallet, generateBtcWallet } from './packages/utils-module/generateWallet.js'
 import { getCsvData, getCsvDataByColumnName } from './packages/utils-module/utils.js'
 
-// 批量生成eth地址，字段：indexId,ethAddress,enEthPrivateKey,enEthMnemonic。敏感字段加密存储
-await generateEthWallet();
-// 批量生成eth地址，字段：indexId,btcAddress,enBtcPrivateKey,enBtcMnemonic。敏感字段加密存储
-await generateBtcWallet();
+// 批量生成eth地址（默认生成10个地址），字段：indexId,ethAddress,enEthPrivateKey,enEthMnemonic。敏感字段加密存储
+await generateEthWallet(num = 50);
+// 批量生成btc地址（默认生成10个地址），字段：indexId,btcAddress,enBtcPrivateKey,enBtcMnemonic。敏感字段加密存储
+await generateBtcWallet(num = 50);
 
 // 从指定的 CSV 文件中读取数据并返回解析后的结果
 await getCsvData('./data/wallet.csv');
