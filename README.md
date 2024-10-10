@@ -104,17 +104,13 @@ indexId,address,enPrivateKey,enMnemonic
 2、创建一个密码，复制路径。
 
 
-#### 使用
+#### 使用示例
 
-1、导入
+1、加解密文本
+
 ```
 import { enCryptText, deCryptText, enCryptColumn, deCryptColumn } from './packages/crypt-module/crypt.js';
 
-```
-
-2、加解密文本
-
-```
 const text = 'hello web3';
 // 加密(相同文本每次加密结果也不同)
 const enText = await enCryptText(text);
@@ -124,7 +120,7 @@ const text = await deCryptText(enText);
 console.log(text)
 ```
 
-3、加密某列文本
+2、加密某列文本
 
 假设有一个`wallet.csv`文件，存放地址、私钥等信息，很显然，私钥不能明文存储。这个时候就需要给私钥这一列数据加密
 ```
@@ -280,11 +276,33 @@ CPFP(子支付父交易) 的基本思想是创建一个新的交易（子交易�
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
 
-### evm-script
+### evm-script evm系交互脚本
+
+#### 注意事项
+- 本脚本使用infura的rpc服务，需要自己申请，将apiKey配置到.env文件
+
+#### 2、使用示例
+```
+import { transfer as evmTransfer, getBalance as evmGetBalance, listenContract } from "./packages/evm-script/index.js";
+
+// 获取地址余额
+// 参数：{ address, token, chain, tokenFile = './data/token.json' }
+const balance = await evmGetBalance({ address: '0x28C6c06298d514Db089934071355E5743bf21d60', token: 'eth', chain: 'base' })
+
+// 发送代币
+//参数：{ enPrivateKey, toAddress, token, value, chain, tokenFile = './data/token.json' }
+await evmTransfer({ enPrivateKey, toAddress: 'xxxxxx', token: 'bnb', value: 0.002, chain: 'bsc' })
+
+// 监听
+//参数： { listenAddress, listenToken, chain, tokenFile = './data/token.json', direction = 'in' }
+// await listenContract({ listenAddress:'0x28C6c06298d514Db089934071355E5743bf21d60', listenToken:'usdt', chain:'eth', direction : 'in' }) 
+
+```
 
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
 
 ## 参考
 
+- https://github.com/WTFAcademy/WTF-Ethers
 - https://github.com/ByteJason/BTC-Script
