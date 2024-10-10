@@ -31,6 +31,8 @@ npm install
 
 数据文件全部放在`data`目录下。根据用到的模块随时添加相应的文件。主要用到三种格式文件：`.csv`、`.json`、`.xlsx`
 
+>注意：csv文件第一个字段统一为indexId，方便后续多文件组合数据，如果不加此字段，程序读取文件时会自动添加。除了indexId字段，其他字段不准起相同的名字，防止多文件合并数据时漏数据。编辑器可以安装一下`Rainbow CSV`插件，每个字段用不同颜色显示，很容易阅读。
+
 ##### 交易所文件,如 `binance.json`、`okx.json`。
 ```
 {
@@ -69,9 +71,7 @@ npm install
 
 ##### 钱包文件，如`ethWallet.csv`、`btcWallet.csv`等
 
-此类文件采用csv类型，存放地址，第一个字段统一为indexId，方便后续多文件组合数据，如果不加此字段，程序读取文件时会自动添加。
-
-基本字段如下所示，根据实际情况增删。助记词、私钥等敏感字段必须加密存储，如何加密请看crypt-module部分。
+此类文件采用csv类型，存放地址。基本字段如下所示，根据实际情况增删。助记词、私钥等敏感字段必须加密存储，如何加密请看crypt-module部分。
 
 ```
 indexId,address,enPrivateKey,enMnemonic
@@ -313,16 +313,16 @@ CPFP(子支付父交易) 的基本思想是创建一个新的交易（子交易�
 import { transfer as evmTransfer, getBalance as evmGetBalance, listenContract } from "./packages/evm-script/index.js";
 
 // 获取地址余额
-// 参数：{ address, token, chain, tokenFile = './data/token.json' }
-const balance = await evmGetBalance({ address: '0x28C6c06298d514Db089934071355E5743bf21d60', token: 'eth', chain: 'base' });
+// 参数：{ address, token, chain, proxy = null(socks5格式), tokenFile = './data/token.json' }
+const balance = await evmGetBalance({ address: '0x28C6c06298d514Db089934071355E5743bf21d60', token: 'eth', chain: 'base', proxy = null });
 
 // 发送代币
-//参数：{ enPrivateKey, toAddress, token, value, chain, tokenFile = './data/token.json' }
-await evmTransfer({ enPrivateKey, toAddress: 'xxxxxx', token: 'bnb', value: 0.002, chain: 'bsc' });
+//参数：{ enPrivateKey, toAddress, token, value, chain, proxy = null(socks5格式), tokenFile = './data/token.json' }
+await evmTransfer({ enPrivateKey, toAddress: 'xxxxxx', token: 'bnb', value: 0.002, chain: 'bsc', proxy = null });
 
 // 监听
-//参数： { listenAddress, listenToken, chain, tokenFile = './data/token.json', direction = 'in' }
-await listenContract({ listenAddress:'0x28C6c06298d514Db089934071355E5743bf21d60', listenToken:'usdt', chain:'eth', direction : 'in' }) ;
+//参数： { listenAddress, listenToken, chain, proxy = null(socks5格式), tokenFile = './data/token.json', direction = 'in' }
+await listenContract({ listenAddress:'0x28C6c06298d514Db089934071355E5743bf21d60', listenToken:'usdt', chain:'eth', proxy = null, direction : 'in' }) ;
 
 ```
 
