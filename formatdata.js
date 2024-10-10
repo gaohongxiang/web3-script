@@ -1,26 +1,33 @@
 import { getCsvData, getExcelData } from './packages/utils-module/utils.js';
 
 const csvFiles = [
-    './data/wallet_eth.csv',
-    './data/wallet_btc.csv',
-    './data/wallet_cosmos.csv',
-    './data/wallet_sol.csv',
-    './data/wallet_argent.csv',
-    './data/wallet_braavos.csv',
-    './data/wallet_eth_tugou.csv',
-    './data/wallet_eth_fuzhu.csv',
-    './data/wallet_password.csv',
+    // 各种钱包文件
+    './data/walletEth.csv',
+    './data/walletEthTugou.csv',
+    './data/walletEthFuzhu.csv',
+    './data/walletBtc.csv',
+    './data/walletCosmos.csv',
+    './data/walletSol.csv',
+    './data/walletArgent.csv',
+    './data/walletBraavos.csv',
+    
+    // 密码文件。可以做到每个指纹里的钱包用不同的密码。
+    './data/walletPassword.csv',
 
-    './data/binance_address.csv',
-    './data/okx_address.csv',
+    // 存放交易所的接收地址
+    './data/addressBinance.csv',
+    './data/addressOkx.csv',
 
+    // 社交文件
     './data/email.csv',
     './data/twitter.csv',
     './data/discord.csv',
 
-    './data/bitbrowser.xlsx',
-
+    // ip文件
     './data/ip.csv',
+
+    // 指纹浏览器文件
+    './data/bitbrowser.xlsx',
 ];
 
 // 整合多个 CSV 文件为一个 JSON 对象
@@ -54,12 +61,12 @@ export async function myFormatData(startNum, endNum=null) {
 
         records.forEach(record => {
             const id = parseInt(record.indexId); // 使用每个文件中的 indexId 字段并转换为整数
-            
+
             // 只处理在 startNum 和 endNum 范围内的 ID
             if (id >= startNum && id <= endNum) {
                 // 处理 ip.csv 文件的代理字符串
                 if (filePath.includes('ip.csv')) {
-                    const proxy = `${record.proxyIp}:${record.proxyPort}:${record.proxyUsername}:${record.proxyPassword}`;
+                    const proxy = `socks5://${record.proxyUsername}:${record.proxyPassword}@${record.proxyIp}:${record.proxyPort}`;
                     record.proxy = proxy; // 将拼接后的代理字符串添加到记录中
                     // // 删除原始的代理字段
                     // delete record.proxyIp;
