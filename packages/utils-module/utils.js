@@ -171,3 +171,53 @@ export function randomWait(minSeconds = 0, maxSeconds = 10) {
         }, randomSeconds * 1000);
     });
 }
+
+/**
+ * 生成一个包含大小写字母、数字和特殊符号的随机字符串。
+ * @param {number} length - 生成的字符串的长度。
+ * @returns {string} - 生成的随机字符串。
+ */
+export function generateRandomString(length) {
+    const uppercaseLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercaseLetters = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const specialSymbols = '.!@#$%^&*()-_=+';
+    const allCharacters = uppercaseLetters + lowercaseLetters + numbers + specialSymbols;
+    let result = '';
+  
+    // 随机选择至少 3 个大写字母
+    for (let i = 0; i < 3; i++) {
+      result += uppercaseLetters.charAt(Math.floor(Math.random() * uppercaseLetters.length));
+    }
+    
+    // 随机选择至少 3 个小写字母
+    for (let i = 0; i < 3; i++) {
+      result += lowercaseLetters.charAt(Math.floor(Math.random() * lowercaseLetters.length));
+    }
+  
+    // 随机选择至少 3 个数字
+    for (let i = 0; i < 3; i++) {
+      result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    }
+  
+    // 随机选择至少 3 个特殊符号
+    for (let i = 0; i < 3; i++) {
+      result += specialSymbols.charAt(Math.floor(Math.random() * specialSymbols.length));
+    }
+  
+    // 随机选择剩余字符，直到达到指定长度
+    for (let i = result.length; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * allCharacters.length);
+      result += allCharacters.charAt(randomIndex);
+    }
+  
+    // 将生成的字符随机排序
+    const array = result.split('');
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    result = array.join('');
+    // console.log(result);
+    return result;
+  }
