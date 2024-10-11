@@ -43,7 +43,7 @@ export function getNetwork(chain){
     } else {
         throw new Error('无效的网络类型');
     }
-    return { network }
+    return { network, baseURl }
 }
 
 /**
@@ -80,84 +80,6 @@ export async function getGas({ GasSpeed='high', highGasRate=1.1 }) {
             throw new Error('无效gas速率'); // 处理无效的 utxoGasSpeed
     }
     return gas;
-}
-
-/**
- * 获取指定地址的余额。
- * 该函数从指定的 API 获取给定比特币地址的余额信息，并返回该地址的余额（以比特币为单位）。
- * @param {string} address - 要查询余额的比特币地址（必填）。
- * @returns {Promise<number|null>} - 返回一个 Promise，解析为地址的余额（以比特币为单位），如果发生错误则返回 null。
- */
-export async function getAddressBalance(address) {
-    try {
-        const response = await fetch(`${baseURl}/address/${address}`);
-        const data = await response.json();
-        // console.log(data);
-        const balance = data.chain_stats.funded_txo_sum / 100000000;
-        console.log(`Address ${address} balance: ${balance} FB`);
-        return balance;
-    } catch (error) {
-        console.error('Error fetching address balance:', error.message);
-        return null;
-    }
-}
-
-export async function batchGetAddressBalance(addresses) {
-    for (const address of addresses) {
-        const balance = await getAddressBalance(address);
-    }
-}
-
-/**
- * 获取指定地址的 UTXO（未花费交易输出）。
- * 该函数从指定的 API 获取给定比特币地址的所有 UTXO，并根据可选参数过滤 UTXO。
- * @param {string} address - 要查询 UTXO 的比特币地址（必填）。
- * @param {Object} [options={}] - 可选参数对象。
- * @param {number|null} [options.filterMinUTXOSize=null] - 过滤的最小 UTXO 大小，默认为 null，表示不进行过滤。
- * @returns {Promise<Object>} - 返回一个 Promise，解析为一个对象，包含以下属性：
- *   - {Array} allUTXOs - 所有 UTXO 的数组。
- *   - {Array} filteredUTXOs - 过滤后的 UTXO 数组（大于 filterMinUTXOSize 的 UTXO）。
- *   - {Array} unconfirmedUTXOs - 未确认的 UTXO 数组。
- * @throws {Error} - 如果获取 UTXO 失败，则返回 null 值的对象。
- */
-export async function getAddressUTXOs(address, {filterMinUTXOSize=null} = {}) {
-    try {
-        // console.log(address)
-        const response = await fetch(`${baseURl}/address/${address}/utxo`);
-        let allUTXOs = await response.json();
-        // console.log(allUTXOs)    
-        let filteredUTXOs = [];
-        let unconfirmedUTXOs = [];
-        for (const utxo of allUTXOs) {
-            // 未确认的utxo
-            // 应该通过utxo.status.confirmed来判断交易是否确认。不知为啥为确认的交易返回的也是true。只好通过block_height来判断，未确认的交易block_height为0
-            if(!utxo.status.block_height){
-                unconfirmedUTXOs.push(utxo)
-            }
-            // 过滤聪，低于filterMinUTXOSize的聪过滤掉，避免误烧和金额不够
-            if(filterMinUTXOSize && utxo.value > filterMinUTXOSize && utxo.status.block_height){
-                filteredUTXOs.push(utxo);
-            }
-        }
-        // 按 utxo.value 从大到小排序
-        allUTXOs.sort((a, b) => b.value - a.value);
-        filteredUTXOs.sort((a, b) => b.value - a.value);
-        unconfirmedUTXOs.sort((a, b) => b.value - a.value);
-
-        // console.log(`地址 ${address} 所有utxos: ${JSON.stringify(allUTXOs)}`);
-        // console.log(`地址 ${address} 过滤${filterMinUTXOSize}以下聪后utxos: ${JSON.stringify(filteredUTXOs)}`);
-        // console.log(`地址 ${address} 未确认utxos: ${JSON.stringify(unconfirmedUTXOs)}`);
-        return { allUTXOs, filteredUTXOs, unconfirmedUTXOs };
-    } catch (error) {
-        console.error('获取utxo出错:', error.message);
-        return { allUTXOs: null, filteredUTXOs: null, unconfirmedUTXOs: null };
-    }
-}
-
-export async function batchGetAddressUtxos(addresses) {
-    for (const address of addresses) {
-        const utxos = await getAddressUtxos(address);
-    }
 }
 
 /**
@@ -261,9 +183,8 @@ export function findAdjustedDividendWithRemainder(dividend, divisor) {
         // 计算商并向下取整
         const quotient = Math.floor(dividend / divisor);
         // 计算最接近的能整除的数
-        const adjustedDividend = quotient * divisor;
-        // console.log(`最接近的能整除的数是 ${adjustedDividend}`);
         adjustedDividend = quotient * divisor;
+        // console.log(`最接近的能整除的数是 ${adjustedDividend}`);
         remainder = dividend - adjustedDividend;
     }
   

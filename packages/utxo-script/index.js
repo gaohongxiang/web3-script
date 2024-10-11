@@ -4,7 +4,6 @@ import { getCsvData } from '../utils-module/utils.js'
 import { 
     getGas,
     getNetwork,
-    getAddressUTXOs,
     getTransaction,
     broadcastTx,
     convertToXOnly,
@@ -13,6 +12,85 @@ import {
 } from './function.js';
 
 const exchangeRate = 1e8; // 1 BTC = 100,000,000 satoshis
+
+/**
+ * 获取指定地址的余额。
+ * 该函数从指定的 API 获取给定比特币地址的余额信息，并返回该地址的余额（以比特币为单位）。
+ * 
+ * @param {Object} params - 参数对象。
+ * @param {string} params.address - 要查询余额的比特币地址（必填）。
+ * @param {string} [params.chain='btc'] - 要查询的区块链类型，默认为 'btc'。
+ * 
+ * @returns {Promise<number|null>} - 返回一个 Promise，解析为地址的余额（以比特币为单位），
+ * 如果发生错误则返回 null。
+ * 
+ * @throws {Error} - 如果获取余额失败，则抛出错误。
+ */
+export async function getAddressBalance({ address, chain = 'btc' }) {
+    try {
+         // 后面函数需要用到baseURL、network，需要首先获取
+        const { baseURl } = getNetwork(chain);
+        const response = await fetch(`${baseURl}/address/${address}`);
+        const data = await response.json();
+        // console.log(data);
+        const balance = data.chain_stats.funded_txo_sum / 100000000;
+        console.log(`Address ${address} ${chain}链 余额: ${balance}`);
+        return balance;
+    } catch (error) {
+        console.error('Error fetching address balance:', error.message);
+        return null;
+    }
+}
+
+/**
+ * 获取指定地址的 UTXO（未花费交易输出）。
+ * 该函数从指定的 API 获取给定比特币地址的所有 UTXO，并根据可选参数过滤 UTXO。
+ * 
+ * @param {Object} params - 参数对象。
+ * @param {string} params.address - 要查询 UTXO 的比特币地址（必填）。
+ * @param {string} [params.chain='btc'] - 要查询的区块链类型，默认为 'btc'。
+ * @param {number|null} [params.filterMinUTXOSize=0] - 过滤的最小 UTXO 大小，默认为 0，表示不进行过滤。
+ * 
+ * @returns {Promise<Object>} - 返回一个 Promise，解析为一个对象，包含以下属性：
+ *   - {Array} allUTXOs - 所有 UTXO 的数组。
+ *   - {Array} filteredUTXOs - 过滤后的 UTXO 数组（大于 filterMinUTXOSize 的 UTXO）。
+ *   - {Array} unconfirmedUTXOs - 未确认的 UTXO 数组。
+ * 
+ * @throws {Error} - 如果获取 UTXO 失败，则抛出错误。
+ */
+export async function getAddressUTXOs({ address, chain = 'btc', filterMinUTXOSize = 0 }) {
+    try {
+        const { baseURl } = getNetwork(chain);
+        const response = await fetch(`${baseURl}/address/${address}/utxo`);
+        let allUTXOs = await response.json();
+        // console.log(allUTXOs)    
+        let filteredUTXOs = [];
+        let unconfirmedUTXOs = [];
+        for (const utxo of allUTXOs) {
+            // 未确认的utxo
+            // 应该通过utxo.status.confirmed来判断交易是否确认。不知为啥为确认的交易返回的也是true。只好通过block_height来判断，未确认的交易block_height为0
+            if(!utxo.status.block_height){
+                unconfirmedUTXOs.push(utxo)
+            }
+            // 过滤聪，低于filterMinUTXOSize的聪过滤掉，避免误烧和金额不够
+            if(filterMinUTXOSize && utxo.value > filterMinUTXOSize && utxo.status.block_height){
+                filteredUTXOs.push(utxo);
+            }
+        }
+        // 按 utxo.value 从大到小排序
+        allUTXOs.sort((a, b) => b.value - a.value);
+        filteredUTXOs.sort((a, b) => b.value - a.value);
+        unconfirmedUTXOs.sort((a, b) => b.value - a.value);
+
+        // console.log(`地址 ${address} 所有utxos: ${JSON.stringify(allUTXOs)}`);
+        // console.log(`地址 ${address} 过滤${filterMinUTXOSize}以下聪后utxos: ${JSON.stringify(filteredUTXOs)}`);
+        // console.log(`地址 ${address} 未确认utxos: ${JSON.stringify(unconfirmedUTXOs)}`);
+        return { allUTXOs, filteredUTXOs, unconfirmedUTXOs };
+    } catch (error) {
+        console.error('获取utxo出错:', error.message);
+        return { allUTXOs: null, filteredUTXOs: null, unconfirmedUTXOs: null };
+    }
+}
 
 /**
  * 进行比特币转账操作。
@@ -31,12 +109,12 @@ export async function transfer({ enBtcMnemonic, chain = 'btc', filterMinUTXOSize
     const { network } = getNetwork(chain);
     //发送方
     const { keyPair, address: fromAddress, output: outputScript } = await generateKeyPairAndTaprootAddressFromMnemonic(enBtcMnemonic)
-    const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs(fromAddress, { filterMinUTXOSize });
+    const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
     if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
     if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
 
     // 接收方
-    const toData = await getCsvData(csvFile)
+    const toData = await getCsvData(csvFile);
     // 获取需要发送的amount总量
     let outputValue = 0; // 初始化总量
     for (let data of toData) {
@@ -82,7 +160,7 @@ export async function transfer({ enBtcMnemonic, chain = 'btc', filterMinUTXOSize
     // 创建交易输出
     for (let data of toData) {
         psbt.addOutput({
-            address: data.toAddress, // 接收方地址
+            address: data.toBtcAddress, // 接收方地址
             value: parseInt(data.amount * exchangeRate), // 金额
         });
     }
@@ -146,7 +224,7 @@ export async function splitUTXO({ enBtcMnemonic, chain = 'btc', filterMinUTXOSiz
     const { network } = getNetwork(chain);
     //发送方
     const { keyPair, address: fromAddress, output: outputScript } = await generateKeyPairAndTaprootAddressFromMnemonic(enBtcMnemonic)
-    const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs(fromAddress, { filterMinUTXOSize });
+    const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
     if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
     if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
     // console.log(filteredUTXOs)
@@ -230,7 +308,7 @@ export async function speedUp({ enBtcMnemonic, txid, chain = 'btc', filterMinUTX
     // 后面函数需要用到baseURL、network，需要首先获取
     const { network } = getNetwork(chain);
     const { keyPair, address: fromAddress, output: outputScript } = await generateKeyPairAndTaprootAddressFromMnemonic(enBtcMnemonic)
-    const { filteredUTXOs } = await getAddressUTXOs(fromAddress, { filterMinUTXOSize });
+    const { filteredUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
     if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
     // 获取当前交易信息
     const transaction = await getTransaction(txid);
