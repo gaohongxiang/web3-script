@@ -220,7 +220,7 @@ await okxWithdraw({ account:'你的okx交易所账户，跟api文件里要对应
 
 `fromWallet.csv`
 ```
-indexId,fromAddress,enBtcMnemonic
+indexId,fromBtcAddress,enBtcMnemonic
 1,xxx,xxx
 2,xxx,xxx
 ...
@@ -228,7 +228,7 @@ indexId,fromAddress,enBtcMnemonic
 
 `toWallet.csv`
 ```
-indexId,toAddress,amount
+indexId,toBtcAddress,amount
 1,xxx,xxx
 2,xxx,xxx
 ...
@@ -239,11 +239,23 @@ indexId,toAddress,amount
 ```
 import { getCsvData } from './packages/utils-module/utils.js';
 import { transfer, speedUp, splitUTXO } from './packages/utxo-script/index.js';
+import { getAddressBalance, getAddressUTXOs, transfer, speedUp, splitUTXO } from './packages/utxo-script/index.js';
 
 const fromAddresses = await getCsvData('./data/fromWallet.csv');
 // 用第几个地址发送代币
 const fromAddress = fromAddresses[0];
 const enBtcMnemonic = fromAddress.enBtcMnemonic;
+
+// 获取地址余额
+//参数： { address, chain = 'btc' }
+await getAddressBalance({address:fromAddress, chain:'fb'});
+
+// 获取地址utxo
+// 参数：{ address, chain = 'btc', filterMinUTXOSize = 0 }
+const { allUTXOs, filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({address: fromAddress, chain:'fb', filterMinUTXOSize: 10000 });
+// console.log(`地址 ${d['btcAddress']} 所有utxos: ${JSON.stringify(allUTXOs)}`);
+// console.log(`地址 ${d['btcAddress']} 过滤聪后utxos: ${JSON.stringify(filteredUTXOs)}`);
+// console.log(`地址 ${d['btcAddress']} 未确认utxos: ${JSON.stringify(unconfirmedUTXOs)}`);
 
 // 发送交易（引申：如果toWallet文件中有多个相同地址，即是拆分utxo）
 // 参数：{ enBtcMnemonic, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed='high', highGasRate=1.1, csvFile = './data/wallet.csv' } 
@@ -253,7 +265,7 @@ await transfer({ enBtcMnemonic, chain : 'fractal', filterMinUTXOSize : 10000, cs
 // 参数：{ enBtcMnemonic, txid, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed='high', highGasRate=1.1 }
 await speedUp({ enBtcMnemonic, chain : 'fractal', txid : '要加速的txid', filterMinUTXOSize : 1000 });
 
-// 拆分utxo
+// 拆分utxo（引申：如果splitNum小于原来的utxo总数，就是合并utxo）
 // 参数：{ enBtcMnemonic, chain = 'btc', filterMinUTXOSize = 10000, splitNum = 3, GasSpeed='high', highGasRate=1.1 }
 await splitUTXO({ enBtcMnemonic, chain : 'fractal', filterMinUTXOSize : 10000, splitNum : 2 });
 ```
