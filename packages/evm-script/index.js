@@ -101,8 +101,8 @@ export async function getTokenInfo(token, { tokenFile = './data/token.json' } = 
 		const tokenDecimals = tokenInfo.decimals;
 		return { tokenAddr, tokenAbi, tokenDecimals };
 	}catch{
-		console.log(`错误: 代币 "${token}" 在网络 "${network}" 中不存在。`)
-		return
+		console.log(`错误: ${token} 代币信息 在 ${network} 网络中不存在，请先添加。`);
+		return;
 	}
 }
 
@@ -130,7 +130,7 @@ export async function getGas(provider) {
 export async function getBytecode(tokenAddr, provider) {
 	const code = await provider.getCode(tokenAddr).catch(err => { console.log(err); return null; });
 	console.log(`地址${tokenAddr}合约bytecode: ${code}`);
-	return code
+	return code;
 }
 
 /**
@@ -143,7 +143,7 @@ export async function getBytecode(tokenAddr, provider) {
 export async function getWallet(enPrivateKey, provider) {
 	const privateKey = await deCryptText(enPrivateKey);
 	const wallet = new ethers.Wallet(privateKey, provider);
-	return wallet
+	return wallet;
 }
 
 /**
