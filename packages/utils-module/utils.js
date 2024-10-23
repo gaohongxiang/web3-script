@@ -3,6 +3,27 @@ import XLSX from 'xlsx';
 import { parse } from 'csv-parse';  
 
 /**
+ * 获取指定代币的信息，包括地址、ABI 和小数位数。
+ *
+ * @param {string} token - 代币名称。
+ * @param {Object} options - 可选参数对象。
+ * @param {string} [options.tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
+ * @returns {Promise<Object>} - 返回一个包含代币地址、ABI 和小数位数的对象。
+ */
+export function getTokenInfo({ token, chain, tokenFile = './data/token.json' }) {
+	try{
+		token = token.toUpperCase();
+        chain = chain.toLowerCase();
+		const data = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
+		const tokenInfo = data[chain][token];
+		return tokenInfo;
+	}catch(error){
+		console.error(`错误: ${token} 代币信息 在 ${chain} 网络中不存在，请先添加。\n${error}`);
+		return null;
+	}
+}
+
+/**
  * 从指定的 CSV 文件中读取数据并返回解析后的结果。第一行的第一个标点符号作为分隔符
  * @param {string} csvFile - 要读取的 CSV 文件路径（必填）。
  * @returns {Promise<Array<Object>|null>} - 返回一个 Promise，解析为包含每一行数据的对象数组。如果读取失败，则返回 null。
