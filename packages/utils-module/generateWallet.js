@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fsp from 'fs/promises'; // 使用 promises API，并将导入名称更改为 fsp
 import bs58 from 'bs58';
 
 import * as bip39 from 'bip39';
@@ -9,11 +9,11 @@ import * as bitcoin from 'bitcoinjs-lib';
 
 import { ethers } from 'ethers';
 
-import solanaWeb3 from '@solana/web3.js'
+import solanaWeb3 from '@solana/web3.js';
 
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
-import { generateRandomString } from './utils.js';
+import { getCurrentTime, generateRandomString } from './utils.js';
 import { enCryptText } from '../crypt-module/crypt.js';
 
 /**
@@ -21,33 +21,31 @@ import { enCryptText } from '../crypt-module/crypt.js';
  * @param {number} num - 要创建的钱包数量，默认为 10。
  */
 export async function generateEthWallet(num = 10) {
-  // 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0]; // 格式化时间
-  const walletfile = `./data/walletEth-${timestamp}.csv`; // 生成文件名
+  const currentTime = getCurrentTime();
+  const walletfile = `./data/walletEth-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
-  if (!fs.existsSync(walletfile)) {
+  try {
+    await fsp.access(walletfile);
+  } catch {
     // 文件不存在则创建文件并写入标题行
     const header = 'indexId,ethAddress,enEthPrivateKey,enEthMnemonic\n';
-    fs.writeFileSync(walletfile, header);
+    await fsp.writeFile(walletfile, header);
   }
 
-  const file = fs.openSync(walletfile, 'a');
+  const file = await fsp.open(walletfile, 'a');
 
   for (let i = 1; i <= num; i++) {
     const wallet = ethers.Wallet.createRandom();
     const enPrivateKey = await enCryptText(wallet.privateKey);
     const enMnemonic = await enCryptText(wallet.mnemonic.phrase);
-    // const randomPassword = generateRandomString(18);
-    // const enPassword = await enCryptText(randomPassword);
     const rowData = `${i},${wallet.address},${enPrivateKey},${enMnemonic}\n`;
 
-    // 文件存在则追加,不存在则创建
-    fs.appendFileSync(file, rowData);
+    // 文件存在则追加
+    await file.appendFile(rowData);
   }
 
-  fs.closeSync(file);
+  await file.close();
   console.log(`已将 ${num} 个钱包存储到 ${walletfile}`);
 }
 
@@ -62,19 +60,19 @@ export async function generateBtcWallet(num = 10) {
   // Taproot 地址需要的公钥是 32 字节的哈希值（即 x 值），而不是 33 字节的压缩公钥（需要去掉压缩公钥的前缀字节（如0x02））
   const convertToXOnly = (pubKey) => pubKey.length === 32 ? pubKey : pubKey.slice(1, 33);
 
-  // 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0]; // 格式化时间
-  const walletfile = `./data/walletBtc-${timestamp}.csv`; // 生成文件名
+  const currentTime = getCurrentTime();
+  const walletfile = `./data/walletBtc-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
-  if (!fs.existsSync(walletfile)) {
+  try {
+    await fsp.access(walletfile);
+  } catch {
     // 文件不存在则创建文件并写入标题行
     const header = 'indexId,btcAddress,enBtcPrivateKey,enBtcMnemonic\n';
-    fs.writeFileSync(walletfile, header);
+    await fsp.writeFile(walletfile, header);
   }
 
-  const file = fs.openSync(walletfile, 'a');
+  const file = await fsp.open(walletfile, 'a');
 
   for (let i = 1; i <= num; i++) {
     const network = bitcoin.networks.bitcoin; // 指定比特币网络
@@ -93,31 +91,33 @@ export async function generateBtcWallet(num = 10) {
     const enPrivateKey = await enCryptText(privateKey);
     const enMnemonic = await enCryptText(mnemonic);
     const rowData = `${i},${address},${enPrivateKey},${enMnemonic}\n`;
-    // 文件存在则追加,不存在则创建
-    fs.appendFileSync(file, rowData);
+
+    // 文件存在则追加
+    await file.appendFile(rowData);
   }
 
-  fs.closeSync(file);
+  await file.close();
   console.log(`已将 ${num} 个钱包存储到 ${walletfile}`);
 }
+
 /**
- * 创建指定数量的sol钱包，并将其信息加密存储到 CSV 文件中。
+ * 创建指定数量的 Solana 钱包，并将其信息加密存储到 CSV 文件中。
  * @param {number} num - 要创建的钱包数量，默认为 10。
  */
 export async function generateSolWallet(num = 10) {
-  // 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0]; // 格式化时间
-  const walletfile = `./data/walletSol-${timestamp}.csv`; // 生成文件名
+  const currentTime = getCurrentTime();
+  const walletfile = `./data/walletSol-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
-  if (!fs.existsSync(walletfile)) {
+  try {
+    await fsp.access(walletfile);
+  } catch {
     // 文件不存在则创建文件并写入标题行
     const header = 'indexId,solAddress,enSolPrivateKey\n';
-    fs.writeFileSync(walletfile, header);
+    await fsp.writeFile(walletfile, header);
   }
 
-  const file = fs.openSync(walletfile, 'a');
+  const file = await fsp.open(walletfile, 'a');
 
   for (let i = 1; i <= num; i++) {
     const keyPair = solanaWeb3.Keypair.generate();
@@ -127,32 +127,32 @@ export async function generateSolWallet(num = 10) {
     const enPrivateKey = await enCryptText(base58EncodedKey);
 
     const rowData = `${i},${address},${enPrivateKey}\n`;
-    // 文件存在则追加, 不存在则创建
-    fs.appendFileSync(file, rowData);
+    // 文件存在则追加
+    await file.appendFile(rowData);
   }
 
-  fs.closeSync(file);
+  await file.close();
   console.log(`已将 ${num} 个钱包存储到 ${walletfile}`);
 }
 
 /**
- * 创建指定数量的sui钱包，并将其信息加密存储到 CSV 文件中。
+ * 创建指定数量的 Sui 钱包，并将其信息加密存储到 CSV 文件中。
  * @param {number} num - 要创建的钱包数量，默认为 10。
  */
 export async function generateSuiWallet(num = 10) {
-  // 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0]; // 格式化时间
-  const walletfile = `./data/walletSui-${timestamp}.csv`; // 生成文件名
+  const currentTime = getCurrentTime();
+  const walletfile = `./data/walletSui-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
-  if (!fs.existsSync(walletfile)) {
+  try {
+    await fsp.access(walletfile);
+  } catch {
     // 文件不存在则创建文件并写入标题行
     const header = 'indexId,suiAddress,enSuiPrivateKey\n';
-    fs.writeFileSync(walletfile, header);
+    await fsp.writeFile(walletfile, header);
   }
 
-  const file = fs.openSync(walletfile, 'a');
+  const file = await fsp.open(walletfile, 'a');
 
   for (let i = 1; i <= num; i++) {
     const keypair = new Ed25519Keypair();
@@ -160,11 +160,11 @@ export async function generateSuiWallet(num = 10) {
     const enPrivateKey = await enCryptText(keypair.getSecretKey());
     const rowData = `${i},${address},${enPrivateKey}\n`;
 
-    // 文件存在则追加,不存在则创建
-    fs.appendFileSync(file, rowData);
+    // 文件存在则追加
+    await file.appendFile(rowData);
   }
 
-  fs.closeSync(file);
+  await file.close();
   console.log(`已将 ${num} 个钱包存储到 ${walletfile}`);
 }
 
@@ -173,31 +173,31 @@ export async function generateSuiWallet(num = 10) {
  * @param {number} num - 要生成的密码数量，默认为 10。
  */
 export async function generatePassword(num = 10) {
-  // 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0]; // 格式化时间
-  const walletfile = `./data/walletPassword-${timestamp}.csv`; // 生成文件名
+  const currentTime = getCurrentTime();
+  const walletfile = `./data/walletPassword-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
-  if (!fs.existsSync(walletfile)) {
+  try {
+    await fsp.access(walletfile);
+  } catch {
     // 文件不存在则创建文件并写入标题行
     const header = 'indexId,enPassword\n';
-    fs.writeFileSync(walletfile, header);
+    await fsp.writeFile(walletfile, header);
   }
 
-  const file = fs.openSync(walletfile, 'a');
+  const file = await fsp.open(walletfile, 'a');
 
   for (let i = 1; i <= num; i++) {
     const randomPassword = generateRandomString(18);
-    console.log(randomPassword)
+    // console.log(randomPassword);
     const enPassword = await enCryptText(randomPassword);
     const rowData = `${i},${enPassword}\n`;
 
-    // 文件存在则追加,不存在则创建
-    fs.appendFileSync(file, rowData);
+    // 文件存在则追加
+    await file.appendFile(rowData);
   }
 
-  fs.closeSync(file);
+  await file.close();
   console.log(`已将 ${num} 个钱包存储到 ${walletfile}`);
 }
 
@@ -208,7 +208,7 @@ export async function generatePassword(num = 10) {
  */
 export async function addColumnAndPopulate(filePath, newColumnName) {
   try {
-    const data = await fs.promises.readFile(filePath, 'utf8');
+    const data = await fsp.readFile(filePath, 'utf8');
 
     // 解析 CSV 文件内容
     const rows = data.split('\n');
@@ -230,7 +230,7 @@ export async function addColumnAndPopulate(filePath, newColumnName) {
     const updatedContent = [header.join(','), ...rows].join('\n');
 
     // 写回到现有的 CSV 文件
-    await fs.promises.writeFile(filePath, updatedContent, 'utf8');
+    await fsp.writeFile(filePath, updatedContent, 'utf8');
     console.log('成功添加新列');
   } catch (err) {
     console.error('添加新列失败：', err);
