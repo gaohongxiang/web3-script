@@ -1,11 +1,8 @@
+import 'dotenv/config';
 import { ethers } from 'ethers';
-import { config } from 'dotenv';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { deCryptText } from '../crypt-module/crypt.js';
 import { getTokenInfo } from '../utils-module/utils.js';
-
-// 获取环境变量
-const { parsed } = config();
 
 const mainTokens = ['ETH', 'BNB', 'POL', 'AVAX'];
 
@@ -22,7 +19,7 @@ let network, rpc;
  */
 export function getNetworkProvider(chain, proxy = null) {
 	chain = chain.toLowerCase();
-	const infuraKey = parsed.infuraKey;
+	const infuraKey = process.env.infuraKey;
 	if (['eth', 'ethereum', 'erc20'].includes(chain)) {
 		network = 'ethereum';
 		rpc = `https://mainnet.infura.io/v3/${infuraKey}`;

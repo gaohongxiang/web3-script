@@ -36,8 +36,6 @@ export async function createConnection() {
     throw new Error('所有 RPC 提供者都无法连接');
 }
 
-const connection = await createConnection();
-
 /**
  * 获取指定用户的关联代币账户地址（ATA）。
  * 
@@ -80,6 +78,7 @@ export function getAtaAddress(owner, tokenAddr) {
 export async function getBalance({ address, token = 'SOL', tokenFile = './data/token.json' }) {
     try {
         token = token.toUpperCase();
+        const connection = await createConnection();
         let balance;
         if (token === 'SOL') {
             balance = await connection.getBalance(new PublicKey(address));
@@ -122,6 +121,7 @@ export async function getBalance({ address, token = 'SOL', tokenFile = './data/t
 export async function transfer({ enPrivateKey, toData, token, tokenFile = './data/token.json' }) {
     try {
         token = token.toUpperCase();
+        const connection = await createConnection();
 
         let totalAmount = 0;
         for (const [, amount] of toData) {

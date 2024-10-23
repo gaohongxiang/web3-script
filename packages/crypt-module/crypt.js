@@ -1,6 +1,6 @@
 import fs from 'fs';
+import 'dotenv/config';
 import crypto from 'crypto';
-import { config } from 'dotenv';
 import { promisify } from 'util';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
@@ -21,8 +21,7 @@ import { parseToken } from './onepassword.js';
  * 解密时拆开，authTag来验证数据的完整性。
  */
 
-const { parsed } = config();
-const tokenPath = parsed.personalToken;
+const tokenPath = process.env.personalToken;
 
 /** 
  * 使用 AES-256-GCM 对字符串进行加密

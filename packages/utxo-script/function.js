@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import * as bitcoin from 'bitcoinjs-lib';
 /**
  * 加密相关的库
