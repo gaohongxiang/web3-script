@@ -1,7 +1,7 @@
-import fs from 'fs';
 import { SuiKit } from '@scallop-io/sui-kit';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { deCryptText } from '../crypt-module/crypt.js';
+import { getTokenInfo } from '../utils-module/utils.js';
 
 const rpc = [
   'https://fullnode.mainnet.sui.io:443',
@@ -16,28 +16,12 @@ const rpc = [
   'https://sui-mainnet-us-2.cosmostation.io',
 ]
 
-
-function getTokenInfo(token = 'SUI', tokenFile = './data/token.json') {
-  try {
-    token = token.toUpperCase();
-    const data = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
-    const tokenInfo = data['sui'][token];
-    const coinType = tokenInfo.coinType;
-    const coinDecimals = tokenInfo.decimals;
-    return { coinType, coinDecimals };
-  } catch {
-    console.log(`错误: ${token} 代币信息 在 sui 网络中不存在，请先添加。`);
-    return;
-  }
-}
-
 export async function getBalance({ address, token = 'SUI', tokenFile = './data/token.json' }) {
   try {
     token = token.toUpperCase();
-    const tokenInfo = getTokenInfo(token, tokenFile);
+    const tokenInfo = getTokenInfo({ token, chain: 'sui', tokenFile });
     if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-    const { coinType, coinDecimals } = tokenInfo;
-
+    const { coinType, decimals: coinDecimals } = tokenInfo;
     const client = new SuiClient({ url: getFullnodeUrl('mainnet') });
     const response = await client.getBalance({ owner: address, coinType });
     const balance = response.totalBalance / 10 ** coinDecimals;
@@ -47,16 +31,16 @@ export async function getBalance({ address, token = 'SUI', tokenFile = './data/t
   } catch (error) { throw error; }
 }
 
-// suiKit库查询余额用的是私钥，不太方便。该用官方库实现方式
+// // suiKit库查询余额用的是私钥，不太方便。该用官方库实现方式
 // export async function getBalance({ enPrivateKey, token = "SUI", tokenFile = './data/token.json' }) {
 //   try {
 //     token = token.toUpperCase();
 //     const secretKey = await deCryptText(enPrivateKey);
 //     const suiKit = new SuiKit({ secretKey, fullnodeUrls: rpc });
 
-//     const tokenInfo = getTokenInfo(token, tokenFile);
+//     const tokenInfo = getTokenInfo({token, chain:'sui', tokenFile});
 //     if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-//     const { coinType, coinDecimals } = tokenInfo;
+//     const { coinType, decimals: coinDecimals } = tokenInfo;
 //     const address = await suiKit.getAddress(secretKey);
 
 //     const response = await suiKit.getBalance(coinType, secretKey);
@@ -69,9 +53,9 @@ export async function getBalance({ address, token = 'SUI', tokenFile = './data/t
 export async function transfer({ enPrivateKey, toData, token = "SUI", tokenFile = './data/token.json' }) {
   try {
     token = token.toUpperCase();
-    const tokenInfo = getTokenInfo(token, tokenFile);
+    const tokenInfo = getTokenInfo({ token, chain: 'sui', tokenFile });
     if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-    const { coinType, coinDecimals } = tokenInfo;
+    const { coinType, decimals: coinDecimals } = tokenInfo;
 
     // 分解成两个数组
     const addresses = toData.map(item => item[0]); // 提取地址

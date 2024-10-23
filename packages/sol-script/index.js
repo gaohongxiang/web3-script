@@ -87,7 +87,7 @@ export async function getBalance({ address, token = 'SOL', tokenFile = './data/t
         } else {
             const tokenInfo = getTokenInfo({ token, chain: 'solana', tokenFile });
             if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-            const tokenAddr = tokenInfo.address;
+            const { address: tokenAddr } = tokenInfo;
             const ataAddress = getAtaAddress(address, tokenAddr);
             const info = await connection.getTokenAccountBalance(ataAddress);
             balance = info.value.uiAmount;
@@ -161,8 +161,7 @@ export async function transfer({ enPrivateKey, toData, token, tokenFile = './dat
         } else {
             const tokenInfo = getTokenInfo({ token, chain: 'solana', tokenFile });
             if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-            const tokenAddr = tokenInfo.address;
-            const tokenDecimals = tokenInfo.decimals;
+            const { address: tokenAddr, decimals: tokenDecimals } = tokenInfo;
             const fromAtaAddress = getAtaAddress(fromAddress, tokenAddr);
             const info = await connection.getTokenAccountBalance(fromAtaAddress);
             const requiredAmount = BigInt(totalAmount * 10 ** tokenDecimals);

@@ -1,15 +1,15 @@
-import fs from 'fs';
 import { ethers } from 'ethers';
 import { config } from 'dotenv';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { deCryptText } from '../crypt-module/crypt.js';
+import { getTokenInfo } from '../utils-module/utils.js';
 
 // 获取环境变量
 const { parsed } = config();
 
 const mainTokens = ['ETH', 'BNB', 'POL', 'AVAX'];
 
-let network,rpc;
+let network, rpc;
 
 /**
  * 获取指定网络的 JSON-RPC 提供者。
@@ -20,7 +20,7 @@ let network,rpc;
  * 根据配置的网络名称，返回相应的网络和 JSON-RPC 提供者实例。
  * @returns {Object|null} - 返回一个包含网络名称和提供者实例的对象；如果网络不存在，则返回 null。
  */
-export function getNetworkProvider(chain, proxy=null) {
+export function getNetworkProvider(chain, proxy = null) {
 	chain = chain.toLowerCase();
 	const infuraKey = parsed.infuraKey;
 	if (['eth', 'ethereum', 'erc20'].includes(chain)) {
@@ -84,29 +84,6 @@ export function getNetworkProvider(chain, proxy=null) {
 }
 
 /**
- * 获取指定代币的信息，包括地址、ABI 和小数位数。
- *
- * @param {string} token - 代币名称。
- * @param {Object} options - 可选参数对象。
- * @param {string} [options.tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
- * @returns {Promise<Object>} - 返回一个包含代币地址、ABI 和小数位数的对象。
- */
-export async function getTokenInfo(token, { tokenFile = './data/token.json' } = {}) {
-	try{
-		token = token.toUpperCase();
-		const data = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
-		const tokenInfo = data[network][token];
-		const tokenAddr = tokenInfo.address;
-		const tokenAbi = tokenInfo.abi;
-		const tokenDecimals = tokenInfo.decimals;
-		return { tokenAddr, tokenAbi, tokenDecimals };
-	}catch{
-		console.log(`错误: ${token} 代币信息 在 ${network} 网络中不存在，请先添加。`);
-		return;
-	}
-}
-
-/**
  * 获取当前网络的 gas 费用数据，包括 gasPrice、maxFeePerGas 和 maxPriorityFeePerGas。
  * @param {Object} provider - 提供者对象，用于获取费用数据
  * @returns {Promise<Object|null>} - 返回一个包含 gas 费用数据的对象，如果出错则返回 null。
@@ -156,18 +133,18 @@ export async function getWallet(enPrivateKey, provider) {
  * @param {string} [tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @returns {Promise<string|null>} - 返回代币余额（以字符串形式），如果出错则返回 null。
  */
-export async function getBalance({ address, token, chain, proxy=null, tokenFile = './data/token.json' }) {
+export async function getBalance({ address, token, chain, proxy = null, tokenFile = './data/token.json' }) {
 	token = token.toUpperCase();
 	let tokenBalance;
-	const { provider } = getNetworkProvider(chain, proxy);
+	const { network, provider } = getNetworkProvider(chain, proxy);
 	if (mainTokens.includes(token)) {
 		const tokenBalanceWei = await provider.getBalance(address).catch(err => { console.log(err); return null; });
 		tokenBalance = ethers.formatEther(tokenBalanceWei);
 		console.log(`地址 ${address} ${token}余额: ${tokenBalance}`);
 	} else {
-		const tokenInfo = await getTokenInfo(token, {tokenFile});
+		const tokenInfo = getTokenInfo({ token, chain: network, tokenFile });
 		if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-		const { tokenAddr, tokenAbi, tokenDecimals } = tokenInfo;
+		const { address: tokenAddr, abi: tokenAbi, decimals: tokenDecimals } = tokenInfo;
 		const tokenContract = new ethers.Contract(tokenAddr, tokenAbi, provider);
 		const tokenBalanceWei = await tokenContract.balanceOf(address).catch(err => { console.log(err); return null; });
 		tokenBalance = ethers.formatUnits(tokenBalanceWei, tokenDecimals);
@@ -189,17 +166,17 @@ export async function getBalance({ address, token, chain, proxy=null, tokenFile 
  * @param {string} [tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @returns {Promise<void>} - 无返回值，处理转账过程中的错误。
  */
-export async function transfer({ enPrivateKey, toAddress, token, value, chain, proxy=null, tokenFile = './data/token.json' }) {
+export async function transfer({ enPrivateKey, toAddress, token, value, chain, proxy = null, tokenFile = './data/token.json' }) {
 	try {
 		token = token.toUpperCase();
-		const { provider } = getNetworkProvider(chain, proxy);
+		const { network, provider } = getNetworkProvider(chain, proxy);
 		const wallet = await getWallet(enPrivateKey, provider);
 		const fromAddress = await wallet.getAddress();
 		if (mainTokens.includes(token)) {
 			value = ethers.parseEther(value.toString());
 			const beforeBalance = await provider.getBalance(fromAddress);
 			console.log(`地址 ${fromAddress} 发送前 ${token} 余额: ${ethers.formatEther(beforeBalance)}`);
-			if(beforeBalance < value){console.log('地址余额不足, 无法完成转账');return};
+			if (beforeBalance < value) { console.log('地址余额不足, 无法完成转账'); return };
 			// 构造交易请求，参数：to为接收地址，value为ETH数额
 			const tx = {
 				to: toAddress,
@@ -212,14 +189,14 @@ export async function transfer({ enPrivateKey, toAddress, token, value, chain, p
 			console.log(`交易哈希: ${receipt.hash}`); // 打印交易详情
 			console.log(`地址 ${fromAddress} 发送后 ${token} 余额: ${ethers.formatEther(await provider.getBalance(fromAddress))}`);
 		} else {
-			const tokenInfo = await getTokenInfo(token, {tokenFile});
+			const tokenInfo = getTokenInfo({ token, chain: network, tokenFile });
 			if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-			const { tokenAddr, tokenAbi, tokenDecimals } = tokenInfo;
+			const { address: tokenAddr, abi: tokenAbi, decimals: tokenDecimals } = tokenInfo;
 			const tokenContract = new ethers.Contract(tokenAddr, tokenAbi, wallet);
 			value = ethers.parseUnits(value.toString(), tokenDecimals);
 			const beforeBalance = await tokenContract.balanceOf(fromAddress);
 			console.log(`地址 ${fromAddress} 发送前 ${token} 余额: ${ethers.formatUnits(beforeBalance, tokenDecimals)}`);
-			if(beforeBalance < value){console.log('地址余额不足, 无法完成转账');return};
+			if (beforeBalance < value) { console.log('地址余额不足, 无法完成转账'); return };
 			const receipt = await tokenContract.transfer(toAddress, value);
 			console.log('等待交易在区块链确认...');
 			await receipt.wait();
@@ -243,29 +220,29 @@ export async function transfer({ enPrivateKey, toAddress, token, value, chain, p
  * @param {string} [params.tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @param {string} [params.direction='in'] - 监听的方向，可以是 'in'（流入）或 'out'（流出），默认为 'in'。
  */
-export async function listenContract({ listenAddress, listenToken, chain, proxy=null, tokenFile = './data/token.json', direction = 'in' }) {
+export async function listenContract({ listenAddress, listenToken, chain, proxy = null, tokenFile = './data/token.json', direction = 'in' }) {
 	const { network, provider } = getNetworkProvider(chain, proxy);
-	const tokenInfo = await getTokenInfo(listenToken, {tokenFile});
+	const tokenInfo = getTokenInfo({ token: listenToken, chain: network, tokenFile });
 	if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-	const { tokenAddr, tokenAbi, tokenDecimals } = tokenInfo;
+	const { address: tokenAddr, abi: tokenAbi, decimals: tokenDecimals } = tokenInfo;
 	const tokenContract = new ethers.Contract(tokenAddr, tokenAbi, provider);
 	const tokenSymbol = await tokenContract.symbol();
 	await tokenContract.balanceOf(listenAddress).then(balance => (console.log(`地址 ${listenAddress} ${tokenSymbol} 余额: ${balance}`)));
 	// 根据流入或流出的方向设置过滤器
-    let filter;
-    if (direction === 'in') {
-        // 监听流入指定地址的事件
-        filter = tokenContract.filters.Transfer(null, listenAddress);
-        console.log(`---------监听 ${network} 网络 USDT 流入指定地址 ${listenAddress} --------`);
-    } else if (direction === 'out') {
-        // 监听从指定地址流出的事件
-        filter = tokenContract.filters.Transfer(listenAddress, null);
-        console.log(`---------监听 ${network} 网络 USDT 流出指定地址 ${listenAddress} --------`);
-    } else {
-        console.log('无效的方向参数，请使用 "in" 或 "out"');
-        return;
-    }
-	
+	let filter;
+	if (direction === 'in') {
+		// 监听流入指定地址的事件
+		filter = tokenContract.filters.Transfer(null, listenAddress);
+		console.log(`---------监听 ${network} 网络 USDT 流入指定地址 ${listenAddress} --------`);
+	} else if (direction === 'out') {
+		// 监听从指定地址流出的事件
+		filter = tokenContract.filters.Transfer(listenAddress, null);
+		console.log(`---------监听 ${network} 网络 USDT 流出指定地址 ${listenAddress} --------`);
+	} else {
+		console.log('无效的方向参数，请使用 "in" 或 "out"');
+		return;
+	}
+
 	tokenContract.on(filter, (res) => {
 		console.log(`${res.args[0]} -> ${res.args[1]} ${ethers.formatUnits(res.args[2], tokenDecimals)}`);
 	});
