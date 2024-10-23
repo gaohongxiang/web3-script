@@ -8,6 +8,7 @@ const csvFiles = [
     './data/walletBtc.csv',
     './data/walletCosmos.csv',
     './data/walletSol.csv',
+    './data/walletSui.csv',    
     './data/walletArgent.csv',
     './data/walletBraavos.csv',
     
