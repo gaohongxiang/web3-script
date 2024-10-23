@@ -1,4 +1,4 @@
-import { config } from 'dotenv';
+import 'dotenv/config';
 import * as bitcoin from 'bitcoinjs-lib';
 /**
  * 加密相关的库
@@ -13,9 +13,6 @@ import * as ecc from 'tiny-secp256k1';
 import { ECPairFactory } from 'ecpair';
 
 import { deCryptText } from '../crypt-module/crypt.js';
-
-// 获取环境变量
-const { parsed } = config();
 
 //将 tiny-secp256k1 库初始化为比特币库（bitcoinjs-lib）所使用的椭圆曲线加密库。即 bitcoinjs-lib 库将能够利用 tiny-secp256k1 进行加密操作。
 bitcoin.initEccLib(ecc);
@@ -103,34 +100,47 @@ export async function getTransaction(txid){
 export const convertToXOnly = (pubKey) => pubKey.length === 32 ? pubKey : pubKey.slice(1, 33);
 
 /**
- * 从助记词生成密钥对和 Taproot 地址。
- * 该函数解密给定的助记词，生成种子，并通过种子生成密钥对和 Taproot 地址。
- * @param {string} enBtcMnemonic - 加密的比特币助记词（必填）。
+ * 从加密的助记词或 WIF 私钥生成密钥对和 Taproot 地址。
+ * 
+ * 该函数解密给定的助记词或私钥，生成种子，并通过种子生成密钥对和 Taproot 地址。
+ * 
+ * @param {string} enMnemonicOrWif - 加密的比特币助记词或 WIF 私钥，私钥仅支持WIF格式。
  * @returns {Promise<Object>} - 返回一个 Promise，解析为包含以下属性的对象：
  *   - {Object} keyPair - 生成的密钥对对象。
  *   - {string} address - 生成的 Taproot 地址（p2tr 格式）。
  *   - {Buffer} output - 锁定脚本的输出。
  * @throws {Error} - 如果助记词解密或生成过程中发生错误，则抛出错误。
  */
-export async function generateKeyPairAndTaprootAddressFromMnemonic(enBtcMnemonic) {
-    // 解密助记词
-    const btcMnemonic = await deCryptText(enBtcMnemonic);
-    // 通过助记词生成种子
-    const seed = await bip39.mnemonicToSeed(btcMnemonic);
-    // 通过种子生成根秘钥
-    const root = bip32.BIP32Factory(ecc).fromSeed(seed);
-    // 通过路径生成密钥对
-    const child = root.derivePath("m/86'/0'/0'/0/0"); 
-    // 将 child.privateKey 从 Uint8Array格式 转换为 Buffer
-    const privateKeyBuffer = Buffer.from(child.privateKey);
-    // 通过私钥创建一个 keyPair 密钥对
-    const keyPair = ECPairFactory(ecc).fromPrivateKey(privateKeyBuffer, {network});
-    // 发送方地址 p2trtaproot格式，bc1p
-    const { address, output } = bitcoin.payments.p2tr({internalPubkey: convertToXOnly(keyPair.publicKey), network});
-    // console.log('密钥对', keyPair)
-    // console.log('taprootAddress:', address)
-    // console.log('锁定脚本', output)
-    return { keyPair, address, output };
+export async function getKeyPairAndTaprootInfo(enMnemonicOrWif) {
+    try{
+        // 解密输入的助记词或私钥
+        const decryptedKey = await deCryptText(enMnemonicOrWif);
+        let keyPair;
+        // 判断输入是助记词还是私钥
+        if(bip39.validateMnemonic(decryptedKey)){
+            // 通过助记词生成种子
+            const seed = await bip39.mnemonicToSeed(decryptedKey);
+            // 通过种子生成根秘钥
+            const root = bip32.BIP32Factory(ecc).fromSeed(seed, network);
+            // 通过路径生成密钥对
+            const child = root.derivePath("m/86'/0'/0'/0/0"); 
+            // 将 child.privateKey 从 Uint8Array格式 转换为 Buffer
+            const privateKeyBuffer = Buffer.from(child.privateKey);
+            // 通过私钥创建一个 keyPair 密钥对
+            keyPair = ECPairFactory(ecc).fromPrivateKey(privateKeyBuffer, {network});
+        }else{
+            keyPair = ECPairFactory(ecc).fromWIF(decryptedKey, network);
+        }
+        // 发送方地址 p2trtaproot格式，bc1p
+        const { address, output } = bitcoin.payments.p2tr({internalPubkey: convertToXOnly(keyPair.publicKey), network});
+        // console.log('密钥对', keyPair)
+        // console.log('taprootAddress:', address)
+        // console.log('锁定脚本', output)
+        return { keyPair, address, output };
+    } catch (error) {
+        // 处理错误并抛出自定义错误信息
+        throw new Error(`生成密钥对和 Taproot 地址时发生错误: ${error.message}`);
+    }
 }
 
 /**
