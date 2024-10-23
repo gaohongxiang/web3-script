@@ -148,6 +148,20 @@ export async function getExcelData(excelFile, { sheetIndex = 0, fieldMappings = 
 }
 
 /**
+ * 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS 格式的字符串。
+ * 
+ * 该函数返回一个字符串，表示当前的时间，适用于文件命名或日志记录等场景。
+ * 
+ * @returns {string} - 返回格式化后的当前时间字符串。
+ */
+export function getCurrentTime() {
+    // 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS
+    const now = new Date();
+    const currentTime = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0]; // 格式化时间
+    return currentTime;
+}
+
+/**
  * 创建一个延迟的 Promise，暂停执行指定的时间。
  * @param {number} seconds - 要暂停的时间（以秒为单位，必填）。
  * @returns {Promise<void>} - 返回一个 Promise，表示延迟操作的完成。
