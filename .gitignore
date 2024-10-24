@@ -1,6 +1,7 @@
 data/*
 !data/token.json
 example.js
+filesConfig.json
 
 .DS_Store
 
