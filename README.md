@@ -35,6 +35,11 @@ npm install
 
 数据文件全部放在`data`目录下。根据用到的模块添加相应的文件。助记词、私钥、api数据等敏感字段必须加密存储（加密方法查看`crypt-module`模块）。主要用到三种格式文件：`.csv`、`.json`、`.xlsx`
 
+##### 代币信息文件 `token-example.json`
+
+此文件是一些常用的token信息，实际使用中需要同目录下创建`token.json`文件。可以自行添加token。
+
+
 ##### 钱包文件
 
 此类文件存放链上地址，采用`.csv`格式，如`walletBtc.csv`、`walletEth.csv`等。基本字段如下所示，根据实际情况增删。
@@ -111,20 +116,17 @@ xxxxxx:xxxxxx:xxxxxx:xxxxxx
 ......
 ```
 
-##### 代币信息文件 `token.json`
-
-此文件是一些常用的token信息，详见`data/token.json`。可以自行添加token。
-
-
 ## 各模块使用示例
 
 根目录新建一个js文件，示例都在此文件里进行。
 
-使用示例详见各模块文档。
+基础使用示例详见各模块文档。
 
 ### 一对一转账示例
 
-交易所 -> 链上地址 -> 进行链上活动 -> 交易所
+此场景主要为防女巫。通过交易所中转，地址一对一转账，避免关联。同时也可以配合使用不同ip，进一步避免关联。
+
+>交易所 -> 链上地址 -> 进行链上活动 -> 交易所
 
 ```
 import { withdraw as binanceWithdraw } from "./packages/exchange-script/binance.js";
@@ -156,3 +158,66 @@ async function mainEvm({startNum, endNum}){
 
 mainEvm({startNum:1, endNum:2})
 ```
+
+### 一对多转账示例
+
+>交易所 -> 链上地址 -> 批量发送到多个地址 -> 链上活动 -> 链上地址或交易所地址
+
+```
+import { withdraw as okxWithdraw } from "./packages/exchange-script/okx.js";
+import { getBalance as solanaGetBalance, transfer as solanaTransfer } from './packages/sol-script/index.js';
+import { getCsvDataByColumnName } from './packages/utils-module/utils.js';
+
+
+const fromAddress = xxxxxx
+const enfromPrivateKey = xxxxxx
+
+// okx转账
+// 参数：{ account, chain, toAddress, coin, amount, apiFile='./data/okx.json' }
+// await okxWithdraw({ account: 'gaohongxiang69@gmail.com', chain: 'solana', toAddress: fromAddress, coin: 'sol', amount: 0.1 })
+
+
+// 组装toData数据
+
+// 方法1: 直接组装数据
+const toData = [
+    ['DkdFPsdnoGfPN5ACRf2pxCHcQdfgFdYg87DnXVpb9xG6', 0.01],
+    ['HyQxTMcUC7oudaSedzNUUBXt4jJPRyLgNkSYa65Je6Bb', 0.01],
+]
+
+// 方法2: 从文件中获取数据
+async function getToData(num = 10){
+    // 参数 {csvFile, columnName, saveToFile = false, tempFile='./data/temp.csv'}
+    let toAddresses = await getCsvDataByColumnName({csvFile:'./data/walletSol.csv', columnName:'solAddress'});
+    console.log(toAddresses)
+    toAddresses = toAddresses.slice(0, num);
+    const amounts = toAddresses.map(() => 0.01); // 这里可以根据需要修改金额
+    // const amounts = toAddresses.map(() => (Math.random() * (1.00 - 0.01) + 0.01).toFixed(2)); // 保留两位小数
+    // 使用 map 方法组合成所需的格式
+    const toData = toAddresses.map((address, index) => [address, amounts[index]]);
+    return toData;
+}
+// const toData = await getToData(2);
+// console.log(toData);
+
+// 一对多分发代币
+// 参数：{ enPrivateKey, toData, token, tokenFile='./data/token.json' }
+// solanaTransfer({ enPrivateKey: enfromPrivateKey, toData, token:'sol', tokenFile:'./data/token.json' });
+
+
+// 获取地址余额
+// 参数：{ address, token='SOL', tokenFile = './data/token.json' }
+// const balance = await solanaGetBalance({ address: d['solAddress'], token: 'sol', tokenFile : './data/token.json' })
+
+
+// 归集代币
+const collectData = [fromAddress, 0.01];
+const data = await myFormatData(startNum, endNum);
+for(const d of data) {
+    console.log(`第${d['indexId']}个账号`)
+    // 发送代币
+    // 参数：{ enPrivateKey, toData, token, tokenFile='./data/token.json' }
+    solanaTransfer({ enPrivateKey: d['enSolPrivateKey'], toDat: collectData, token:'sol', tokenFile:'./data/token.json' });
+}
+```
+
