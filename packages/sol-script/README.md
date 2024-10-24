@@ -1,7 +1,8 @@
+# sol脚本
 
 ## 注意事项
-- 配置`.env`文件，添加需要的rpc节点
-- 加密私钥查看`crypt-module`模块
+- 本脚本使用heliusKey、quickNodeKey的rpc服务，需要自己申请，将apiKey配置到.env文件
+- 创建钱包文件，并加密私钥、助记词数据
 - spl代币信息存储在`./data/token.json`文件,需要的token信息可自行添加
 
 ## 示例
@@ -21,7 +22,7 @@ const toData = [
 
 // 发送代币
 // 参数：{ enPrivateKey, toData, token, tokenFile='./data/token.json' }
-solanaTransfer({ enPrivateKey: 'xxxxxxxxxx', toData, token:'sol', tokenFile:'./data/token.json' })
+solanaTransfer({ enPrivateKey: '加密的私钥', toData, token:'sol', tokenFile:'./data/token.json' })
 ```
 
 ## 参考
