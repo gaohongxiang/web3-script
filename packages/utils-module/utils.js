@@ -1,6 +1,6 @@
 import fs from 'fs';
 import XLSX from 'xlsx';
-import { parse } from 'csv-parse';  
+import { parse } from 'csv-parse';
 
 /**
  * 获取指定代币的信息，包括地址、ABI 和小数位数。
@@ -11,16 +11,16 @@ import { parse } from 'csv-parse';
  * @returns {Promise<Object>} - 返回一个包含代币地址、ABI 和小数位数的对象。
  */
 export function getTokenInfo({ token, chain, tokenFile = './data/token.json' }) {
-	try{
-		token = token.toUpperCase();
+    try {
+        token = token.toUpperCase();
         chain = chain.toLowerCase();
-		const data = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
-		const tokenInfo = data[chain][token];
-		return tokenInfo;
-	}catch(error){
-		console.error(`错误: ${token} 代币信息 在 ${chain} 网络中不存在，请先添加。\n${error}`);
-		return null;
-	}
+        const data = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
+        const tokenInfo = data[chain][token];
+        return tokenInfo;
+    } catch (error) {
+        console.error(`错误: ${token} 代币信息 在 ${chain} 网络中不存在，请先添加。\n${error}`);
+        return null;
+    }
 }
 
 /**
@@ -28,13 +28,13 @@ export function getTokenInfo({ token, chain, tokenFile = './data/token.json' }) 
  * @param {string} csvFile - 要读取的 CSV 文件路径（必填）。
  * @returns {Promise<Array<Object>|null>} - 返回一个 Promise，解析为包含每一行数据的对象数组。如果读取失败，则返回 null。
  */
-export async function getCsvData( csvFile ) {
-    try{
-        
+export async function getCsvData(csvFile) {
+    try {
+
         const fileStream = fs.createReadStream(csvFile);
 
-         // 读取第一行以确定分隔符
-         const firstLine = await new Promise((resolve, reject) => {
+        // 读取第一行以确定分隔符
+        const firstLine = await new Promise((resolve, reject) => {
             let line = '';
             fileStream.on('data', chunk => {
                 line += chunk;
@@ -52,7 +52,7 @@ export async function getCsvData( csvFile ) {
 
         const results = [];
         const parser = fs.createReadStream(csvFile).pipe(parse({
-            columns:true, // 第一行为列名
+            columns: true, // 第一行为列名
             delimiter: sep, // 分隔符为sep，默认逗号
             skip_empty_lines: true, // 跳过空行
             escape: false, // 用于转义的单个字符。它仅适用于与 匹配的字符
@@ -77,18 +77,19 @@ export async function getCsvData( csvFile ) {
 }
 
 /**
- * 从指定的 CSV 文件中读取数据，并将指定列的数据转存到临时文件。
- * @param {string} csvFile - 要读取的 CSV 文件路径（必填）。
- * @param {string} columnName - 要提取的列名（必填）。
- * @param {string} [tempFile='./data/temp.csv'] - 临时文件的路径，用于存储提取的数据，默认为 './data/temp.csv'。
- * @returns {Promise<void>} - 返回一个 Promise，表示操作的完成。
+ * 从指定的 CSV 文件中读取数据，提取指定列的内容，并可选择将数据保存到临时文件。
+ * @param {Object} options - 函数的配置选项。
+ * @param {string} options.csvFile - 要读取的 CSV 文件路径。
+ * @param {string} options.columnName - 要提取的列名。
+ * @param {boolean} [options.saveToFile=false] - 是否将提取的数据保存到临时文件，默认为 false。
+ * @param {string} [options.tempFile='./data/temp.csv'] - 临时文件的路径，用于存储提取的数据（如果 saveToFile 为 true）。
  */
-export async function getCsvDataByColumnName(csvFile, columnName, tempFile='./data/temp.csv' ) {
-    try{
+export async function getCsvDataByColumnName({ csvFile, columnName, saveToFile = false, tempFile = './data/temp.csv' }) {
+    try {
         const fileStream = fs.createReadStream(csvFile);
 
-         // 读取第一行以确定分隔符
-         const firstLine = await new Promise((resolve, reject) => {
+        // 读取第一行以确定分隔符
+        const firstLine = await new Promise((resolve, reject) => {
             let line = '';
             fileStream.on('data', chunk => {
                 line += chunk;
@@ -104,7 +105,7 @@ export async function getCsvDataByColumnName(csvFile, columnName, tempFile='./da
         // 获取第一行的第一个标点符号作为分隔符
         const sep = firstLine.match(/[:|,]/) ? firstLine.match(/[:|,]/)[0] : ','; // 默认分隔符为逗号
 
-         // 检查第一行是否包含 columnName
+        // 检查第一行是否包含 columnName
         const columnNames = firstLine.split(sep); // 根据分隔符分割列名
         if (!columnNames.includes(columnName)) {
             console.error(`列名 "${columnName}" 不存在于文件中.`);
@@ -118,11 +119,17 @@ export async function getCsvDataByColumnName(csvFile, columnName, tempFile='./da
             escape: false, // 用于转义的单个字符。它仅适用于与 匹配的字符
             quote: false, // 用于包围字段的字符，该字段周围是否存在引号是可选的，并且会自动检测。false禁用引号检测（abi很多引号，不需要检测）
         }));
-
+        const allData = [];
         for await (const row of parser) {
             let data = row[columnName];
-            await fs.promises.appendFile(tempFile, `${data}\n`);
+            allData.push(data);
         }
+        // 仅在 saveToFile 为 true 时存储所有数据
+        if (saveToFile) {
+            // 将 allData 数组的内容写入 tempFile
+            await fs.promises.writeFile(tempFile, allData.join('\n') + '\n');
+        }
+        return allData;
     } catch (error) {
         console.error(error)
     }
@@ -143,7 +150,7 @@ export async function getExcelData(excelFile, { sheetIndex = 0, fieldMappings = 
     indexId: '序号', // 将 '序号' 映射为 'index_id'
     browserId: 'ID', // 将 'ID' 映射为 'browser_id'
     userAgent: 'User Agent', // 将 'User Agent' 映射为 'user_agent'
-}} = {} ) {
+} } = {}) {
     try {
         const workbook = XLSX.readFile(excelFile); // 读取 Excel 文件
         const sheetName = workbook.SheetNames[sheetIndex]; // 获取第 sheetIndex 个工作表的名称
@@ -219,40 +226,40 @@ export function generateRandomString(length) {
     const specialSymbols = '.!@#$%^&*()-_=+';
     const allCharacters = uppercaseLetters + lowercaseLetters + numbers + specialSymbols;
     let result = '';
-  
+
     // 随机选择至少 3 个大写字母
     for (let i = 0; i < 3; i++) {
-      result += uppercaseLetters.charAt(Math.floor(Math.random() * uppercaseLetters.length));
+        result += uppercaseLetters.charAt(Math.floor(Math.random() * uppercaseLetters.length));
     }
-    
+
     // 随机选择至少 3 个小写字母
     for (let i = 0; i < 3; i++) {
-      result += lowercaseLetters.charAt(Math.floor(Math.random() * lowercaseLetters.length));
+        result += lowercaseLetters.charAt(Math.floor(Math.random() * lowercaseLetters.length));
     }
-  
+
     // 随机选择至少 3 个数字
     for (let i = 0; i < 3; i++) {
-      result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        result += numbers.charAt(Math.floor(Math.random() * numbers.length));
     }
-  
+
     // 随机选择至少 3 个特殊符号
     for (let i = 0; i < 3; i++) {
-      result += specialSymbols.charAt(Math.floor(Math.random() * specialSymbols.length));
+        result += specialSymbols.charAt(Math.floor(Math.random() * specialSymbols.length));
     }
-  
+
     // 随机选择剩余字符，直到达到指定长度
     for (let i = result.length; i < length; i++) {
-      const randomIndex = Math.floor(Math.random() * allCharacters.length);
-      result += allCharacters.charAt(randomIndex);
+        const randomIndex = Math.floor(Math.random() * allCharacters.length);
+        result += allCharacters.charAt(randomIndex);
     }
-  
+
     // 将生成的字符随机排序
     const array = result.split('');
     for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
     result = array.join('');
     // console.log(result);
     return result;
-  }
+}
