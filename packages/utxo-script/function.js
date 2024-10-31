@@ -79,66 +79,210 @@ export async function getGas({ GasSpeed='high', highGasRate=1.1 }) {
 }
 
 /**
- * 获取指定交易的详细信息。
- * 该函数从指定的 API 获取给定交易 ID 的交易信息，并返回交易对象。
- * @param {string} txid - 要查询的交易 ID（必填）。
- * @returns {Promise<Object>} - 返回一个 Promise，解析为交易对象。
- * @throws {Error} - 如果交易未找到或无效，则抛出错误。
+ * 估算手续费(未验证)
  */
-export async function getTransaction(txid){
-    const response = await fetch(`${baseURl}/v1/tx/${txid}`);
-    const transaction = await response.json();
-    // console.log(transaction)
-    if (!transaction || !transaction.vout) {
-        throw new Error('交易未找到或无效');
+export function estimateTransactionFee(psbt, feeRate) {
+    const virtualSize = psbt.extractTransaction().virtualSize();
+    return Math.ceil(virtualSize * feeRate);
+}
+
+/**
+ * 动态估算交易大小
+ * @param {number} inputCount - 输入 UTXO 的数量
+ * @param {number} outputCount - 输出 UTXO 的数量
+ * @param {string} [scriptType='P2TR'] - 脚本类型，默认为 'P2TR'
+ * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'
+ * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1
+ * @returns {Promise<number>} - 估算的交易费用
+ * 
+ * 交易大小预估网站：https://bitcoinops.org/en/tools/calc-size/
+ */
+export function estimateTransactionSize({ inputCount, outputCount, scriptType = 'P2TR' }) {
+    let baseSize; // 基础大小
+    let inputSize; // 每个输入的平均大小
+    let outputSize; // 每个输出的平均大小
+    const lockTimeSize = 4; // 锁定时间大小
+
+    // 根据类型设置基础大小和输入/输出大小
+    switch (scriptType.toUpperCase()) {
+        case 'P2TR': // 地址以 bc1p 开头
+            baseSize = 10.5; 
+            inputSize = 57.5;
+            outputSize = 43;
+            break;
+        case 'P2WPKH': // 地址以 bc1q 开头
+            baseSize = 10.5;
+            inputSize = 68;
+            outputSize = 31;
+            break;
+        case 'P2PKH': // 地址以 1 开头
+            baseSize = 10;
+            inputSize = 148;
+            outputSize = 34;
+            break;
+        default:
+            throw new Error(`不支持的脚本类型: ${type}`); // 处理不支持的类型
     }
-    return transaction;
+
+    // 估算交易大小
+    const estimateSize = baseSize + (inputCount * inputSize) + (outputCount * outputSize);
+    
+    return estimateSize;
 }
 
 // Taproot 地址需要的公钥是 32 字节的哈希值（即 x 值），而不是 33 字节的压缩公钥（需要去掉压缩公钥的前缀字节（如0x02））
 export const convertToXOnly = (pubKey) => pubKey.length === 32 ? pubKey : pubKey.slice(1, 33);
 
 /**
- * 从加密的助记词或 WIF 私钥生成密钥对和 Taproot 地址。
+ * 生成密钥对和指定类型的比特币地址。
  * 
- * 该函数解密给定的助记词或私钥，生成种子，并通过种子生成密钥对和 Taproot 地址。
+ * 该函数根据输入的助记词或 WIF 私钥生成一个密钥对，并根据指定的脚本类型（P2TR、P2WPKH 或 P2PKH）生成相应的比特币地址和锁定脚本。
  * 
- * @param {string} enMnemonicOrWif - 加密的比特币助记词或 WIF 私钥，私钥仅支持WIF格式。
- * @returns {Promise<Object>} - 返回一个 Promise，解析为包含以下属性的对象：
- *   - {Object} keyPair - 生成的密钥对对象。
- *   - {string} address - 生成的 Taproot 地址（p2tr 格式）。
- *   - {Buffer} output - 锁定脚本的输出。
- * @throws {Error} - 如果助记词解密或生成过程中发生错误，则抛出错误。
+ * @param {string} enMnemonicOrWif - 加密后的助记词或 WIF 私钥。
+ * @param {string} [scriptType='P2TR'] - 脚本类型（P2TR、P2WPKH、P2PKH）。
+ * 
+ * @returns {Promise<Object>} - 返回一个 Promise，解析为一个对象，包含以下属性：
+ *   - {Object} keyPair - 生成的密钥对。
+ *   - {string} address - 生成的比特币地址。bc1p(P2TR) | bc1q(P2WPKH) | 1(P2PKH)
+ *   - {Buffer} output - 生成的锁定脚本。
+ * 
+ * @throws {Error} - 如果生成密钥对或地址时发生错误，则抛出错误。
  */
-export async function getKeyPairAndTaprootInfo(enMnemonicOrWif) {
+export async function getKeyPairAndAddressInfo(enMnemonicOrWif, scriptType = 'P2TR') {
     try{
         // 解密输入的助记词或私钥
         const decryptedKey = await deCryptText(enMnemonicOrWif);
-        let keyPair;
+        let keyPair, address, output;
         // 判断输入是助记词还是私钥
         if(bip39.validateMnemonic(decryptedKey)){
             // 通过助记词生成种子
             const seed = await bip39.mnemonicToSeed(decryptedKey);
             // 通过种子生成根秘钥
             const root = bip32.BIP32Factory(ecc).fromSeed(seed, network);
+            let child;
             // 通过路径生成密钥对
-            const child = root.derivePath("m/86'/0'/0'/0/0"); 
-            // 将 child.privateKey 从 Uint8Array格式 转换为 Buffer
+            // 根据地址类型选择派生路径
+            switch (scriptType.toUpperCase()) {
+                case 'P2TR':
+                    child = root.derivePath("m/86'/0'/0'/0/0"); // bc1p
+                    break;
+                case 'P2WPKH':
+                    child = root.derivePath("m/84'/0'/0'/0/0"); // bc1q
+                    break;
+                case 'P2PKH':
+                    child = root.derivePath("m/44'/0'/0'/0/0"); // 1
+                    break;
+                default:
+                    throw new Error(`不支持的脚本类型: ${scriptType}`);
+            }
             const privateKeyBuffer = Buffer.from(child.privateKey);
             // 通过私钥创建一个 keyPair 密钥对
             keyPair = ECPairFactory(ecc).fromPrivateKey(privateKeyBuffer, {network});
         }else{
+            console.log('确保传入的是scriptType类型的wif, 否则会导致超预期的密钥对!');
             keyPair = ECPairFactory(ecc).fromWIF(decryptedKey, network);
         }
-        // 发送方地址 p2trtaproot格式，bc1p
-        const { address, output } = bitcoin.payments.p2tr({internalPubkey: convertToXOnly(keyPair.publicKey), network});
+        // 生成地址和输出
+        switch (scriptType.toUpperCase()) {
+            case 'P2TR':
+                ({ address, output } = bitcoin.payments.p2tr({internalPubkey: convertToXOnly(keyPair.publicKey),network}));
+                break;
+            case 'P2WPKH':
+                ({ address, output } = bitcoin.payments.p2wpkh({pubkey: keyPair.publicKey,network}));
+                break;
+            case 'P2PKH':
+                ({ address, output } = bitcoin.payments.p2pkh({pubkey: keyPair.publicKey,network}));
+                break;
+            default:
+                throw new Error(`不支持的脚本类型: ${scriptType}`);
+        }
         // console.log('密钥对', keyPair)
         // console.log('taprootAddress:', address)
         // console.log('锁定脚本', output)
         return { keyPair, address, output };
     } catch (error) {
         // 处理错误并抛出自定义错误信息
-        throw new Error(`生成密钥对和 Taproot 地址时发生错误: ${error.message}`);
+        throw new Error(`生成密钥对和地址时发生错误: ${error.message}`);
+    }
+}
+
+/**
+ * 将可用的 UTXO 添加到 PSBT（部分签名交易）中。
+ * 
+ * 该函数遍历提供的 UTXO 列表，并根据目标转账金额和估算的手续费添加输入。
+ * 如果未提供目标金额，则将所有可用的 UTXO 添加到 PSBT 中。
+ * 
+ * @param {Object} psbt - PSBT 实例，用于构建和管理部分签名交易。
+ * @param {Array} UTXOs - 可用的 UTXO 列表，每个 UTXO 应包含 txid、vout 和金额等信息。
+ * @param {number} [value] - 目标转账金额加上估算的手续费。如果未提供，则将所有 UTXO 添加到 PSBT。
+ * @param {Buffer} outputScript - 输出脚本，定义了接收方的地址和转账条件。
+ * @param {Object} keyPair - 发送方的密钥对，用于签名交易。
+ * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）。
+ * 
+ * @returns {number} - 返回添加到 PSBT 的输入的总金额（以聪为单位）。
+ * 
+ * @throws {Error} - 如果可用 UTXO 不足以满足目标金额，则抛出错误。
+ */
+export function addInputsToPsbt({ psbt, UTXOs, value, outputScript, keyPair, scriptType = 'p2tr' }) {
+    let inputValue = 0;
+
+    for (const utxo of UTXOs) {
+        // 如果传递了 value，检查是否已达到所需的输入值
+        if (value !== undefined && inputValue >= value) {
+            break; // 如果 inputValue 大于等于 value，退出循环
+        }
+
+        const input = {
+            index: utxo.vout, // UTXO 的输出索引
+            hash: utxo.txid, // UTXO 的交易哈希
+            witnessUtxo: {
+                script: outputScript, // UTXO 的输出脚本
+                value: utxo.value,
+            },
+        };
+
+        // 根据脚本类型添加特定的输入信息
+        if (scriptType.toUpperCase() === 'P2TR') {
+            input.tapInternalKey = convertToXOnly(keyPair.publicKey); // 添加 Taproot 内部密钥
+        }
+
+        psbt.addInput(input);
+        inputValue += utxo.value;
+    }
+
+    // 检查可用 UTXO 是否足够
+    if (value !== undefined && inputValue < value) {
+        console.log('可用 UTXO 不足');
+        return; // 这里可以考虑抛出错误或返回特定值
+    }
+
+    return inputValue;
+}
+
+/**
+ * 签名所有输入
+ * @param {Object} psbt - PSBT 实例
+ * @param {Object} keyPair - 发送方的密钥对
+ * @param {string} scriptType - 脚本类型（P2PKH、P2WPKH、P2TR）
+ * @returns {void}
+ */
+export function signInputs(psbt, keyPair, scriptType) {
+    // 根据脚本类型生成相应的签名
+    if (scriptType.toUpperCase() === 'P2TR') {
+        // 生成一个经过调整的子密钥（tweaked child key），用于 Taproot 交易的签名。
+        const tweakedChildNode = keyPair.tweak(
+            bitcoin.crypto.taggedHash('TapTweak', convertToXOnly(keyPair.publicKey))
+        );
+
+        // 签名所有输入
+        psbt.data.inputs.forEach((input, index) => {
+            psbt.signInput(index, tweakedChildNode);
+        });
+    } else {
+        // 对于 P2PKH 和 P2WPKH，使用原始私钥进行签名
+        psbt.data.inputs.forEach((input, index) => {
+            psbt.signInput(index, keyPair);
+        });
     }
 }
 
@@ -163,6 +307,23 @@ export async function broadcastTx(psbtHex) {
         console.error('发送交易时出错:', error);
         throw error; // 抛出错误以便调用者处理
     }
+}
+
+/**
+ * 获取指定交易的详细信息。
+ * 该函数从指定的 API 获取给定交易 ID 的交易信息，并返回交易对象。
+ * @param {string} txid - 要查询的交易 ID（必填）。
+ * @returns {Promise<Object>} - 返回一个 Promise，解析为交易对象。
+ * @throws {Error} - 如果交易未找到或无效，则抛出错误。
+ */
+export async function getTransaction(txid){
+    const response = await fetch(`${baseURl}/v1/tx/${txid}`);
+    const transaction = await response.json();
+    // console.log(transaction)
+    if (!transaction || !transaction.vout) {
+        throw new Error('交易未找到或无效');
+    }
+    return transaction;
 }
 
 /**

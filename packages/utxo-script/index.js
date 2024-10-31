@@ -3,11 +3,15 @@ import * as bitcoin from 'bitcoinjs-lib';
 import {
     getGas,
     getNetwork,
-    getTransaction,
+    signInputs,
     broadcastTx,
     convertToXOnly,
+    getTransaction,
+    addInputsToPsbt,
+    estimateTransactionSize,
+    getKeyPairAndAddressInfo,
     findAdjustedDividendWithRemainder,
-    getKeyPairAndTaprootInfo,
+
 } from './function.js';
 
 const exchangeRate = 1e8; // 1 BTC = 100,000,000 satoshis
@@ -98,84 +102,57 @@ export async function getAddressUTXOs({ address, chain = 'btc', filterMinUTXOSiz
  * @param {Array} toData - 目标地址和对应转账金额的数组，格式为 [['地址1', 金额1], ['地址2', 金额2], ...]。
  * @param {string} [chain='btc'] - 使用的区块链类型，默认为 'btc'。
  * @param {number} [filterMinUTXOSize=10000] - 过滤的最小 UTXO 大小，默认为 10000聪，防止烧资产。
+ * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）。
  * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'。
  * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1。只有GasSpeed='high'时才生效。
  * 
  * @returns {Promise<void>} - 返回一个 Promise，表示转账操作的完成。
  */
-export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed = 'high', highGasRate = 1.1 }) {
+export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', filterMinUTXOSize = 10000, scriptType = 'P2TR', GasSpeed = 'high', highGasRate = 1.1 }) {
     // 后面函数需要用到baseURL、network，需要首先获取
     const { network } = getNetwork(chain);
     //发送方
-    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndTaprootInfo(enBtcMnemonicOrWif)
+    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, scriptType)
     const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
     if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
     if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
 
     // 获取需要发送的amount总量
-    let outputValue = 0;
-    for (const [, amount] of toData) {
-        // 累加每个 data 的 data.amount如果是字符串，乘以exchangeRate会隐式转换为number
-        outputValue += parseInt(amount * exchangeRate); // 计算总转账金额
-    }
+    const outputValue = toData.reduce((acc, [, amount]) => acc + (amount * exchangeRate), 0);
 
     const gas = await getGas({ GasSpeed, highGasRate });
-
-    // 交易大小预估网站：https://bitcoinops.org/en/tools/calc-size/
     //这里交易大小是根据所有可用的utxo作为输入预估的，肯定比实际的大
     // 输出数量 + 1 是为了防止有找零，导致size变大，总fee不变，速率降低，可能无法及时过块
-    const estimateSize = 10.5 + filteredUTXOs.length * 57.5 + (toData.length + 1) * 43;
-    const estimateFee = Math.ceil(gas * estimateSize) // 向上取整，避免出现小数
+    const estimateSize = estimateTransactionSize({ inputCount: filteredUTXOs.length, outputCount: (toData.length + 1), scriptType });
+    const estimateFee = Math.ceil(gas * estimateSize);
 
     // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
     const psbt = new bitcoin.Psbt({ network });
 
     // 创建交易输入
-    let inputValue = 0;
-    let i = 1;
-    for (const utxo of filteredUTXOs) {
-        if (inputValue < outputValue + estimateFee) {
-            const utxoHash = utxo.txid;
-            // console.log(utxoHash)
-            const input = {
-                index: utxo.vout, // UTXO 的输出索引
-                hash: utxoHash, // UTXO 的交易哈希
-                witnessUtxo: {
-                    script: outputScript, // UTXO 的输出脚本
-                    value: utxo.value, // UTXO 的金额
-                },
-                tapInternalKey: convertToXOnly(keyPair.publicKey), // 添加 Taproot 内部密钥
-            };
-            psbt.addInput(input);
-            i++;
-            inputValue += utxo.value;
-        } else {
-            break; // 如果 inputValue 大于等于 outputValue + estimateFee，退出循环
-        }
-    }
+    const inputValue = addInputsToPsbt({ psbt, UTXOs: filteredUTXOs, value: outputValue + estimateFee, outputScript, keyPair, scriptType });
+
     // 创建交易输出
-    for (let data of toData) {
+    for (let [address, amount] of toData) {
         psbt.addOutput({
-            address: data[0], // 接收方地址
-            value: parseInt(data[1] * exchangeRate), // 金额
+            address, // 接收方地址
+            value: amount * exchangeRate, // 金额
         });
     }
 
     // 设置 gas费
-    const size = (10.5 + psbt.data.inputs.length * 57.5 + (toData.length + 1) * 43);
-    const fee = Math.ceil(gas * size);
+    const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (toData.length + 1), scriptType });
+    const fee = Math.ceil(gas * size); 
+    // console.log(`交易大小：${size}`);
+    // console.log(`交易手续费：${fee}`);
+    
     // 找零输出
     const changeValue = inputValue - outputValue - fee;
 
-    if (changeValue < 0) {
-        console.log('可用 UTXO 不足');
-        return;
-    } else if (changeValue > 0) {
-        // 找零
+    // 找零
+    if (changeValue > 0) {
         psbt.addOutput({
-            // 接收方地址
             address: fromAddress,
-            // 金额
             value: changeValue,
         });
     }
@@ -184,15 +161,8 @@ export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', filt
     // console.log(psbt.data.inputs)
     // console.log(psbt.data.outputs)
 
-    // 生成一个经过调整的子密钥（tweaked child key），用于 Taproot 交易的签名。
-    const tweakedChildNode = keyPair.tweak(
-        bitcoin.crypto.taggedHash('TapTweak', convertToXOnly(keyPair.publicKey)),
-    );
-
     // 签名所有输入
-    psbt.data.inputs.forEach((input, index) => {
-        psbt.signInput(index, tweakedChildNode);
-    });
+    signInputs(psbt, keyPair, scriptType);
 
     // 终结所有输入，表示签名完成
     psbt.finalizeAllInputs();
@@ -210,16 +180,17 @@ export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', filt
  * @param {string} [chain='btc'] - 使用的区块链类型，默认为 'btc'。
  * @param {number} [filterMinUTXOSize=10000] - 过滤的最小 UTXO 大小，默认为 10000聪，防止烧资产。
  * @param {number} [splitNum=3] - 拆分的 UTXO 数量，默认为 3。
+ * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）。
  * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'。
  * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1。只有GasSpeed='high'时才生效。
  * 
  * @returns {Promise<void>} - 返回一个 Promise，表示拆分操作的完成。
  */
-export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUTXOSize = 10000, splitNum = 3, GasSpeed = 'high', highGasRate = 1.1 }) {
+export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUTXOSize = 10000, splitNum = 3, scriptType = 'P2TR', GasSpeed = 'high', highGasRate = 1.1 }) {
     // 后面函数需要用到baseURL、network，需要首先获取
     const { network } = getNetwork(chain);
     //发送方
-    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndTaprootInfo(enBtcMnemonicOrWif)
+    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, scriptType)
     const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
     if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
     if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
@@ -229,26 +200,13 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUT
     const psbt = new bitcoin.Psbt({ network });
 
     // 创建交易输入
-    let inputValue = 0;
-    for (const utxo of filteredUTXOs) {
-        const utxoHash = utxo.txid;
-        const input = {
-            index: utxo.vout, // UTXO 的输出索引
-            hash: utxoHash, // UTXO 的交易哈希
-            witnessUtxo: {
-                script: outputScript, // UTXO 的输出脚本
-                value: utxo.value, // UTXO 的金额
-            },
-            tapInternalKey: convertToXOnly(keyPair.publicKey), // 添加 Taproot 内部密钥
-        };
-        psbt.addInput(input);
-        inputValue += utxo.value;
-    }
+    const inputValue = addInputsToPsbt({ psbt, UTXOs: filteredUTXOs, outputScript, keyPair, scriptType });
 
     const gas = await getGas({ GasSpeed, highGasRate });
     // 输入确定，输出有可能有个找零，所以加1
-    const estimateSATS = 10.5 + psbt.data.inputs.length * 57.5 + (splitNum + 1) * 43;
-    const fee = Math.ceil(gas * estimateSATS);
+    const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (splitNum + 1), scriptType });
+    const fee = Math.ceil(gas * size);
+
     const outputValue = inputValue - fee;
     const { adjustedDividend: adjustedOutputValue, remainder } = findAdjustedDividendWithRemainder(outputValue, splitNum)
     const eachOutputValue = adjustedOutputValue / splitNum;
@@ -269,15 +227,8 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUT
         });
     }
 
-    // 生成一个经过调整的子密钥（tweaked child key），用于 Taproot 交易的签名。
-    const tweakedChildNode = keyPair.tweak(
-        bitcoin.crypto.taggedHash('TapTweak', convertToXOnly(keyPair.publicKey)),
-    );
-
     // 签名所有输入
-    psbt.data.inputs.forEach((input, index) => {
-        psbt.signInput(index, tweakedChildNode);
-    });
+    signInputs(psbt, keyPair, scriptType);
 
     // 终结所有输入，表示签名完成
     psbt.finalizeAllInputs();
@@ -295,15 +246,16 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUT
  * @param {string} txid - 需要加速的交易 ID（必填）。
  * @param {string} [chain='btc'] - 使用的区块链类型，默认为 'btc'。
  * @param {number} [filterMinUTXOSize=10000] - 过滤的最小 UTXO 大小，默认为 10000聪，防止烧资产。
+ * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）。
  * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'。
  * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1。只有GasSpeed='high'时才生效。
  * 
  * @returns {Promise<void>} - 返回一个 Promise，表示加速操作的完成。
  */
-export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed = 'high', highGasRate = 1.1 }) {
+export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', filterMinUTXOSize = 10000, scriptType = 'P2TR', GasSpeed = 'high', highGasRate = 1.1 }) {
     // 后面函数需要用到baseURL、network，需要首先获取
     const { network } = getNetwork(chain);
-    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndTaprootInfo(enBtcMnemonicOrWif)
+    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, scriptType)
     const { filteredUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
     if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
     // 获取当前交易信息
@@ -321,47 +273,30 @@ export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', filterM
 
     const gas = await getGas({ GasSpeed, highGasRate });
     // 输入就是filteredUTXOs.length和父交易的未花费utxo。输出是父交易的未花费utxo和扣除gas费之后的找零
-    const estimateSize = 10.5 + (filteredUTXOs.length + 1) * 57.5 + 2 * 43;
+    const estimateSize = estimateTransactionSize({ inputCount: (filteredUTXOs.length + 1), outputCount: 2, scriptType });
     const estimateFee = Math.ceil((2 * gas - transaction.adjustedFeePerVsize) * estimateSize);
 
-    // 创建交易输入
-    let inputValue = 0;
-    let i = 1;
-    for (const utxo of filteredUTXOs) {
-        if (inputValue < estimateFee) {
-            const utxoHash = utxo.txid;
-            // console.log(utxoHash)
-            const input = {
-                index: utxo.vout, // UTXO 的输出索引
-                hash: utxoHash, // UTXO 的交易哈希
-                witnessUtxo: {
-                    script: outputScript, // UTXO 的输出脚本
-                    value: utxo.value, // UTXO 的金额
-                },
-                tapInternalKey: convertToXOnly(keyPair.publicKey), // 添加 Taproot 内部密钥
-            };
-            psbt.addInput(input);
-            i++;
-            inputValue += utxo.value;
-        } else {
-            break; // 如果 inputValue 大于等于 outputValue + estimateFee，退出循环
-        }
-    }
+    // 创建交易输入，用于提供加速费用
+    const inputValue = addInputsToPsbt({ psbt, UTXOs: filteredUTXOs, value: estimateFee, outputScript, keyPair, scriptType });
 
-    psbt.addInput({
+    // 添加为确认的交易输出作为输入
+    const unconfirmedUtxo = {
         index: unconfirmedVoutIndex, // UTXO 的输出索引
         hash: transaction.txid, // UTXO 的交易哈希
         witnessUtxo: {
             script: outputScript, // UTXO 的输出脚本
             value: unconfirmedVout.value, // UTXO 的金额
         },
-        tapInternalKey: convertToXOnly(keyPair.publicKey), // 添加 Taproot 内部密钥
-    });
+    }
+    // 根据脚本类型添加特定的输入信息
+    if (scriptType.toUpperCase() === 'P2TR') {
+        unconfirmedUtxo.tapInternalKey = convertToXOnly(keyPair.publicKey); // 添加 Taproot 内部密钥
+    }
+    psbt.addInput(unconfirmedUtxo);
 
-    const size = 10.5 + psbt.data.inputs.length * 57.5 + 2 * 43;
+    const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: 2, scriptType });
     const fee = Math.ceil((2 * gas - transaction.adjustedFeePerVsize) * size);
 
-    if ((inputValue - fee) < 0) { console.log('可用utxo不足'); return }
     // 创建交易输出
     psbt.addOutput({
         address: fromAddress, // 接收方地址
@@ -373,15 +308,9 @@ export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', filterM
         value: unconfirmedVout.value, // 金额
     });
 
-    // 生成一个经过调整的子密钥（tweaked child key），用于 Taproot 交易的签名。
-    const tweakedChildNode = keyPair.tweak(
-        bitcoin.crypto.taggedHash('TapTweak', convertToXOnly(keyPair.publicKey)),
-    );
 
     // 签名所有输入
-    psbt.data.inputs.forEach((input, index) => {
-        psbt.signInput(index, tweakedChildNode);
-    });
+    signInputs(psbt, keyPair, scriptType);
 
     // 终结所有输入，表示签名完成
     psbt.finalizeAllInputs();
