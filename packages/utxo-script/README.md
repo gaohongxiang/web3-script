@@ -2,9 +2,9 @@
 
 ## 注意事项
 
-- 本脚本目前只支持`p2tr类型`的地址（`bc1p`开头的）
+- 本脚本目前支持`P2TR类型 bc1p开头`、`P2WPKH类型 bc1q开头`的地址
 - 本脚本目前只支持`CPFP`类型加速交易
-- 本脚本目前只支持`WIF`类型私钥
+- 本脚本目前支持传递`助记词`或`WIF`类型私钥。使用私钥时地址类型需与`scriptType`类型一致
 - 创建钱包文件，并加密私钥、助记词数据
 
 #### 2、使用示例
@@ -21,12 +21,12 @@ const toData = [
     ['bc1p2nh0peenas49guh6jqpzfxt9cup2vhpwv2ndvs60tz04h2prlglqufvy3p', 0.01],
 ]
 // 发送交易（引申：如果toData中有多个相同地址，即是拆分utxo）
-// 参数：{ enBtcMnemonicOrWif, toData, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed = 'high', highGasRate = 1.1 }
-// await utxoTransfer({ enBtcMnemonicOrWif: d['enBtcPrivateKey'], toData, chain: 'fractal', filterMinUTXOSize: 10000 })
+// 参数：{ enBtcMnemonicOrWif, toData, chain = 'btc', filterMinUTXOSize = 10000, scriptType='P2TR'(bc1p) | P2WPKH(bc1q) | P2PKH(1), GasSpeed = 'high', highGasRate = 1.1 }
+// await utxoTransfer({ enBtcMnemonicOrWif: d['enBtcMnemonic'], toData, chain: 'fractal', filterMinUTXOSize: 10000, scriptType:'p2tr' })
 
 // 加速交易
-// 参数：{ enBtcMnemonicOrWif, txid, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed='high', highGasRate=1.1 }
-// await speedUp({ enBtcMnemonicOrWif: d['enBtcPrivateKey'], chain: 'fractal', txid: 'c9476ad8d752342d1b768397f0183fd8e0c30d75b48c9ee12b710ab02d2224f5', filterMinUTXOSize: 1000 });
+// 参数：{ enBtcMnemonicOrWif, txid, chain = 'btc', filterMinUTXOSize = 10000, scriptType='P2TR'(bc1p) | P2WPKH(bc1q) | P2PKH(1), GasSpeed='high', highGasRate=1.1 }
+// await speedUp({ enBtcMnemonicOrWif: d['enBtcMnemonic'], chain: 'fractal', txid: 'c9476ad8d752342d1b768397f0183fd8e0c30d75b48c9ee12b710ab02d2224f5', filterMinUTXOSize: 1000, scriptType:'p2tr' });
 
 // 获取地址utxo
 // 参数：{ address, chain = 'btc', filterMinUTXOSize = 0 }
@@ -36,8 +36,8 @@ const toData = [
 // console.log(`地址 ${d['btcAddress']} 未确认utxos: ${JSON.stringify(unconfirmedUTXOs)}`);
 
 // 拆分utxo
-// 参数：{ enBtcMnemonicOrWif, chain = 'btc', filterMinUTXOSize = 10000, splitNum = 3, GasSpeed='high', highGasRate=1.1 }
-// await splitUTXO({ enBtcMnemonicOrWif: d['enBtcPrivateKey'], chain: 'fractal', filterMinUTXOSize: 10000, splitNum: 2 });
+// 参数：{ enBtcMnemonicOrWif, chain = 'btc', filterMinUTXOSize = 10000, splitNum = 3, scriptType='P2TR'(bc1p) | P2WPKH(bc1q) | P2PKH(1), GasSpeed='high', highGasRate=1.1 }
+// await splitUTXO({ enBtcMnemonicOrWif: d['enBtcMnemonic'], chain: 'fractal', filterMinUTXOSize: 10000, splitNum: 2, scriptType:'p2tr' });
 ```
 
 ## 3、基础知识
