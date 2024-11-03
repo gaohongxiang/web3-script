@@ -1,5 +1,5 @@
-data/*
-!data/token-example.json
+backend/data/*
+!backend/data/token-example.json
 example.js
 filesConfig.json
 

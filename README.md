@@ -141,15 +141,15 @@ async function mainEvm({startNum, endNum}){
             console.log(`第${d['indexId']}个账号`)
 
             // okx转账到链上evm系地址
-            // 参数：{ account, chain, toAddress, coin, amount, apiFile='./data/okx.json' }
+            // 参数：{ account, chain, toAddress, coin, amount, apiFile='./backend/data/okx.json' }
             // await okxWithdraw({ account: 'okx api账户', chain: 'arb', toAddress: d['ethAddress'], coin: 'usdt', amount: 5 })
 
             // 获取地址余额
-            // 参数：{ address, token, chain, proxy=null, tokenFile = './data/token.json' }
+            // 参数：{ address, token, chain, proxy=null, tokenFile = './backend/data/token.json' }
             // const balance = await evmGetBalance({ address: d['ethAddress'], token: 'usdt', chain: 'arb', proxy:d['proxy'] })
 
             // evm系发送代币到okx交易所evm系地址
-            //参数：{ enPrivateKey, toAddress, token, value, chain, proxy=null, tokenFile = './data/token.json' }
+            //参数：{ enPrivateKey, toAddress, token, value, chain, proxy=null, tokenFile = '.backend/data/token.json' }
             // await evmTransfer({ enPrivateKey: d['enEthPrivateKey'], toAddress: 'd['okxEthAddress']', token: 'usdt', value: 1, chain: 'arb', proxy:d['proxy'] })
 
         }
@@ -173,7 +173,7 @@ const fromAddress = xxxxxx
 const enfromPrivateKey = xxxxxx
 
 // okx转账
-// 参数：{ account, chain, toAddress, coin, amount, apiFile='./data/okx.json' }
+// 参数：{ account, chain, toAddress, coin, amount, apiFile='./backend/data/okx.json' }
 // await okxWithdraw({ account: 'gaohongxiang69@gmail.com', chain: 'solana', toAddress: fromAddress, coin: 'sol', amount: 0.1 })
 
 
@@ -187,8 +187,8 @@ const toData = [
 
 // 方法2: 从文件中获取数据
 async function getToData(num = 10){
-    // 参数 {csvFile, columnName, saveToFile = false, tempFile='./data/temp.csv'}
-    let toAddresses = await getCsvDataByColumnName({csvFile:'./data/walletSol.csv', columnName:'solAddress'});
+    // 参数 {csvFile, columnName, saveToFile = false, tempFile='./backend/data/temp.csv'}
+    let toAddresses = await getCsvDataByColumnName({csvFile:'./backend/data/walletSol.csv', columnName:'solAddress'});
     console.log(toAddresses)
     toAddresses = toAddresses.slice(0, num);
     const amounts = toAddresses.map(() => 0.01); // 这里可以根据需要修改金额
@@ -201,13 +201,13 @@ async function getToData(num = 10){
 // console.log(toData);
 
 // 一对多分发代币
-// 参数：{ enPrivateKey, toData, token, tokenFile='./data/token.json' }
-// solanaTransfer({ enPrivateKey: enfromPrivateKey, toData, token:'sol', tokenFile:'./data/token.json' });
+// 参数：{ enPrivateKey, toData, token, tokenFile='./backend/data/token.json' }
+// solanaTransfer({ enPrivateKey: enfromPrivateKey, toData, token:'sol', tokenFile:'./backend/data/token.json' });
 
 
 // 获取地址余额
-// 参数：{ address, token='SOL', tokenFile = './data/token.json' }
-// const balance = await solanaGetBalance({ address: d['solAddress'], token: 'sol', tokenFile : './data/token.json' })
+// 参数：{ address, token='SOL', tokenFile = './backend/data/token.json' }
+// const balance = await solanaGetBalance({ address: d['solAddress'], token: 'sol', tokenFile : './backend/data/token.json' })
 
 
 // 归集代币
@@ -216,8 +216,8 @@ const data = await myFormatData(startNum, endNum);
 for(const d of data) {
     console.log(`第${d['indexId']}个账号`)
     // 发送代币
-    // 参数：{ enPrivateKey, toData, token, tokenFile='./data/token.json' }
-    solanaTransfer({ enPrivateKey: d['enSolPrivateKey'], toDat: collectData, token:'sol', tokenFile:'./data/token.json' });
+    // 参数：{ enPrivateKey, toData, token, tokenFile='./backend/data/token.json' }
+    solanaTransfer({ enPrivateKey: d['enSolPrivateKey'], toDat: collectData, token:'sol', tokenFile:'./backend/data/token.json' });
 }
 ```
 

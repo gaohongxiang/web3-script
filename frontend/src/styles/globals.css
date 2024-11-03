@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 确保自定义样式在 Tailwind 导入之后 */
+@layer components {
+  select {
+    @apply border border-gray-200 rounded-lg px-4 py-3 outline-none transition-all duration-200 ease-in-out;
+    @apply bg-white text-gray-700 appearance-none cursor-pointer w-full;
+    @apply relative pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
+
+  select:hover:not(:disabled) {
+    @apply border-blue-500 ring-[1px] ring-blue-500/30;
+  }
+
+  select:focus {
+    @apply border-blue-400 ring-[1px] ring-blue-400/30;
+  }
+
+  select:disabled {
+    @apply bg-gray-50 cursor-not-allowed border-gray-100 text-gray-400;
+  }
+
+  select option {
+    @apply py-2 px-4 text-gray-700 bg-white hover:bg-gray-100;
+  }
+}
+
+body {
+  @apply bg-white text-gray-900;
+}
+
+/* 自定义输入框样式 */
+input, textarea {
+  @apply border border-gray-200 rounded-lg px-4 py-3 outline-none transition-all duration-200 ease-in-out;
+  @apply bg-white text-gray-700;
+}
+
+/* hover 效果 - 更明显的蓝色 */
+input:hover:not(:disabled), 
+textarea:hover:not(:disabled) {
+  @apply border-blue-500 ring-[1px] ring-blue-500/30;
+}
+
+/* 聚焦效果 - 稍微暗一点的蓝色 */
+input:focus, textarea:focus {
+  @apply border-blue-400 ring-[1px] ring-blue-400/30;
+}
+
+/* 同时具有 hover 和 focus 时的效果 */
+input:hover:focus,
+textarea:hover:focus {
+  @apply border-blue-400 ring-[1px] ring-blue-400/30;
+}
+
+/* 禁用状态 */
+input:disabled, textarea:disabled {
+  @apply bg-gray-50 cursor-not-allowed border-gray-100 text-gray-400;
+}
+
+/* 移除数字输入框的箭头 */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* placeholder 样式 */
+input::placeholder,
+textarea::placeholder {
+  @apply text-gray-400 text-sm;
+}
+
+/* 文本选中样式 */
+input::selection,
+textarea::selection {
+  @apply bg-blue-100;
+}
+
+/* 按钮样式 */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-colors;
+}
+
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white;
+}
+
+.btn-disabled {
+  @apply bg-gray-300 cursor-not-allowed text-gray-500;
+}
+
+/* 导航菜单样式 */
+.nav-dropdown {
+  @apply absolute left-0 mt-2 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200;
+}
+
+.nav-dropdown-item {
+  @apply block px-4 py-2 text-gray-700 hover:bg-gray-50;
+}
+
+/* 下拉列表容器 */
+select:not([size]) {
+  @apply bg-white;
+}
+
+/* 选项样式 */
+select option {
+  @apply py-2 px-4 text-gray-700 bg-white cursor-pointer;
+  margin: 0 -4px;  /* 对齐边缘 */
+}
+
+/* 选项hover效果 */
+select option:hover {
+  @apply bg-gray-100;
+}
+
+/* 选中的选项 */
+select option:checked {
+  @apply bg-gray-100;
+}
+
+/* 下拉框打开时的样式 */
+select[open] {
+  @apply rounded-b-none border-b-0;
+}
+
+/* 下拉列表样式 */
+select::-webkit-listbox {
+  @apply bg-white border border-gray-200 border-t-0 rounded-b-lg;
+  margin: 0 -1px;  /* 对齐边缘 */
+}
+
+/* 下拉框选项样式 */
+select option {
+  @apply py-2 px-4 bg-white text-gray-600;
+}
+
+select option:hover {
+  @apply bg-blue-50 text-blue-600;
+}
+
+/* 下拉框本身的样式 */
+select {
+  @apply appearance-none bg-white;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+select:focus {
+  @apply outline-none ring-1 ring-blue-500 border-blue-500;
+}
+  
