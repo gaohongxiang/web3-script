@@ -12,7 +12,7 @@ export default function Navbar() {
     'UTXO': {
       items: [
         { name: '转账', href: '/utxo/transfer' },
-        { name: '加速交易', href: '/utxo/speedup' },
+        { name: '加速交易', href: '/utxo/speedUp' },
         { name: '拆分UTXO', href: '/utxo/split' }
       ]
     },

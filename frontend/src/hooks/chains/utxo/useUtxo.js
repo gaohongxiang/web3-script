@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { useUtxoContext } from '@/contexts/chains/utxo/UtxoContext';
+import { getCacheKey, getCache, setCache } from '@/utils/cache';
 
 export function useUtxo() {
   const { network } = useUtxoContext();
@@ -9,36 +10,42 @@ export function useUtxo() {
   // 获取 UTXO 列表
   const getUtxos = useCallback(async (address) => {
     try {
+      // 检查缓存
+      const cacheKey = getCacheKey('utxos', network, address);
+      const cachedUtxos = getCache('utxos', cacheKey);
+      if (cachedUtxos) {
+        return {
+          success: true,
+          data: cachedUtxos
+        };
+      }
+
       const baseUrl = network === 'btc' 
         ? 'https://mempool.space/api' 
         : 'https://mempool.fractalbitcoin.io/api';
 
       const response = await fetch(`${baseUrl}/address/${address}/utxo`);
+      if (!response.ok) {
+        throw new Error('获取 UTXO 失败');
+      }
+
       const utxos = await response.json();
+      const result = {
+        allUtxos: utxos,
+        unconfirmedUtxos: utxos.filter(utxo => !utxo.status?.block_height)
+      };
 
-      // 处理所有 UTXO
-      const allUtxos = utxos.map(utxo => ({
-        txid: utxo.txid,
-        vout: utxo.vout,
-        value: utxo.value,
-        status: utxo.status,
-        block_height: utxo.status.block_height
-      }));
-
-      // 通过区块高度判断未确认的 UTXO
-      const unconfirmedUtxos = allUtxos.filter(utxo => utxo.block_height === 0);
+      // 缓存结果
+      setCache('utxos', cacheKey, result);
 
       return {
         success: true,
-        data: {
-          allUtxos,
-          unconfirmedUtxos
-        }
+        data: result
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message || '获取 UTXO 失败'
+        error: error.message
       };
     }
   }, [network]);

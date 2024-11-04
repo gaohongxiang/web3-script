@@ -6,10 +6,8 @@
     "backend"
   ],
   "scripts": {
-    "frontend:dev": "npm run dev --workspace=frontend -- -p 3003",
-    "frontend:build": "npm run build --workspace=frontend",
-    "frontend:start": "npm run build --workspace=frontend && npm run start --workspace=frontend -- -p 3001",
-    "backend": "npm run start --workspace=backend",
-    "dev": "concurrently \"npm run frontend:dev\" \"npm run backend\""
+    "dev": "cd frontend && next dev -- -p 3003",
+    "build": "cd frontend && next build",
+    "start": "cd frontend && next build && next start -- -p 3001"
   }
 }

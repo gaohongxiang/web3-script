@@ -34,7 +34,7 @@ export default function HomePage() {
                   <p className="text-sm text-gray-600">BTC 等 UTXO 类型公链系列操作</p>
                 </Link>
                 <Link 
-                  href="/chains/utxo/speedup"
+                  href="/chains/utxo/speedUp"
                   className="block px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <h3 className="font-medium mb-1">交易加速</h3>

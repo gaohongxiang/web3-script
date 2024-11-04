@@ -7,7 +7,7 @@ const pageInfo = {
     title: 'UTXO 工具',
     description: 'BTC 等 UTXO 类型公链系列操作'
   },
-  '/chains/utxo/speedup': {
+  '/chains/utxo/speedUp': {
     title: 'UTXO 工具',
     description: 'BTC 等 UTXO 类型公链系列操作'
   },

@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState } from 'react';
+import { clearAllCache } from '@/utils/cache';
 
 const UtxoContext = createContext();
 
@@ -9,9 +10,14 @@ export function UtxoProvider({ children }) {
   const [gasLevel, setGasLevel] = useState('medium');
   const [customGas, setCustomGas] = useState('');
 
+  const handleNetworkChange = (newNetwork) => {
+    clearAllCache();  // 切换网络时清除所有缓存
+    setNetwork(newNetwork);
+  };
+
   const value = {
     network,
-    setNetwork,
+    setNetwork: handleNetworkChange,
     gasLevel,
     setGasLevel,
     customGas,

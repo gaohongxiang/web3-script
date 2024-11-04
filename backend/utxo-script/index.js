@@ -216,10 +216,23 @@ export async function getTransaction({ txid, chain = 'btc' }) {
                 addresses.add(vout.scriptpubkey_address);
             }
         }
-        // 将 Set 转换为数组
-        addresses = Array.from(addresses);
-        // console.log(addresses)
-        return addresses
+
+        // 返回更多交易信息
+        return {
+            addresses: Array.from(addresses),
+            weight: transaction.weight,
+            size: transaction.size,
+            fee: transaction.fee, // 手续费
+            status: transaction.status,
+            confirmed: transaction.status.confirmed, // true|false
+            txid: transaction.txid,
+            vsize: transaction.vsize,
+            adjustedVsize: transaction.adjustedVsize, // 调整后的虚拟大小
+            adjustedFeePerVsize: transaction.adjustedFeePerVsize, // 费率
+            value: transaction.value,
+            vin: transaction.vin,
+            vout: transaction.vout,
+        };
     } catch (error) {
         console.error('Error in getTransaction:', error);
         throw error;
@@ -374,45 +387,60 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUT
     await broadcastTx(psbtHex)
 }
 
+// // 计算加速费用
+// const calculateAccelerateFee = useCallback((transaction, newFeeRate, scriptType = 'P2TR', selectedUtxos = []) => {
+//     // 使用 Math.floor 向下取整
+//     const currentFeeRate = Math.floor(transaction.fee / (transaction.weight / 4));
+//     const feeRateDiff = newFeeRate - currentFeeRate;
+
+//     if (feeRateDiff <= 0) {
+//       return {
+//         success: false,
+//         error: '新费率必须高于当前费率'
+//       };
+//     }
+
+//     // 计算子交易的 vBytes
+//     const sizes = SCRIPT_SIZES[scriptType];
+//     // 基础大小 + 输入大小 * 输入数量 + 输出大小 * 2（一个用于加速，一个用于找零）
+//     const childTxVBytes = sizes.base + (sizes.input * selectedUtxos.length) + (sizes.output * 2);
+
+//     // 计算需要的聪数
+//     // 1. 子交易本身的费用
+//     const childTxFee = Math.ceil(childTxVBytes * newFeeRate);
+//     // 2. 父交易费率提升所需的费用
+//     const parentTxFee = Math.ceil(transaction.weight / 4 * feeRateDiff);
+// })
 /**
  * 加速比特币交易的确认过程。
  * 
  * @param {string} enBtcMnemonicOrWif - 发送方的加密后比特币助记词或 WIF 私钥（必填）。
  * @param {string} txid - 需要加速的交易 ID（必填）。
  * @param {string} [chain='btc'] - 使用的区块链类型，默认为 'btc'。
- * @param {number} [filterMinUTXOSize=10000] - 过滤的最小 UTXO 大小，默认为 10000聪，防止烧资产。
  * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）。
  * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'。
  * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1。只有GasSpeed='high'时才生效。
  * 
  * @returns {Promise<void>} - 返回一个 Promise，表示加速操作的完成。
  */
-export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', filterMinUTXOSize = 10000, scriptType = 'P2TR', GasSpeed = 'high', highGasRate = 1.1 }) {
+export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', gas, UTXOs, scriptType = 'P2TR' }) {
     // 后面函数需要用到baseURL、network，需要首先获取
     const { network } = getNetwork(chain);
     const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
-    const { filteredUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
-    if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
+    const { filteredUTXOs } = await getAddressUTXOs({ address: fromAddress, chain });
     // 获取当前交易信息
-    const transaction = await getTransaction(txid);
-    if (transaction.status.confirmed) { console.log('交易已确认，无需加速'); return; }
-
+    const transaction = await getTransaction({ txid, chain });
+    if (transaction.confirmed) { console.log('交易已确认，无需加速'); return; }
     const unconfirmedVout = transaction.vout.find(item => item.scriptpubkey_address === fromAddress);
     if (!unconfirmedVout) { console.log(`地址 ${fromAddress} 不在交易的输出里, 无法使用CPFP加速。`); return; }
     const unconfirmedVoutIndex = transaction.vout.findIndex(item => item.scriptpubkey_address === fromAddress);
-    // console.log(unconfirmedVout)
     // console.log(unconfirmedVoutIndex);
 
     // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
     const psbt = new bitcoin.Psbt({ network });
 
-    const gas = await getGas({ GasSpeed, highGasRate });
-    // 输入就是filteredUTXOs.length和父交易的未花费utxo。输出是父交易的未花费utxo和扣除gas费之后的找零
-    const estimateSize = estimateTransactionSize({ inputCount: (filteredUTXOs.length + 1), outputCount: 2, scriptType });
-    const estimateFee = Math.ceil((2 * gas - transaction.adjustedFeePerVsize) * estimateSize);
-
     // 创建交易输入，用于提供加速费用
-    const inputValue = addInputsToPsbt({ psbt, UTXOs: filteredUTXOs, value: estimateFee, outputScript, keyPair, scriptType });
+    const inputValue = addInputsToPsbt({ psbt, UTXOs: UTXOs, outputScript, keyPair, scriptType });
 
     // 添加为确认的交易输出作为输入
     const unconfirmedUtxo = {
@@ -428,21 +456,24 @@ export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', filterM
         unconfirmedUtxo.tapInternalKey = convertToXOnly(keyPair.publicKey); // 添加 Taproot 内部密钥
     }
     psbt.addInput(unconfirmedUtxo);
-
+    const oldFee = Math.floor((gas - transaction.adjustedFeePerVsize) * transaction.adjustedFeePerVsize);
     const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: 2, scriptType });
-    const fee = Math.ceil((2 * gas - transaction.adjustedFeePerVsize) * size);
+    const newFee = Math.ceil(gas * size);
+    const fee = oldFee + newFee;
 
     // 创建交易输出
-    psbt.addOutput({
-        address: fromAddress, // 接收方地址
-        value: inputValue - fee, // 金额
-    });
-
     psbt.addOutput({
         address: fromAddress, // 接收方地址
         value: unconfirmedVout.value, // 金额
     });
 
+    // 找零
+    if (inputValue - fee > 0) {
+        psbt.addOutput({
+            address: fromAddress, // 接收方地址
+            value: inputValue - fee, // 金额
+        });
+    }
 
     // 签名所有输入
     signInputs(psbt, keyPair, scriptType);

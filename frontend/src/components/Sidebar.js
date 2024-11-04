@@ -25,9 +25,9 @@ const Sidebar = () => {
               转账
             </Link>
             <Link 
-              href="/utxo/speedup"
+              href="/utxo/speedUp"
               className={`block px-4 py-2 rounded ${
-                pathname === '/utxo/speedup' 
+                pathname === '/utxo/speedUp' 
                   ? 'bg-blue-600' 
                   : 'hover:bg-gray-700'
               }`}

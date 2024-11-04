@@ -3,30 +3,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUtxoContext } from '@/contexts/chains/utxo/UtxoContext';
 
-// 将 debounce 函数移到组件外部
-const debounce = (func, wait) => {
-  let timeout;
-  return (...args) => {
-    clearTimeout(timeout);
-    return new Promise((resolve) => {
-      timeout = setTimeout(() => {
-        resolve(func(...args));
-      }, wait);
-    });
-  };
+// 根据不同网络的等待时间配置
+const timeConfig = {
+  btc: {
+    low: '~30 分钟',      // 约3个区块
+    medium: '~20 分钟',   // 约2个区块
+    high: '~10 分钟'      // 约1个区块
+  },
+  fractal: {              // 改为 fractal 以匹配 context 中的值
+    low: '~15 分钟',      // fractal 网络更快
+    medium: '~5 分钟',
+    high: '~2 分钟'
+  }
 };
 
 export function useGas() {
   const { network } = useUtxoContext();
   const [gasInfo, setGasInfo] = useState({
-    low: { fee: '1', time: '~30 分钟' },
-    medium: { fee: '2', time: '~10 分钟' },
-    high: { fee: '5', time: '~3 分钟' }
+    low: { fee: '1', time: timeConfig[network]?.low || timeConfig.btc.low },
+    medium: { fee: '2', time: timeConfig[network]?.medium || timeConfig.btc.medium },
+    high: { fee: '5', time: timeConfig[network]?.high || timeConfig.btc.high }
   });
   const [countdown, setCountdown] = useState(30);
   const [loading, setLoading] = useState(false);
 
-  // Gas 费用相关
   const fetchGasFees = useCallback(async () => {
     setLoading(true);
     try {
@@ -37,27 +37,52 @@ export function useGas() {
       const response = await fetch(`${baseUrl}/v1/fees/recommended`);
       const fees = await response.json();
       
-      setGasInfo(prev => ({
-        low: { fee: fees.hourFee, time: prev.low.time },
-        medium: { fee: fees.halfHourFee, time: prev.medium.time },
-        high: { fee: fees.fastestFee, time: prev.high.time }
-      }));
+      // 根据当前网络设置时间
+      const times = timeConfig[network] || timeConfig.btc;
+      
+      setGasInfo({
+        low: { 
+          fee: fees.economyFee || fees.hourFee || '1', 
+          time: times.low 
+        },
+        medium: { 
+          fee: fees.halfHourFee || fees.normalFee || '2', 
+          time: times.medium 
+        },
+        high: { 
+          fee: fees.fastestFee || fees.priorityFee || '5', 
+          time: times.high 
+        }
+      });
     } catch (error) {
       console.error('获取 Gas 费用失败:', error);
+      // 发生错误时也要更新时间
+      const times = timeConfig[network] || timeConfig.btc;
+      setGasInfo(prev => ({
+        low: { ...prev.low, time: times.low },
+        medium: { ...prev.medium, time: times.medium },
+        high: { ...prev.high, time: times.high }
+      }));
     } finally {
       setLoading(false);
     }
   }, [network]);
 
-  // 网络变化时立即更新 gas
+  // 网络变化时立即更新时间
   useEffect(() => {
-    let countdownTimer;
-    let fetchTimer;
+    const times = timeConfig[network] || timeConfig.btc;
+    setGasInfo(prev => ({
+      low: { ...prev.low, time: times.low },
+      medium: { ...prev.medium, time: times.medium },
+      high: { ...prev.high, time: times.high }
+    }));
+  }, [network]);
 
+  // 定时获取 gas 费用
+  useEffect(() => {
     fetchGasFees();
-    setCountdown(30);
-
-    countdownTimer = setInterval(() => {
+    
+    const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           fetchGasFees();
@@ -67,13 +92,8 @@ export function useGas() {
       });
     }, 1000);
 
-    return () => {
-      clearInterval(countdownTimer);
-      clearInterval(fetchTimer);
-    };
-  }, [network, fetchGasFees]);
-
-  
+    return () => clearInterval(timer);
+  }, [fetchGasFees]);
 
   return {
     gasInfo,

@@ -2,13 +2,13 @@
 
 import TabLayout from '@/components/TabLayout';
 import TransferPage from './transfer/page';
-import SpeedUpPage from './speedup/page';
+import SpeedUpPage from './speedUp/page';
 import SplitPage from './split/page';
 
 export default function UTXOPage() {
   const tabs = [
     { id: 'transfer', name: '转账', component: <TransferPage /> },
-    { id: 'speedup', name: '加速交易', component: <SpeedUpPage /> },
+    { id: 'speedUp', name: '加速交易', component: <SpeedUpPage /> },
     { id: 'split', name: '拆UTXO', component: <SplitPage /> }
   ];
 
