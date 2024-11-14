@@ -33,7 +33,8 @@ const initialState = {
   receiverList: '',
   isReceiverValid: false,
   txInfo: null,
-  validationError: null
+  validationError: null,
+  splitParts: 2
 };
 
 // 创建 Context
@@ -68,9 +69,12 @@ export function UtxoProvider({ children }) {
   const [txInfo, setTxInfo] = useState(initialState.txInfo);
   const [validationError, setValidationError] = useState(initialState.validationError);
 
+  // 拆分相关
+  const [splitParts, setSplitParts] = useState(initialState.splitParts);
+
   // ======== 计算状态 ========
   // 获取费用计算函数
-  const { calculateTransferFee, calculateSpeedUpFee } = useFee();
+  const { calculateTransferFee, calculateSpeedUpFee, calculateSplitFee } = useFee();
 
   // 计算当前使用的费率
   const currentFeeRate = useMemo(() => 
@@ -90,10 +94,16 @@ export function UtxoProvider({ children }) {
   }, [receiverList, currentFeeRate, selectedUtxos, calculateTransferFee]);
 
   // 计算加速费用
-  const speedUpFee = useMemo(() => {
+  const speedUpFee = useMemo(() => { 
     if (!currentFeeRate) return null;
     return calculateSpeedUpFee(txInfo, currentFeeRate, selectedUtxos);
   }, [currentFeeRate, txInfo, selectedUtxos, calculateSpeedUpFee]);
+
+  // 计算拆分费用
+  const splitFee = useMemo(() => {
+    if (!selectedUtxos.length || !currentFeeRate || !splitParts) return null;
+    return calculateSplitFee(selectedUtxos, splitParts, currentFeeRate);
+  }, [selectedUtxos, currentFeeRate, splitParts, calculateSplitFee]);
 
   // ======== 处理函数 ========
   // 处理网络切换
@@ -148,11 +158,13 @@ export function UtxoProvider({ children }) {
     isReceiverValid,
     txInfo,
     validationError,
+    splitParts,
 
     // 计算状态
     currentFeeRate,
     transferFee,
     speedUpFee,
+    splitFee,
 
     // 设置函数
     setNetwork: handleNetworkChange,
@@ -169,6 +181,7 @@ export function UtxoProvider({ children }) {
     setIsReceiverValid,
     setTxInfo,
     setValidationError,
+    setSplitParts,
     clearState
   };
 

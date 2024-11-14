@@ -13,6 +13,7 @@ export function FeeRateBox({
     currentFeeRate,
     transferFee,  // 转账费用
     speedUpFee,   // 加速费用
+    splitFee,     // 拆分费用
     setCustomGas,
     setGasLevel,
     isReceiverValid,
@@ -20,13 +21,13 @@ export function FeeRateBox({
 
   // 根据类型获取对应的费用计算结果
   const estimatedFee = useMemo(() => {
-    // 如果没有选择 UTXO 或接收地址未验证，返回 null
-    if (!selectedUtxos.length || !isReceiverValid) return null;
+    if (!selectedUtxos.length) return null;
 
-    if (type === 'transfer') return transferFee;
+    if (type === 'transfer' && isReceiverValid) return transferFee;
     if (type === 'speedUp') return speedUpFee;
+    if (type === 'split') return splitFee;
     return null;
-  }, [type, transferFee, speedUpFee, selectedUtxos, isReceiverValid]);
+  }, [type, transferFee, speedUpFee, splitFee, selectedUtxos, isReceiverValid]);
 
   // 构建显示项
   const items = [
@@ -75,14 +76,14 @@ export function FeeRateBox({
                   onChange={item.onChange}
                   className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-                <span className="ml-1">sat/vB</span>
+                <span className="ml-1 text-gray-400">sat/vB</span>
               </div>
             ) : (
               <>
-                <span className="text-gray-400">
+                <span className="text-gray-900">
                   {estimatedFee?.fee?.toLocaleString() ?? '-'} 聪
                 </span>
-                {selectedUtxos.length > 0 && estimatedFee?.fee && (
+                {selectedUtxos.length > 0 && estimatedFee?.fee  && type !== 'split' && (
                   <span className={estimatedFee.success ? 'text-green-500' : 'text-red-500'}>
                     （已选择 {selectedUtxos.reduce((sum, utxo) => sum + utxo.value, 0).toLocaleString()} 聪，
                     {estimatedFee.success ? '足够' : '不足'}支付交易费用）

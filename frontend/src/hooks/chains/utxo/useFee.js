@@ -5,22 +5,22 @@ import { useUtxoContext } from '@/contexts/chains/utxo/UtxoContext';
 
 // 不同脚本类型的大小（vBytes）
 const SCRIPT_SIZES = {
-    P2PKH: {
-      base: 10,
-      input: 148,
-      output: 34
-    },
-    P2WPKH: {
-      base: 10.5,
-      input: 68,
-      output: 31
-    },
-    P2TR: {
-      base: 10.5,
-      input: 57.5,
-      output: 43
-    }
-  };
+  P2PKH: {
+    base: 10,
+    input: 148,
+    output: 34
+  },
+  P2WPKH: {
+    base: 10.5,
+    input: 68,
+    output: 31
+  },
+  P2TR: {
+    base: 10.5,
+    input: 57.5,
+    output: 43
+  }
+};
 
 export function useFee() {
   const { scriptType } = useUtxoContext();  // 获取当前脚本类型
@@ -65,7 +65,7 @@ export function useFee() {
       );
 
       fee = fee + receiveAmount;
-      
+
       // 返回结果，包含费用和金额比较结果
       return {
         success: totalAmount >= (fee),  // 只影响 success 状态
@@ -99,7 +99,7 @@ export function useFee() {
       }
 
       const feeRateDiff = newFeeRate - txInfo.feeRate;
-      
+
       if (feeRateDiff <= 0) {
         return {
           success: false,
@@ -151,10 +151,66 @@ export function useFee() {
     }
   }, [calculateFee, calculateTxSize]);
 
+  // 在现有的 useFee hook 中添加新的计算函数
+  const calculateSplitFee = useCallback((selectedUtxos, parts, feeRate) => {
+    try {
+      if (!selectedUtxos?.length || !parts || !feeRate) {
+        return {
+          success: false,
+          error: '缺少必要参数'
+        };
+      }
+
+      // 计算选择的 UTXO 总金额
+      const totalAmount = selectedUtxos.reduce((sum, utxo) => sum + utxo.value, 0);
+
+      // 计算交易大小：
+      // 输入：所有选中的 UTXO
+      // 输出：拆分的份数（parts）+ 找零
+      const fee = calculateFee(
+        selectedUtxos.length,  // 输入数量
+        parts + 1,                 // 输出数量（拆分的份数）+ 找零
+        feeRate
+      );
+
+      // 计算每份金额（总金额减去费用后平均分配）
+      const amountPerPart = Math.floor((totalAmount - fee) / parts);
+
+      // 检查每份金额是否大于 0
+      if (amountPerPart <= 0) {
+        return {
+          success: false,
+          error: '金额太小，无法完成拆分'
+        };
+      }
+
+      return {
+        success: true,
+        fee,
+        amountPerPart,
+        details: {
+          totalAmount,
+          fee,
+          amountPerPart,
+          parts,
+          inputCount: selectedUtxos.length,
+          outputCount: parts,
+          remainingAmount: totalAmount - fee - (amountPerPart * parts)
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: '计算费用失败，请重试'
+      };
+    }
+  }, [calculateFee]);
+
   return {
     calculateTxSize,
     calculateFee,
     calculateTransferFee,
-    calculateSpeedUpFee
+    calculateSpeedUpFee,
+    calculateSplitFee  // 添加新函数到返回值
   };
 } 

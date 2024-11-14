@@ -139,21 +139,22 @@ export const UTXOList = memo(function UTXOList({ disabled }) {
         </div>
 
         {/* 过滤聪设置 */}
-        <div className="flex items-center">
+        <div className="flex items-center space-x-3">
           <input
+            min="0"
             type="number"
             value={filterAmount}
             onChange={(e) => setFilterAmount(Number(e.target.value))}
-            disabled={disabled}
-            min="0"
-            className={`
-              w-24 px-2 py-1 text-xs
+            className="
+              w-20 px-2 py-1 text-xs
               border border-gray-300 rounded
               focus:outline-none focus:ring-1
-              ${disabled ? 'bg-gray-50 cursor-not-allowed' : 'focus:ring-blue-500'}
-            `}
+              focus:ring-blue-500
+            "
           />
-          <span className="text-xs text-gray-500 mr-2">以下不使用，保护铭文符文等资产</span>
+          <span className="text-xs text-gray-500">
+            以下不使用，保护铭文符文等资产
+          </span>
         </div>
       </div>
 

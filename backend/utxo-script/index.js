@@ -334,24 +334,24 @@ export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', gas,
  * 
  * @returns {Promise<void>} - 返回一个 Promise，表示拆分操作的完成。
  */
-export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUTXOSize = 10000, splitNum = 3, scriptType = 'P2TR', GasSpeed = 'high', highGasRate = 1.1 }) {
+export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', selectedUtxos, splitNum = 3, gas, scriptType = 'P2TR' }) {
     try {
         // 后面函数需要用到baseURL、network，需要首先获取
         const { network } = getNetwork(chain);
         //发送方
         const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
-        const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
-        if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
-        if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
+        // const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
+        // if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
+        if (selectedUtxos.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
         // console.log(filteredUTXOs)
 
         // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
         const psbt = new bitcoin.Psbt({ network });
 
         // 创建交易输入
-        const inputValue = addInputsToPsbt({ psbt, UTXOs: filteredUTXOs, outputScript, keyPair, scriptType });
+        const inputValue = addInputsToPsbt({ psbt, UTXOs: selectedUtxos, outputScript, keyPair, scriptType });
 
-        const gas = await getGas({ GasSpeed, highGasRate });
+        // const gas = await getGas({ GasSpeed, highGasRate });
         // 输入确定，输出有可能有个找零，所以加1
         const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (splitNum + 1), scriptType });
         const fee = Math.ceil(gas * size);

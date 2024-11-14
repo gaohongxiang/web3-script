@@ -28,6 +28,7 @@ export default function Transfer() {
     transferFee,  // 从 Context 获取费用计算结果
     getUtxos,
     getBalance,
+    setSelectedUtxos
   } = useUtxoContext();
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -101,6 +102,10 @@ export default function Transfer() {
         txid: '',
         error: error.message || '转账失败，请重试'
       });
+
+      // 重置拆分相关的状态
+      setSelectedUtxos([]); // 清空选中的 UTXO
+
     } finally {
       setConfirmLoading(false);
       setIsConfirmOpen(false);

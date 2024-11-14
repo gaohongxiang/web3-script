@@ -9,7 +9,7 @@ export default function UTXOPage() {
   const tabs = [
     { id: 'transfer', name: '转账', component: <TransferPage /> },
     { id: 'speedUp', name: '加速交易', component: <SpeedUpPage /> },
-    { id: 'split', name: '拆UTXO', component: <SplitPage /> }
+    { id: 'split', name: '拆分UTXO', component: <SplitPage /> }
   ];
 
   return (
