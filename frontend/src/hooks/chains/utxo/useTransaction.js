@@ -1,199 +1,155 @@
 'use client';
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useUtxoContext } from '@/contexts/chains/utxo/UtxoContext';
-import { getCacheKey, getCache, setCache } from '@/utils/cache';
+import { useFee } from './useFee';
 
-// 不同脚本类型的大小（vBytes）
-const SCRIPT_SIZES = {
-  P2PKH: {
-    base: 10,
-    input: 148,
-    output: 34
+// 这些错误只在交易相关功能中使用
+export const TX_ERRORS = {
+  INVALID_FORMAT: {
+    type: 'INVALID_FORMAT',
+    message: '交易ID格式不正确，应为64位十六进制字符',
+    retryable: false
   },
-  P2WPKH: {
-    base: 10.5,
-    input: 68,
-    output: 31
+  NOT_FOUND: {
+    type: 'NOT_FOUND',
+    message: '交易不存在，请检查网络或交易ID是否正确',
+    retryable: false
   },
-  P2TR: {
-    base: 10.5,
-    input: 57.5,
-    output: 43
+  CONFIRMED: {
+    type: 'CONFIRMED',
+    message: '交易已确认，无需加速',
+    retryable: false
+  },
+  SERVER_ERROR: {
+    type: 'SERVER_ERROR',
+    message: '获取交易失败，请重试',
+    retryable: true
+  },
+  NETWORK_ERROR: {
+    type: 'NETWORK_ERROR',
+    message: '获取交易失败，请重试',
+    retryable: true
   }
-};
-
-// 验证交易ID格式
-const isValidTxid = (txid) => {
-  return /^[a-fA-F0-9]{64}$/.test(txid);
 };
 
 export function useTransaction() {
   const { network } = useUtxoContext();
-  const timeoutRef = useRef();
+  const { calculateFee, calculateTxSize } = useFee();
 
-  // 获取交易信息的基础函数
-  const getTransactionInfo = useCallback(async (txid) => {
-    if (!txid) {
+  // 单独的格式验证函数
+  const validateFormat = useCallback((txid) => {
+    if (!txid || !/^[0-9a-fA-F]{64}$/.test(txid)) {
       return {
         success: false,
-        error: '请输入交易ID'
+        ...TX_ERRORS.INVALID_FORMAT
       };
     }
+    return { success: true };
+  }, []);
 
-    // 添加格式验证
-    if (!isValidTxid(txid)) {
-      return {
-        success: false,
-        error: '交易ID格式不正确，应为64位十六进制字符'
-      };
+  const getTransaction = useCallback(async (txid) => {
+    // 先验证格式
+    const formatResult = validateFormat(txid);
+    if (!formatResult.success) {
+      return formatResult;
     }
 
     try {
-      // 检查缓存
-      const cacheKey = getCacheKey('transactions', network, txid);
-      const cachedTx = getCache('transactions', cacheKey);
-      if (cachedTx) {
-        return cachedTx;
-      }
-
       const baseUrl = network === 'btc'
         ? 'https://mempool.space/api'
         : 'https://mempool.fractalbitcoin.io/api';
 
       const response = await fetch(`${baseUrl}/tx/${txid}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('交易不存在，请检查网络或交易ID是否正确');
-        }
-        throw new Error('获取交易失败');
+      
+      // 2. 处理不同的响应状态
+      if (response.status === 404) {
+        return {
+          success: false,
+          ...TX_ERRORS.NOT_FOUND
+        };
+      }
+      
+      if (response.status === 500) {
+        return {
+          success: false,
+          ...TX_ERRORS.SERVER_ERROR
+        };
       }
 
+      // 3. 处理响应数据
       const transaction = await response.json();
-
-      // 使用 Set 来存储唯一地址
-      let addresses = new Set();
-
-      // 收集输入地址
-      for (const vin of transaction.vin || []) {
-        if (vin.prevout?.scriptpubkey_address) {
-          addresses.add(vin.prevout.scriptpubkey_address);
-        }
+      
+      if (transaction.status.confirmed) {
+        return {
+          success: false,
+          ...TX_ERRORS.CONFIRMED
+        };
       }
 
-      // 收集输出地址
-      for (const vout of transaction.vout || []) {
-        if (vout.scriptpubkey_address) {
-          addresses.add(vout.scriptpubkey_address);
-        }
-      }
-
-      const result = {
+      const addresses = Array.from(new Set([
+        ...(transaction.vin || []).map(vin => vin.prevout?.scriptpubkey_address).filter(Boolean),
+        ...(transaction.vout || []).map(vout => vout.scriptpubkey_address).filter(Boolean)
+      ]))
+      // 4. 返回成功结果
+      return {
         success: true,
-        addresses: addresses,
-        feeRate: transaction.adjustedFeePerVsize,
-        vsize: transaction.adjustedVsize,
-        confirmed: transaction.status.confirmed,
-        weight: transaction.weight,
-        size: transaction.size,
-        fee: transaction.fee
+        data: {
+          addresses,
+          feeRate: transaction.adjustedFeePerVsize,
+          vsize: transaction.adjustedVsize,
+          confirmed: transaction.status.confirmed,
+          weight: transaction.weight,
+          size: transaction.size,
+          fee: transaction.fee
+        }
       };
-
-      // 缓存结果
-      setCache('transactions', cacheKey, result);
-      return result;
-
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        ...TX_ERRORS.NETWORK_ERROR
       };
     }
   }, [network]);
 
-  // 验证地址是否在交易中
-  const validateAddressInTx = useCallback(async (txid, address) => {
-    if (!address) {
+  // 验证地址是否在交易输出中
+  const validateAddressInTx = useCallback((txInfo, address) => {
+    try {
+      if (!txInfo?.success) {
+        return {
+          success: false,
+          error: txInfo?.error || '获取交易失败'
+        };
+      }
+
+      // addresses 直接在 txInfo 中
+      const addresses = txInfo.addresses;
+
+      // 确保 addresses 是数组
+      const addressArray = Array.isArray(addresses) ? addresses : [];
+
+      if (!addressArray.includes(address)) {
+        return {
+          success: false,
+          error: `地址 ${address} 不在交易中，无法使用 CPFP 加速`
+        };
+      }
+
       return {
-        valid: false,
-        error: '请输入地址'
+        success: true,
+        data: txInfo
       };
-    }
-
-    const txResult = await getTransactionInfo(txid);
-    if (!txResult.success) {
-      return {
-        valid: false,
-        error: txResult.error
-      };
-    }
-
-    if (txResult.confirmed) {
-      return {
-        valid: false,
-        error: '交易已确认，无需加速'
-      };
-    }
-
-    return {
-      valid: txResult.addresses.has(address),
-      error: txResult.addresses.has(address) ? null : `地址 ${address} 不在交易 ${txid} 中，无法使用 CPFP 加速`,
-      feeRate: txResult.feeRate,
-      weight: txResult.weight,
-      size: txResult.vsize,
-      fee: txResult.fee
-    };
-  }, [getTransactionInfo]);
-
-  // 计算加速费用
-  const calculateAccelerateFee = useCallback((txInfo, newFeeRate, scriptType = 'P2TR', selectedUtxos = []) => {
-    const feeRateDiff = Math.ceil(newFeeRate - txInfo.feeRate);
-    
-    if (feeRateDiff <= 0) {
+    } catch (error) {
       return {
         success: false,
-        error: '新费率必须高于当前费率'
+        error: '验证地址失败，请重试'
       };
     }
-
-    // 计算子交易的 vBytes
-    const sizes = SCRIPT_SIZES[scriptType];
-    // 基础大小 + 输入大小 * 输入数量 + 输出大小 * 2（一个用于加速，一个用于找零）
-    const childTxVBytes = Math.ceil(sizes.base + (sizes.input * selectedUtxos.length) + (sizes.output * 2));
-    
-    // 计算需要的聪数
-    // 1. 子交易本身的费用
-    const childTxFee = Math.ceil(childTxVBytes * newFeeRate);
-    // 2. 父交易费率提升所需的费用
-    const parentTxFee = Math.ceil(txInfo.vsize * feeRateDiff);
-
-    return {
-      success: true,
-      feeRate: txInfo.feeRate,
-      neededSats: Math.ceil(childTxFee + parentTxFee),
-      details: {
-        childTxFee: Math.ceil(childTxFee),
-        parentTxFee: Math.ceil(parentTxFee),
-        parentTxSize: txInfo.size,
-        parentTxVsize: txInfo.vsize,
-        childTxVsize: childTxVBytes,
-        childTxInputCount: selectedUtxos.length
-      }
-    };
-  }, []);
-
-  // 清理定时器
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
   }, []);
 
   return {
-    getTransactionInfo,
-    validateAddressInTx,
-    calculateAccelerateFee
+    validateFormat,  // 导出格式验证函数
+    getTransaction,
+    validateAddressInTx
   };
 } 

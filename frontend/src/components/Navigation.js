@@ -41,9 +41,9 @@ export function Navigation() {
                 UTXO 工具
               </Link>
               <Link 
-                href="/chains/utxo/speedup" 
+                href="/chains/utxo/speedUp" 
                 className={`block px-4 py-2 ${
-                  pathname === '/chains/utxo/speedup'
+                  pathname === '/chains/utxo/speedUp'
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}

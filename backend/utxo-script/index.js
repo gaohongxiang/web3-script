@@ -45,6 +45,9 @@ const exchangeRate = 1e8; // 1 BTC = 100,000,000 satoshis
  * @throws {Error} - 如果生成密钥对或地址时发生错误，则抛出错误。
  */
 export async function getKeyPairAndAddressInfo(enMnemonicOrWif, chain = 'btc', scriptType = 'P2TR') {
+    console.log('Backend: Start parsing address');
+    console.log('Params:', { chain, scriptType });
+    
     try {
         //将 tiny-secp256k1 库初始化为比特币库（bitcoinjs-lib）所使用的椭圆曲线加密库。即 bitcoinjs-lib 库将能够利用 tiny-secp256k1 进行加密操作。
         bitcoin.initEccLib(ecc);
@@ -79,7 +82,7 @@ export async function getKeyPairAndAddressInfo(enMnemonicOrWif, chain = 'btc', s
             // 通过私钥创建一个 keyPair 密钥对
             keyPair = ECPairFactory(ecc).fromPrivateKey(privateKeyBuffer, { network });
         } else {
-            console.log('确保传入的是scriptType类型的wif, 否则会导致超预期的密钥对!');
+            console.log('确保传入的是scriptType类型的wif, 否则会导致超预���的密钥对!');
             keyPair = ECPairFactory(ecc).fromWIF(decryptedKey, network);
         }
         // 生成地址和输出
@@ -99,10 +102,11 @@ export async function getKeyPairAndAddressInfo(enMnemonicOrWif, chain = 'btc', s
         // console.log('密钥对', keyPair)
         // console.log('taprootAddress:', address)
         // console.log('锁定脚本', output)
+        console.log('Backend: Success, address:', address);
         return { keyPair, address, output };
     } catch (error) {
-        // 处理错误并抛出自定义错误信息
-        throw new Error(`生成密钥对和地址时发生错误: ${error.message}`);
+        console.log('Backend: Error:', error.message);
+        return null;
     }
 }
 
@@ -157,16 +161,16 @@ export async function getAddressUTXOs({ address, chain = 'btc', filterMinUTXOSiz
         const { baseURl } = getNetwork(chain);
         const response = await fetch(`${baseURl}/address/${address}/utxo`);
         let allUTXOs = await response.json();
-        // console.log(allUTXOs)    
+        console.log(allUTXOs)
         let filteredUTXOs = [];
         let unconfirmedUTXOs = [];
         for (const utxo of allUTXOs) {
             // 未确认的utxo
-            // 应该通过utxo.status.confirmed来判断交易是否确认。不知为啥为确认的交易返回的也是true。只好通过block_height来判断，未确认的交易block_height为0
+            // 应该通过utxo.status.confirmed来判断交易是否确认��不知为啥为确认的交易返回的也是true。只好通过block_height来判断，未确认的交易block_height为0
             if (!utxo.status.block_height) {
                 unconfirmedUTXOs.push(utxo)
             }
-            // 过滤聪，低于filterMinUTXOSize的聪过滤掉，避免误烧和金额不够
+            // ��滤聪，低于filterMinUTXOSize的聪过滤掉，避免误烧和金额不够
             if (filterMinUTXOSize && utxo.value > filterMinUTXOSize && utxo.status.block_height) {
                 filteredUTXOs.push(utxo);
             }
@@ -194,10 +198,6 @@ export async function getTransaction({ txid, chain = 'btc' }) {
     try {
         const { baseURl } = getNetwork(chain);
         const response = await fetch(`${baseURl}/tx/${txid}`);
-        if (!response.ok) {
-            throw new Error('Failed to fetch transaction');
-        }
-
         const transaction = await response.json();
 
         // 使用 Set 来存储唯一地址
@@ -252,73 +252,73 @@ export async function getTransaction({ txid, chain = 'btc' }) {
  * 
  * @returns {Promise<void>} - 返回一个 Promise，表示转账操作的完成。
  */
-export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', gas, filterMinUTXOSize = 10000, scriptType = 'P2TR' }) {
-    // 后面函数需要用到baseURL、network，需要首先获取
-    const { network } = getNetwork(chain);
-    //发送方
-    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
-    const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
-    // 这个其实不必判断，转账使用的是确认的过滤出来的utxo
-    // if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
-    if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
+export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', gas, selectedUtxos, scriptType = 'P2TR' }) {
+    try {
+        // 后面函数需要用到baseURL、network，需要首先获取
+        const { network } = getNetwork(chain);
+        //发送方
+        const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
+        // const { selectedUtxos, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
+        // 这个其实不必判断，转账使用的是确认的过滤出来的utxo
+        // if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
+        if (selectedUtxos.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
 
-    // 获取需要发送的amount总量
-    const outputValue = toData.reduce((acc, [, amount]) => acc + (amount * exchangeRate), 0);
+        // 获取需要发送的amount总量
+        const outputValue = toData.reduce((acc, [, amount]) => acc + (amount * exchangeRate), 0);
 
-    // const gas = await getGas({ GasSpeed, highGasRate });
-    //这里交易大小是根据所有可用的utxo作为输入预估的，肯定比实际的大
-    // 输出数量 + 1 是为了防止有找零，导致size变大，总fee不变，速率降低，可能无法及时过块
-    const estimateSize = estimateTransactionSize({ inputCount: filteredUTXOs.length, outputCount: (toData.length + 1), scriptType });
-    const estimateFee = Math.ceil(gas * estimateSize);
+        // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
+        const psbt = new bitcoin.Psbt({ network });
 
-    // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
-    const psbt = new bitcoin.Psbt({ network });
+        // 创建交易输入
+        const inputValue = addInputsToPsbt({ psbt, UTXOs: selectedUtxos, outputScript, keyPair, scriptType });
 
-    // 创建交易输入
-    const inputValue = addInputsToPsbt({ psbt, UTXOs: filteredUTXOs, value: outputValue + estimateFee, outputScript, keyPair, scriptType });
+        // 创建交易输出
+        for (let [address, amount] of toData) {
+            psbt.addOutput({
+                address, // 接收方地址
+                value: amount * exchangeRate, // 金额
+            });
+        }
 
-    // 创建交易输出
-    for (let [address, amount] of toData) {
-        psbt.addOutput({
-            address, // 接收方地址
-            value: amount * exchangeRate, // 金额
-        });
+        // 设置 gas费
+        // 输出数量 + 1 是为了防止有找零，导致size变大，总fee不变，速率降低，可能无法及时过块
+        const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (toData.length + 1), scriptType });
+        const fee = Math.ceil(gas * size);
+        // console.log(`交易大小：${size}`);
+        // console.log(`交易手续费：${fee}`);
+
+        // 找零输出
+        const changeValue = inputValue - outputValue - fee;
+
+        // 找零
+        if (changeValue > 0) {
+            psbt.addOutput({
+                address: fromAddress,
+                value: changeValue,
+            });
+        }
+
+        // console.log(psbt)
+        // console.log(psbt.data.inputs)
+        // console.log(psbt.data.outputs)
+
+        // 签名所有输入
+        signInputs(psbt, keyPair, scriptType);
+
+        // 终结所有输入，表示签名完成
+        psbt.finalizeAllInputs();
+
+        // 提取交易事务
+        const psbtHex = psbt.extractTransaction().toHex();
+        console.log(`正在广播交易 hex: ${psbtHex}`);
+        const txid = await broadcastTx(psbtHex);  // 获取交易 ID
+
+        // 返回交易 ID
+        return { txid };
+    } catch (error) {
+        console.log('转账出错:', error.message);
+        return null;
     }
-
-    // 设置 gas费
-    const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (toData.length + 1), scriptType });
-    const fee = Math.ceil(gas * size);
-    // console.log(`交易大小：${size}`);
-    // console.log(`交易手续费：${fee}`);
-
-    // 找零输出
-    const changeValue = inputValue - outputValue - fee;
-
-    // 找零
-    if (changeValue > 0) {
-        psbt.addOutput({
-            address: fromAddress,
-            value: changeValue,
-        });
-    }
-
-    // console.log(psbt)
-    // console.log(psbt.data.inputs)
-    // console.log(psbt.data.outputs)
-
-    // 签名所有输入
-    signInputs(psbt, keyPair, scriptType);
-
-    // 终结所有输入，表示签名完成
-    psbt.finalizeAllInputs();
-
-    // 提取交易事务
-    const psbtHex = psbt.extractTransaction().toHex();
-    console.log(`正在广播交易 hex: ${psbtHex}`);
-    const txid = await broadcastTx(psbtHex);  // 获取交易 ID
-
-    // 返回交易 ID
-    return { txid };
 }
 
 /**
@@ -335,82 +335,65 @@ export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', gas,
  * @returns {Promise<void>} - 返回一个 Promise，表示拆分操作的完成。
  */
 export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUTXOSize = 10000, splitNum = 3, scriptType = 'P2TR', GasSpeed = 'high', highGasRate = 1.1 }) {
-    // 后面函数需要用到baseURL、network，需要首先获取
-    const { network } = getNetwork(chain);
-    //发送方
-    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
-    const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
-    if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
-    if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
-    // console.log(filteredUTXOs)
+    try {
+        // 后面函数需要用到baseURL、network，需要首先获取
+        const { network } = getNetwork(chain);
+        //发送方
+        const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
+        const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({ address: fromAddress, chain, filterMinUTXOSize });
+        if (unconfirmedUTXOs.length != 0) { console.log(`地址 ${fromAddress} 有未确认交易`); return }
+        if (filteredUTXOs.length == 0) { console.log(`地址 ${fromAddress} 无可用utxos`); return }
+        // console.log(filteredUTXOs)
 
-    // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
-    const psbt = new bitcoin.Psbt({ network });
+        // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
+        const psbt = new bitcoin.Psbt({ network });
 
-    // 创建交易输入
-    const inputValue = addInputsToPsbt({ psbt, UTXOs: filteredUTXOs, outputScript, keyPair, scriptType });
+        // 创建交易输入
+        const inputValue = addInputsToPsbt({ psbt, UTXOs: filteredUTXOs, outputScript, keyPair, scriptType });
 
-    const gas = await getGas({ GasSpeed, highGasRate });
-    // 输入确定，输出有可能有个找零，所以加1
-    const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (splitNum + 1), scriptType });
-    const fee = Math.ceil(gas * size);
+        const gas = await getGas({ GasSpeed, highGasRate });
+        // 输入确定，输出有可能有个找零，所以加1
+        const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (splitNum + 1), scriptType });
+        const fee = Math.ceil(gas * size);
 
-    const outputValue = inputValue - fee;
-    const { adjustedDividend: adjustedOutputValue, remainder } = findAdjustedDividendWithRemainder(outputValue, splitNum)
-    const eachOutputValue = adjustedOutputValue / splitNum;
-    if (eachOutputValue < 0) { console.log(`需要拆分的utxo值太小,请添加utxo`); return }
-    // 创建交易输出
-    const toAddress = fromAddress
-    for (let i = 0; i < splitNum; i++) {
-        psbt.addOutput({
-            address: toAddress, // 接收方地址
-            value: eachOutputValue, // 金额
-        });
+        const outputValue = inputValue - fee;
+        const { adjustedDividend: adjustedOutputValue, remainder } = findAdjustedDividendWithRemainder(outputValue, splitNum)
+        const eachOutputValue = adjustedOutputValue / splitNum;
+        if (eachOutputValue < 0) { console.log(`需要拆分的utxo值太小,请添加utxo`); return }
+        // 创建交易输出
+        const toAddress = fromAddress
+        for (let i = 0; i < splitNum; i++) {
+            psbt.addOutput({
+                address: toAddress, // 接收方地址
+                value: eachOutputValue, // 金额
+            });
+        }
+        // 余数不为0说明除不尽，余下的value返回给toAddress
+        if (remainder != 0) {
+            psbt.addOutput({
+                address: toAddress, // 接收方地址
+                value: outputValue - adjustedOutputValue, // 金额
+            });
+        }
+
+        // 签名所有输入
+        signInputs(psbt, keyPair, scriptType);
+
+        // 终结所有输入，表示签名完成
+        psbt.finalizeAllInputs();
+
+        // 提取交易事务
+        const psbtHex = psbt.extractTransaction().toHex();
+        console.log(`正在广播交易 hex: ${psbtHex}`);
+        const txid = await broadcastTx(psbtHex);
+
+        return { txid };
+    } catch (error) {
+        console.log('拆分UTXO出错:', error.message);
+        return null;
     }
-    // 余数不为0说明除不尽，余下的value返回给toAddress
-    if (remainder != 0) {
-        psbt.addOutput({
-            address: toAddress, // 接收方地址
-            value: outputValue - adjustedOutputValue, // 金额
-        });
-    }
-
-    // 签名所有输入
-    signInputs(psbt, keyPair, scriptType);
-
-    // 终结所有输入，表示签名完成
-    psbt.finalizeAllInputs();
-
-    // 提取交易事务
-    const psbtHex = psbt.extractTransaction().toHex();
-    console.log(`正在广播交易 hex: ${psbtHex}`);
-    await broadcastTx(psbtHex)
 }
 
-// // 计算加速费用
-// const calculateAccelerateFee = useCallback((transaction, newFeeRate, scriptType = 'P2TR', selectedUtxos = []) => {
-//     // 使用 Math.floor 向下取整
-//     const currentFeeRate = Math.floor(transaction.fee / (transaction.weight / 4));
-//     const feeRateDiff = newFeeRate - currentFeeRate;
-
-//     if (feeRateDiff <= 0) {
-//       return {
-//         success: false,
-//         error: '新费率必须高于当前费率'
-//       };
-//     }
-
-//     // 计算子交易的 vBytes
-//     const sizes = SCRIPT_SIZES[scriptType];
-//     // 基础大小 + 输入大小 * 输入数量 + 输出大小 * 2（一个用于加速，一个用于找零）
-//     const childTxVBytes = sizes.base + (sizes.input * selectedUtxos.length) + (sizes.output * 2);
-
-//     // 计算需要的聪数
-//     // 1. 子交易本身的费用
-//     const childTxFee = Math.ceil(childTxVBytes * newFeeRate);
-//     // 2. 父交易费率提升所需的费用
-//     const parentTxFee = Math.ceil(transaction.weight / 4 * feeRateDiff);
-// })
 /**
  * 加速比特币交易的确认过程。
  * 
@@ -424,65 +407,73 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', filterMinUT
  * @returns {Promise<void>} - 返回一个 Promise，表示加速操作的完成。
  */
 export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', gas, UTXOs, scriptType = 'P2TR' }) {
-    // 后面函数需要用到baseURL、network，需要首先获取
-    const { network } = getNetwork(chain);
-    const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
-    const { filteredUTXOs } = await getAddressUTXOs({ address: fromAddress, chain });
-    // 获取当前交易信息
-    const transaction = await getTransaction({ txid, chain });
-    if (transaction.confirmed) { console.log('交易已确认，无需加速'); return; }
-    const unconfirmedVout = transaction.vout.find(item => item.scriptpubkey_address === fromAddress);
-    if (!unconfirmedVout) { console.log(`地址 ${fromAddress} 不在交易的输出里, 无法使用CPFP加速。`); return; }
-    const unconfirmedVoutIndex = transaction.vout.findIndex(item => item.scriptpubkey_address === fromAddress);
-    // console.log(unconfirmedVoutIndex);
+    try {
+        // 后面函数需要用到baseURL、network，需要首先获取
+        const { network } = getNetwork(chain);
+        const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
+        const { filteredUTXOs } = await getAddressUTXOs({ address: fromAddress, chain });
+        // 获取当前交易信息
+        const transaction = await getTransaction({ txid, chain });
+        if (transaction.confirmed) { console.log('交易已确认，无需加速'); return; }
+        const unconfirmedVout = transaction.vout.find(item => item.scriptpubkey_address === fromAddress);
+        if (!unconfirmedVout) { console.log(`地址 ${fromAddress} 不在交易的输出里, 无法使用CPFP加速。`); return; }
+        const unconfirmedVoutIndex = transaction.vout.findIndex(item => item.scriptpubkey_address === fromAddress);
+        // console.log(unconfirmedVoutIndex);
 
-    // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
-    const psbt = new bitcoin.Psbt({ network });
+        // 创建一个新的交易构建器实例。这个构建器用于构建比特币交易，包括添加输入、输出和设置交易的其他参数。
+        const psbt = new bitcoin.Psbt({ network });
 
-    // 创建交易输入，用于提供加速费用
-    const inputValue = addInputsToPsbt({ psbt, UTXOs: UTXOs, outputScript, keyPair, scriptType });
+        // 创建交易输入，用于提供加速费用
+        const inputValue = addInputsToPsbt({ psbt, UTXOs: UTXOs, outputScript, keyPair, scriptType });
 
-    // 添加为确认的交易输出作为输入
-    const unconfirmedUtxo = {
-        index: unconfirmedVoutIndex, // UTXO 的输出索引
-        hash: transaction.txid, // UTXO 的交易哈希
-        witnessUtxo: {
-            script: outputScript, // UTXO 的输出脚本
-            value: unconfirmedVout.value, // UTXO 的金额
-        },
-    }
-    // 根据脚本类型添加特定的输入信息
-    if (scriptType.toUpperCase() === 'P2TR') {
-        unconfirmedUtxo.tapInternalKey = convertToXOnly(keyPair.publicKey); // 添加 Taproot 内部密钥
-    }
-    psbt.addInput(unconfirmedUtxo);
-    const oldFee = Math.floor((gas - transaction.adjustedFeePerVsize) * transaction.adjustedFeePerVsize);
-    const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: 2, scriptType });
-    const newFee = Math.ceil(gas * size);
-    const fee = oldFee + newFee;
+        // 添加为确认的交易输出作为输入
+        const unconfirmedUtxo = {
+            index: unconfirmedVoutIndex, // UTXO 的输出索引
+            hash: transaction.txid, // UTXO 的交易哈希
+            witnessUtxo: {
+                script: outputScript, // UTXO 的输出脚本
+                value: unconfirmedVout.value, // UTXO 的金额
+            },
+        }
+        // 根据脚本类型添加特定的输入信息
+        if (scriptType.toUpperCase() === 'P2TR') {
+            unconfirmedUtxo.tapInternalKey = convertToXOnly(keyPair.publicKey); // 添加 Taproot 内部密钥
+        }
+        psbt.addInput(unconfirmedUtxo);
+        const oldFee = Math.floor((gas - transaction.adjustedFeePerVsize) * transaction.adjustedVsize);
+        const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: 2, scriptType });
+        const newFee = Math.ceil(gas * size);
+        const fee = oldFee + newFee;
 
-    // 创建交易输出
-    psbt.addOutput({
-        address: fromAddress, // 接收方地址
-        value: unconfirmedVout.value, // 金额
-    });
-
-    // 找零
-    if (inputValue - fee > 0) {
+        // 创建交易输出
         psbt.addOutput({
             address: fromAddress, // 接收方地址
-            value: inputValue - fee, // 金额
+            value: unconfirmedVout.value, // 金额
         });
+
+        // 找零
+        if (inputValue - fee > 0) {
+            psbt.addOutput({
+                address: fromAddress, // 接收方地址
+                value: inputValue - fee, // 金额
+            });
+        }
+
+        // 签名所有输入
+        signInputs(psbt, keyPair, scriptType);
+
+        // 终结所有输入，表示签名完成
+        psbt.finalizeAllInputs();
+
+        // 提取交易事务
+        const psbtHex = psbt.extractTransaction().toHex();
+        console.log(`正在广播交易 hex: ${psbtHex}`);
+        const newTxid = await broadcastTx(psbtHex)
+
+        // 返回交易 ID
+        return { newTxid };
+    } catch (error) {
+        console.log('加速出错:', error.message);
+        return null;
     }
-
-    // 签名所有输入
-    signInputs(psbt, keyPair, scriptType);
-
-    // 终结所有输入，表示签名完成
-    psbt.finalizeAllInputs();
-
-    // 提取交易事务
-    const psbtHex = psbt.extractTransaction().toHex();
-    console.log(`正在广播交易 hex: ${psbtHex}`);
-    await broadcastTx(psbtHex)
 }

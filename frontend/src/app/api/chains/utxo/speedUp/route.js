@@ -22,16 +22,23 @@ export async function POST(request) {
       scriptType
     });
 
+    // 如果后端返回 null，说明加速失败
+    if (!result || !result.newTxid) {
+      return NextResponse.json({
+        success: false,
+        error: '加速失败，请重试'
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      txid: result?.txid
+      newTxid: result.newTxid
     });
 
   } catch (error) {
-    console.error('SpeedUp error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: error.message || '加速失败，请重试'
+    });
   }
 }
