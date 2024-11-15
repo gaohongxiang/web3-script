@@ -50,19 +50,21 @@ export default function Split() {
     if (!canSplit || confirmLoading) return;
     setConfirmLoading(true);
     try {
+      const params = {
+        enBtcMnemonicOrWif: encryptedKey,
+        chain: network,
+        selectedUtxos,
+        splitNum: splitParts,
+        gas: currentFeeRate,
+        scriptType,
+      };
+
       const response = await fetch('/api/chains/utxo/split', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          enBtcMnemonicOrWif: encryptedKey,
-          chain: network,
-          selectedUtxos,
-          splitNum: splitParts,
-          gas: currentFeeRate,
-          scriptType,
-        })
+        body: JSON.stringify(params)
       });
 
       const result = await response.json();
@@ -185,6 +187,7 @@ export default function Split() {
         txid={resultData.txid}
         network={network}
         error={resultData.error}
+        type="split"
       />
     </div>
   );

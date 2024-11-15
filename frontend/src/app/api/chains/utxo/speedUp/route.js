@@ -3,23 +3,24 @@ import { speedUp } from '@/../../backend/utxo-script/index.js';
 
 export async function POST(request) {
   try {
+
     const {
-      txid,
-      enMnemonicOrWif,
-      network,
+      enBtcMnemonicOrWif,
+      chain,
+      selectedUtxos,
       gas,
       scriptType,
-      selectedUtxos
+      txid
     } = await request.json();
 
     // 调用后端的 speedUp 函数
     const result = await speedUp({
-      enBtcMnemonicOrWif: enMnemonicOrWif,
-      txid,
-      chain: network,
-      gas: parseInt(gas),
-      UTXOs: selectedUtxos,
-      scriptType
+      enBtcMnemonicOrWif,
+      chain,
+      selectedUtxos,
+      gas,
+      scriptType,
+      txid
     });
 
     // 如果后端返回 null，说明加速失败

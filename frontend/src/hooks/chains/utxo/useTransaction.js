@@ -118,12 +118,12 @@ export function useTransaction() {
       if (!txInfo?.success) {
         return {
           success: false,
-          error: txInfo?.error || '获取交易失败'
+          error: txInfo?.message || '获取交易失败'
         };
       }
 
-      // addresses 直接在 txInfo 中
-      const addresses = txInfo.addresses;
+      // 从 txInfo.data 中获取地址列表
+      const addresses = txInfo.data.addresses;
 
       // 确保 addresses 是数组
       const addressArray = Array.isArray(addresses) ? addresses : [];
@@ -131,13 +131,13 @@ export function useTransaction() {
       if (!addressArray.includes(address)) {
         return {
           success: false,
-          error: `地址 ${address} 不在交易中，无法使用 CPFP 加速`
+          error: `此地址不在交易中，无法使用 CPFP 加速`
         };
       }
 
       return {
         success: true,
-        data: txInfo
+        data: txInfo.data
       };
     } catch (error) {
       return {

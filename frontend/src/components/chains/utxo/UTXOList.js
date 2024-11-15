@@ -12,7 +12,8 @@ export const UTXOList = memo(function UTXOList({ disabled }) {
     network,
     address,
     selectedUtxos,
-    setSelectedUtxos
+    setSelectedUtxos,
+    encryptedKey
   } = useUtxoContext();
 
   // 组件内部状态
@@ -89,6 +90,11 @@ export const UTXOList = memo(function UTXOList({ disabled }) {
       prev.filter(utxo => utxo.value >= filterAmount)
     );
   }, [filterAmount, setSelectedUtxos]);
+
+  // 监听助记词变化
+  useEffect(() => {
+    setSelectedUtxos([]);  // 清空选择的 UTXO
+  }, [encryptedKey, setSelectedUtxos]);
 
   // 处理 UTXO 选择
   const handleUtxoSelect = useCallback((utxo) => {
@@ -167,7 +173,7 @@ export const UTXOList = memo(function UTXOList({ disabled }) {
         ) : (
           utxoData.allUtxos.map((utxo) => {
             // 只有已确认且金额大于过滤值的 UTXO 才可选
-            const isSelectable = utxo.status.confirmed && utxo.value >= filterAmount;
+            const isSelectable = utxo.status.block_height !== 0 && utxo.value >= filterAmount;
             const isSelected = selectedUtxos.some(
               selected => selected.txid === utxo.txid && selected.vout === utxo.vout
             );
@@ -182,20 +188,20 @@ export const UTXOList = memo(function UTXOList({ disabled }) {
                   ${isSelected ? 'bg-blue-50' : ''}
                 `}
               >
-                <div className="flex-1 mr-4">
+                <div className="flex-1 mr-8">
                   <div className="flex items-center space-x-2">
                     <span className="text-[13px] text-gray-600 break-all">
                       {utxo.value / 100000000} {network === 'btc' ? 'BTC' : 'FB'} ({utxo.value} 聪)
                     </span>
-                    <span className={`text-[12px] ${utxo.status.confirmed ? 'text-gray-400' : 'text-red-500'}`}>
-                      {utxo.status.confirmed ? '已确认' : '未确认'}
+                    <span className={`text-[12px] ${utxo.status.block_height !== 0 ? 'text-gray-400' : 'text-red-500'}`}>
+                      {utxo.status.block_height !== 0 ? '已确认' : '未确认'}
                     </span>
                   </div>
                   <div className="text-[12px] text-gray-400">
                     {utxo.txid}:{utxo.vout}
                   </div>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center mr-4">
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -225,7 +231,7 @@ export const UTXOList = memo(function UTXOList({ disabled }) {
         <div className="flex items-center">
           <span>已确认：</span>
           <span className="ml-1">
-            {utxoData?.allUtxos?.filter(utxo => utxo.status.confirmed === true)?.length ?? '-'} 条UTXO
+            {utxoData?.allUtxos?.filter(utxo => utxo.status.block_height !== 0)?.length ?? '-'} 条UTXO
           </span>
         </div>
         <div className="flex items-center text-gray-900">

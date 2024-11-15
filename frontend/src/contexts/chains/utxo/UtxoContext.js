@@ -34,7 +34,8 @@ const initialState = {
   isReceiverValid: false,
   txInfo: null,
   validationError: null,
-  splitParts: 2
+  splitParts: 2,
+  txid: '',
 };
 
 // 创建 Context
@@ -66,6 +67,7 @@ export function UtxoProvider({ children }) {
   const [isReceiverValid, setIsReceiverValid] = useState(initialState.isReceiverValid);
 
   // 交易相关
+  const [txid, setTxid] = useState(initialState.txid);
   const [txInfo, setTxInfo] = useState(initialState.txInfo);
   const [validationError, setValidationError] = useState(initialState.validationError);
 
@@ -102,7 +104,7 @@ export function UtxoProvider({ children }) {
   // 计算拆分费用
   const splitFee = useMemo(() => {
     if (!selectedUtxos.length || !currentFeeRate || !splitParts) return null;
-    return calculateSplitFee(selectedUtxos, splitParts, currentFeeRate);
+    return calculateSplitFee(splitParts, currentFeeRate, selectedUtxos);
   }, [selectedUtxos, currentFeeRate, splitParts, calculateSplitFee]);
 
   // ======== 处理函数 ========
@@ -139,6 +141,8 @@ export function UtxoProvider({ children }) {
     setValidationError(initialState.validationError);
     setSelectedUtxos(initialState.selectedUtxos);
     setGasInfo(initialState.gasInfo);
+    setSplitParts(initialState.splitParts);
+    setTxid(initialState.txid);
   }, []);
 
   // ======== Context 值 ========
@@ -159,6 +163,7 @@ export function UtxoProvider({ children }) {
     txInfo,
     validationError,
     splitParts,
+    txid,
 
     // 计算状态
     currentFeeRate,
@@ -182,6 +187,7 @@ export function UtxoProvider({ children }) {
     setTxInfo,
     setValidationError,
     setSplitParts,
+    setTxid,
     clearState
   };
 

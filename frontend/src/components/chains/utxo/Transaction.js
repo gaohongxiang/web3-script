@@ -13,11 +13,12 @@ export function Transaction() {
     txInfo,
     setTxInfo,
     validationError,
-    setValidationError
+    setValidationError,
+    txid,
+    setTxid
   } = useUtxoContext();
 
-  const { validateAddressInTx, getTransaction } = useTransaction();
-  const [txid, setTxid] = useState('');
+  const { validateFormat, validateAddressInTx, getTransaction } = useTransaction();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [retryable, setRetryable] = useState(false);
@@ -176,19 +177,6 @@ export function Transaction() {
         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
         placeholder="输入交易ID"
       />
-
-      {txInfo?.success && (
-        <div className="mt-2 space-y-1 text-sm">
-          <div>
-            <span className="text-gray-500">交易大小：</span>
-            <span className="font-medium">{txInfo.data.size} vB</span>
-          </div>
-          <div>
-            <span className="text-gray-500">手续费率：</span>
-            <span className="font-medium">{txInfo.data.feeRate} sat/vB</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

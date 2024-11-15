@@ -68,12 +68,12 @@ export default function Transfer() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          enMnemonicOrWif: encryptedKey,  // 加密的助记词
-          toData: receiverList,           // 转账地址和金额列表
-          network,                        // 网络
-          gas: currentFeeRate,            // 已经计算好的 gas 值
-          scriptType,                     // 脚本类型
-          selectedUtxos                    // utxo列表
+          enBtcMnemonicOrWif: encryptedKey,  // 加密的助记词
+          toData: receiverList,             // 转账地址和金额列表
+          chain: network,                   // 网络
+          gas: currentFeeRate,              // 已经计算好的 gas 值
+          selectedUtxos,                    // utxo列表
+          scriptType                       // 脚本类型
         })
       });
 
@@ -95,6 +95,9 @@ export default function Transfer() {
           getBalance(address) // 重新获取余额
         ]);
       }
+
+      // 重置拆分相关的状态
+      setSelectedUtxos([]); // 清空选中的 UTXO
       
     } catch (error) {
       setResultData({
@@ -102,9 +105,6 @@ export default function Transfer() {
         txid: '',
         error: error.message || '转账失败，请重试'
       });
-
-      // 重置拆分相关的状态
-      setSelectedUtxos([]); // 清空选中的 UTXO
 
     } finally {
       setConfirmLoading(false);
@@ -228,6 +228,7 @@ export default function Transfer() {
         txid={resultData.txid}
         network={network}
         error={resultData.error}
+        type="transfer"
       />
     </div>
   );

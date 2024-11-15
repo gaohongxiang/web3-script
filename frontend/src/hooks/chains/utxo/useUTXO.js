@@ -33,11 +33,16 @@ export function useUTXO() {
       }
 
       const data = await response.json();
-      // 排序：未确认在前，金额从大到小
+      // 排序：先按确认状态分组，每组内按金额从大到小排序
       const sortedData = data.sort((a, b) => {
-        if (a.status.confirmed !== b.status.confirmed) {
-          return a.status.confirmed ? 1 : -1;
+        // 先按确认状态分组
+        if (a.status.block_height === 0 && b.status.block_height !== 0) {
+          return -1;  // a 未确认，排在前面
         }
+        if (a.status.block_height !== 0 && b.status.block_height === 0) {
+          return 1;   // b 未确认，排在前面
+        }
+        // 同组内按金额从大到小排序
         return b.value - a.value;
       });
 

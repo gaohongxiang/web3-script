@@ -91,15 +91,15 @@ export function useFee() {
   // 计算加速费用
   const calculateSpeedUpFee = useCallback((txInfo, newFeeRate, selectedUtxos) => {
     try {
-      if (!txInfo.success) {
+
+      if (!txInfo?.data) {  // 检查 txInfo.data
         return {
           success: false,
-          error: txInfo.error
+          error: 'Invalid transaction info'
         };
       }
 
-      const feeRateDiff = newFeeRate - txInfo.feeRate;
-
+      const feeRateDiff = newFeeRate - txInfo.data.feeRate;
       if (feeRateDiff <= 0) {
         return {
           success: false,
@@ -111,11 +111,11 @@ export function useFee() {
       const totalAmount = selectedUtxos.reduce((sum, utxo) => sum + utxo.value, 0);
 
       // 使用 useFee 计算子交易费用
-      const childTxVBytes = calculateTxSize(selectedUtxos.length, 2);  // 2个输出：加速和找零
-      const childTxFee = calculateFee(selectedUtxos.length, 2, newFeeRate);
+      const childTxVBytes = calculateTxSize(selectedUtxos.length + 1, 2);
+      const childTxFee = calculateFee(selectedUtxos.length + 1, 2, newFeeRate); // 输入：选择的utxo+未确认的1个，输出：未确认的1个和找零
 
       // 计算父交易费率提升所需的费用
-      const parentTxFee = Math.ceil(txInfo.vsize * feeRateDiff);
+      const parentTxFee = Math.ceil(txInfo.data.vsize * feeRateDiff);
 
       // 计算总费用
       const totalFee = Math.ceil(childTxFee + parentTxFee);
@@ -128,22 +128,25 @@ export function useFee() {
         };
       }
 
-      return {
+      const result = {
         success: true,
-        feeRate: txInfo.feeRate,
-        neededSats: totalFee,
+        feeRate: txInfo.data.feeRate,
+        fee: totalFee,
         details: {
           childTxFee: Math.ceil(childTxFee),
           parentTxFee: Math.ceil(parentTxFee),
-          parentTxSize: txInfo.size,
-          parentTxVsize: txInfo.vsize,
+          parentTxSize: txInfo.data.size,
+          parentTxVsize: txInfo.data.vsize,
           childTxVsize: childTxVBytes,
           childTxInputCount: selectedUtxos.length,
           totalAmount,
           remainingAmount: totalAmount - totalFee
         }
       };
+      return result;
+
     } catch (error) {
+      console.error('calculateSpeedUpFee error:', error);
       return {
         success: false,
         error: '计算费用失败，请重试'
@@ -152,9 +155,9 @@ export function useFee() {
   }, [calculateFee, calculateTxSize]);
 
   // 在现有的 useFee hook 中添加新的计算函数
-  const calculateSplitFee = useCallback((selectedUtxos, parts, feeRate) => {
+  const calculateSplitFee = useCallback((parts, currentFeeRate, selectedUtxos) => {
     try {
-      if (!selectedUtxos?.length || !parts || !feeRate) {
+      if (!selectedUtxos?.length || !parts || !currentFeeRate) {
         return {
           success: false,
           error: '缺少必要参数'
@@ -165,13 +168,9 @@ export function useFee() {
       const totalAmount = selectedUtxos.reduce((sum, utxo) => sum + utxo.value, 0);
 
       // 计算交易大小：
-      // 输入：所有选中的 UTXO
-      // 输出：拆分的份数（parts）+ 找零
-      const fee = calculateFee(
-        selectedUtxos.length,  // 输入数量
-        parts + 1,                 // 输出数量（拆分的份数）+ 找零
-        feeRate
-      );
+      // 输入：所有选中的 UTXO 输出：拆分的份数（parts）
+      const vsize = calculateTxSize(selectedUtxos.length, parts);
+      const fee = calculateFee(selectedUtxos.length, parts, currentFeeRate);
 
       // 计算每份金额（总金额减去费用后平均分配）
       const amountPerPart = Math.floor((totalAmount - fee) / parts);
@@ -190,6 +189,7 @@ export function useFee() {
         amountPerPart,
         details: {
           totalAmount,
+          TxVsize:vsize,
           fee,
           amountPerPart,
           parts,

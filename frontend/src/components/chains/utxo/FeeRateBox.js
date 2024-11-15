@@ -11,12 +11,14 @@ export function FeeRateBox({
   const { 
     selectedUtxos,
     currentFeeRate,
-    transferFee,  // 转账费用
-    speedUpFee,   // 加速费用
-    splitFee,     // 拆分费用
+    transferFee,
+    speedUpFee,
+    splitFee,
     setCustomGas,
     setGasLevel,
     isReceiverValid,
+    splitParts,
+    txInfo  // 添加 txInfo
   } = useUtxoContext();
 
   // 根据类型获取对应的费用计算结果
@@ -24,36 +26,48 @@ export function FeeRateBox({
     if (!selectedUtxos.length) return null;
 
     if (type === 'transfer' && isReceiverValid) return transferFee;
-    if (type === 'speedUp') return speedUpFee;
+    if (type === 'speedUp' && txInfo?.success) return speedUpFee;
     if (type === 'split') return splitFee;
     return null;
-  }, [type, transferFee, speedUpFee, splitFee, selectedUtxos, isReceiverValid]);
+  }, [type, transferFee, speedUpFee, splitFee, selectedUtxos, isReceiverValid, txInfo]);
 
   // 构建显示项
-  const items = [
-    {
-      label: gasInputLabel,
-      value: currentFeeRate,
-      input: true,
-      onChange: (e) => {
-        const value = e.target.value.trim();
-        setCustomGas(value === '' ? null : Number(value));
-        setGasLevel('custom');
+  const items = useMemo(() => {
+    const baseItems = [
+      {
+        label: gasInputLabel,
+        value: currentFeeRate,
+        input: true,
+        onChange: (e) => {
+          const value = e.target.value.trim();
+          setCustomGas(value === '' ? null : Number(value));
+          setGasLevel('custom');
+        },
+        error: type === 'speedUp' && txInfo?.data?.feeRate && currentFeeRate <= txInfo.data.feeRate 
+          ? '加速后费率必须大于加速前费率'
+          : null
       }
-    },
-    {
-      label: '预估费用',
-      value: estimatedFee 
-        ? `${estimatedFee.fee?.toLocaleString() ?? '-'} 聪${
-            selectedUtxos.length 
-              ? `, 已选择 ${selectedUtxos.reduce((sum, utxo) => sum + utxo.value, 0).toLocaleString()} 聪${
-                  estimatedFee.success ? '，足够支付交易费用' : '，不足以支付交易费用'
-                }`
-              : ''
-          }`
-        : '- 聪'
+    ];
+
+    // 如果是加速功能且有原交易信息，添加原费率显示
+    if (type === 'speedUp' && txInfo?.data?.feeRate) {
+      baseItems.unshift({
+        label: '加速前费率',
+        value: `${txInfo.data.feeRate} sat/vB`,
+        input: false
+      });
     }
-  ];
+
+    // 添加预估费用
+    baseItems.push({
+      label: '预估费用',
+      value: estimatedFee?.fee?.toLocaleString() ?? '-',
+      input: false,
+      showUtxoInfo: true
+    });
+
+    return baseItems;
+  }, [type, currentFeeRate, txInfo, estimatedFee, gasInputLabel]);
 
   return (
     <div>
@@ -77,18 +91,27 @@ export function FeeRateBox({
                   className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <span className="ml-1 text-gray-400">sat/vB</span>
+                {item.error && (
+                  <span className="ml-2 text-red-500">{item.error}</span>
+                )}
               </div>
             ) : (
               <>
                 <span className="text-gray-900">
-                  {estimatedFee?.fee?.toLocaleString() ?? '-'} 聪
+                  {item.showUtxoInfo ? (
+                    <>
+                      {item.value} 聪
+                      {selectedUtxos.length > 0 && estimatedFee?.fee && type !== 'split' && (
+                        <span className={estimatedFee.success ? 'text-green-500' : 'text-red-500'}>
+                          （已选择 {selectedUtxos.reduce((sum, utxo) => sum + utxo.value, 0).toLocaleString()} 聪，
+                          {estimatedFee.success ? '足够' : '不足'}支付交易费用）
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    item.value
+                  )}
                 </span>
-                {selectedUtxos.length > 0 && estimatedFee?.fee  && type !== 'split' && (
-                  <span className={estimatedFee.success ? 'text-green-500' : 'text-red-500'}>
-                    （已选择 {selectedUtxos.reduce((sum, utxo) => sum + utxo.value, 0).toLocaleString()} 聪，
-                    {estimatedFee.success ? '足够' : '不足'}支付交易费用）
-                  </span>
-                )}
               </>
             )}
           </div>

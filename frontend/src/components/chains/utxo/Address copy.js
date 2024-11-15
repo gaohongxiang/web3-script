@@ -6,7 +6,7 @@ import { useAddress } from '@/hooks/chains/utxo/useAddress';
 import { useDebounceFn } from 'ahooks';
 import { LoadingButton } from '@/components/LoadingButton';
 
-export function Address({ label = "发送地址", disabled = false, validationError }) {
+export function Address({ label = "发送地址", disabled = false }) {
   const { 
     network,
     scriptType,
@@ -134,9 +134,9 @@ export function Address({ label = "发送地址", disabled = false, validationEr
                 </span>
               )}
             </div>
-          ) : error || validationError ? (
+          ) : error ? (
             <span className="text-xs text-red-500">
-              {error || validationError}
+              {error}
             </span>
           ) : null}
         </div>

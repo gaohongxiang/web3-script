@@ -224,7 +224,7 @@ export async function getTransaction({ txid, chain = 'btc' }) {
             size: transaction.size,
             fee: transaction.fee, // 手续费
             status: transaction.status,
-            confirmed: transaction.status.confirmed, // true|false
+            confirmed: transaction.status.block_height > 0, // true|false
             txid: transaction.txid,
             vsize: transaction.vsize,
             adjustedVsize: transaction.adjustedVsize, // 调整后的虚拟大小
@@ -353,7 +353,7 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', selectedUtx
 
         // const gas = await getGas({ GasSpeed, highGasRate });
         // 输入确定，输出有可能有个找零，所以加1
-        const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (splitNum + 1), scriptType });
+        const size = estimateTransactionSize({ inputCount: selectedUtxos.length, outputCount: splitNum, scriptType });
         const fee = Math.ceil(gas * size);
 
         const outputValue = inputValue - fee;
@@ -365,17 +365,16 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', selectedUtx
         for (let i = 0; i < splitNum; i++) {
             psbt.addOutput({
                 address: toAddress, // 接收方地址
-                value: eachOutputValue, // 金额
+                value: i === 0 ? eachOutputValue + remainder : eachOutputValue, // 将余数加到第一个输出中，避免余数小于546聪引起粉尘错误
             });
         }
-        // 余数不为0说明除不尽，余下的value返回给toAddress
-        if (remainder != 0) {
-            psbt.addOutput({
-                address: toAddress, // 接收方地址
-                value: outputValue - adjustedOutputValue, // 金额
-            });
-        }
-
+        
+        console.log('------------------------')
+        console.log('size:', size);
+        
+        // 在添加输出之前打印
+        console.log('fee:', fee);
+        
         // 签名所有输入
         signInputs(psbt, keyPair, scriptType);
 
@@ -406,12 +405,12 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', selectedUtx
  * 
  * @returns {Promise<void>} - 返回一个 Promise，表示加速操作的完成。
  */
-export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', gas, UTXOs, scriptType = 'P2TR' }) {
+export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', gas, selectedUtxos, scriptType = 'P2TR' }) {
     try {
         // 后面函数需要用到baseURL、network，需要首先获取
         const { network } = getNetwork(chain);
         const { keyPair, address: fromAddress, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, chain, scriptType)
-        const { filteredUTXOs } = await getAddressUTXOs({ address: fromAddress, chain });
+        // const { filteredUTXOs } = await getAddressUTXOs({ address: fromAddress, chain });
         // 获取当前交易信息
         const transaction = await getTransaction({ txid, chain });
         if (transaction.confirmed) { console.log('交易已确认，无需加速'); return; }
@@ -424,7 +423,7 @@ export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', gas, UT
         const psbt = new bitcoin.Psbt({ network });
 
         // 创建交易输入，用于提供加速费用
-        const inputValue = addInputsToPsbt({ psbt, UTXOs: UTXOs, outputScript, keyPair, scriptType });
+        const inputValue = addInputsToPsbt({ psbt, UTXOs: selectedUtxos, outputScript, keyPair, scriptType });
 
         // 添加为确认的交易输出作为输入
         const unconfirmedUtxo = {
@@ -444,6 +443,10 @@ export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', gas, UT
         const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: 2, scriptType });
         const newFee = Math.ceil(gas * size);
         const fee = oldFee + newFee;
+        console.log(`gas:${gas}`)
+        console.log(`oldFee:${oldFee}`)
+        console.log(`新交易size:${size}`)
+        console.log(`newFee:${newFee}`)
 
         // 创建交易输出
         psbt.addOutput({
