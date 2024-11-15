@@ -45,9 +45,6 @@ const exchangeRate = 1e8; // 1 BTC = 100,000,000 satoshis
  * @throws {Error} - 如果生成密钥对或地址时发生错误，则抛出错误。
  */
 export async function getKeyPairAndAddressInfo(enMnemonicOrWif, chain = 'btc', scriptType = 'P2TR') {
-    console.log('Backend: Start parsing address');
-    console.log('Params:', { chain, scriptType });
-    
     try {
         //将 tiny-secp256k1 库初始化为比特币库（bitcoinjs-lib）所使用的椭圆曲线加密库。即 bitcoinjs-lib 库将能够利用 tiny-secp256k1 进行加密操作。
         bitcoin.initEccLib(ecc);
@@ -82,7 +79,7 @@ export async function getKeyPairAndAddressInfo(enMnemonicOrWif, chain = 'btc', s
             // 通过私钥创建一个 keyPair 密钥对
             keyPair = ECPairFactory(ecc).fromPrivateKey(privateKeyBuffer, { network });
         } else {
-            console.log('确保传入的是scriptType类型的wif, 否则会导致超预���的密钥对!');
+            console.log('确保传入的是scriptType类型的wif, 否则会导致超预期的密钥对!');
             keyPair = ECPairFactory(ecc).fromWIF(decryptedKey, network);
         }
         // 生成地址和输出
@@ -102,10 +99,8 @@ export async function getKeyPairAndAddressInfo(enMnemonicOrWif, chain = 'btc', s
         // console.log('密钥对', keyPair)
         // console.log('taprootAddress:', address)
         // console.log('锁定脚本', output)
-        console.log('Backend: Success, address:', address);
         return { keyPair, address, output };
     } catch (error) {
-        console.log('Backend: Error:', error.message);
         return null;
     }
 }
@@ -161,7 +156,7 @@ export async function getAddressUTXOs({ address, chain = 'btc', filterMinUTXOSiz
         const { baseURl } = getNetwork(chain);
         const response = await fetch(`${baseURl}/address/${address}/utxo`);
         let allUTXOs = await response.json();
-        console.log(allUTXOs)
+        // console.log(allUTXOs)
         let filteredUTXOs = [];
         let unconfirmedUTXOs = [];
         for (const utxo of allUTXOs) {
@@ -170,7 +165,7 @@ export async function getAddressUTXOs({ address, chain = 'btc', filterMinUTXOSiz
             if (!utxo.status.block_height) {
                 unconfirmedUTXOs.push(utxo)
             }
-            // ��滤聪，低于filterMinUTXOSize的聪过滤掉，避免误烧和金额不够
+            // 过滤聪，低于filterMinUTXOSize的聪过滤掉，避免误烧和金额不够
             if (filterMinUTXOSize && utxo.value > filterMinUTXOSize && utxo.status.block_height) {
                 filteredUTXOs.push(utxo);
             }
@@ -242,15 +237,14 @@ export async function getTransaction({ txid, chain = 'btc' }) {
 /**
  * 进行比特币转账操作。
  * 
- * @param {string} enBtcMnemonicOrWif - 发送方的加密后比特币助记词或 WIF 私钥（必填）。
- * @param {Array} toData - 目标地址和对应转账金额的数组，格式为 [['地址1', 金额1], ['地址2', 金额2], ...]。
- * @param {string} [chain='btc'] - 使用的区块链类型，默认为 'btc'。
- * @param {number} [filterMinUTXOSize=10000] - 过滤的最小 UTXO 大小，默认为 10000聪，防止烧资产。
- * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）。
- * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'。
- * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1。只有GasSpeed='high'时才生效。
+ * @param {string} enBtcMnemonicOrWif - 发送方的加密后比特币助记词或 WIF 私钥
+ * @param {Array} toData - 目标地址和对应转账金额的数组，格式为 [['地址1', 金额1], ['地址2', 金额2], ...]
+ * @param {string} [chain='btc'] - 区块链类型
+ * @param {number} gas - 交易费率(sat/vB)
+ * @param {Array} selectedUtxos - 选择的UTXO数组
+ * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）
  * 
- * @returns {Promise<void>} - 返回一个 Promise，表示转账操作的完成。
+ * @returns {Promise<Object>} 返回包含交易ID的对象 {txid: string} 或 null
  */
 export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', gas, selectedUtxos, scriptType = 'P2TR' }) {
     try {
@@ -320,19 +314,17 @@ export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', gas,
         return null;
     }
 }
-
 /**
  * 将比特币 UTXO 拆分为多个较小的 UTXO。
  * 
- * @param {string} enBtcMnemonicOrWif - 发送方的加密后比特币助记词或 WIF 私钥（必填）。
- * @param {string} [chain='btc'] - 使用的区块链类型，默认为 'btc'。
- * @param {number} [filterMinUTXOSize=10000] - 过滤的最小 UTXO 大小，默认为 10000聪，防止烧资产。
- * @param {number} [splitNum=3] - 拆分的 UTXO 数量，默认为 3。
- * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）。
- * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'。
- * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1。只有GasSpeed='high'时才生效。
+ * @param {string} enBtcMnemonicOrWif - 发送方的加密后比特币助记词或 WIF 私钥
+ * @param {string} [chain='btc'] - 区块链类型
+ * @param {Array} selectedUtxos - 选择的UTXO数组
+ * @param {number} [splitNum=3] - 拆分的 UTXO 数量
+ * @param {number} gas - 交易费率(sat/vB)
+ * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）
  * 
- * @returns {Promise<void>} - 返回一个 Promise，表示拆分操作的完成。
+ * @returns {Promise<Object>} 返回包含交易ID的对象 {txid: string} 或 null
  */
 export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', selectedUtxos, splitNum = 3, gas, scriptType = 'P2TR' }) {
     try {
@@ -369,12 +361,6 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', selectedUtx
             });
         }
         
-        console.log('------------------------')
-        console.log('size:', size);
-        
-        // 在添加输出之前打印
-        console.log('fee:', fee);
-        
         // 签名所有输入
         signInputs(psbt, keyPair, scriptType);
 
@@ -396,14 +382,14 @@ export async function splitUTXO({ enBtcMnemonicOrWif, chain = 'btc', selectedUtx
 /**
  * 加速比特币交易的确认过程。
  * 
- * @param {string} enBtcMnemonicOrWif - 发送方的加密后比特币助记词或 WIF 私钥（必填）。
- * @param {string} txid - 需要加速的交易 ID（必填）。
- * @param {string} [chain='btc'] - 使用的区块链类型，默认为 'btc'。
- * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）。
- * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'。
- * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1。只有GasSpeed='high'时才生效。
+ * @param {string} enBtcMnemonicOrWif - 发送方的加密后比特币助记词或 WIF 私钥
+ * @param {string} txid - 需要加速的交易ID
+ * @param {string} [chain='btc'] - 区块链类型
+ * @param {number} gas - 交易费率(sat/vB)
+ * @param {Array} selectedUtxos - 选择的UTXO数组，用于支付加速费用
+ * @param {string} [scriptType='P2TR'] - 脚本类型（P2PKH、P2WPKH、P2TR）
  * 
- * @returns {Promise<void>} - 返回一个 Promise，表示加速操作的完成。
+ * @returns {Promise<Object>} 返回包含新交易ID的对象 {newTxid: string} 或 null
  */
 export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', gas, selectedUtxos, scriptType = 'P2TR' }) {
     try {
@@ -443,10 +429,6 @@ export async function speedUp({ enBtcMnemonicOrWif, txid, chain = 'btc', gas, se
         const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: 2, scriptType });
         const newFee = Math.ceil(gas * size);
         const fee = oldFee + newFee;
-        console.log(`gas:${gas}`)
-        console.log(`oldFee:${oldFee}`)
-        console.log(`新交易size:${size}`)
-        console.log(`newFee:${newFee}`)
 
         // 创建交易输出
         psbt.addOutput({
