@@ -127,10 +127,10 @@ export async function getWallet(enPrivateKey, provider) {
  * @param {string} token - 代币名称（大小写不敏感）。
  * @param {string} chain - 代币所在链。
  * @param {string} [proxy=null] - 代理，默认不走代理
- * @param {string} [tokenFile='./backend/data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './backend/data/token.json'。
+ * @param {string} [tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @returns {Promise<string|null>} - 返回代币余额（以字符串形式），如果出错则返回 null。
  */
-export async function getBalance({ address, token, chain, proxy = null, tokenFile = './backend/data/token.json' }) {
+export async function getBalance({ address, token, chain, proxy = null, tokenFile = './data/token.json' }) {
 	token = token.toUpperCase();
 	let tokenBalance;
 	const { network, provider } = getNetworkProvider(chain, proxy);
@@ -160,10 +160,10 @@ export async function getBalance({ address, token, chain, proxy = null, tokenFil
  * @param {string|number} params.value - 转账金额，可以是字符串或数字。
  * @param {string} params.chain - 代币所在链。
  * @param {string} [proxy=null] - 代理，默认不走代理
- * @param {string} [tokenFile='./backend/data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './backend/data/token.json'。
+ * @param {string} [tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @returns {Promise<void>} - 无返回值，处理转账过程中的错误。
  */
-export async function transfer({ enPrivateKey, toAddress, token, value, chain, proxy = null, tokenFile = './backend/data/token.json' }) {
+export async function transfer({ enPrivateKey, toAddress, token, value, chain, proxy = null, tokenFile = './data/token.json' }) {
 	try {
 		token = token.toUpperCase();
 		const { network, provider } = getNetworkProvider(chain, proxy);
@@ -214,10 +214,10 @@ export async function transfer({ enPrivateKey, toAddress, token, value, chain, p
  * @param {string} params.listenToken - 要监听的代币名称。
  * @param {string} params.chain - 要监听的代币所在链。
  * @param {string} [proxy=null] - 代理，默认不走代理
- * @param {string} [params.tokenFile='./backend/data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './backend/data/token.json'。
+ * @param {string} [params.tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @param {string} [params.direction='in'] - 监听的方向，可以是 'in'（流入）或 'out'（流出），默认为 'in'。
  */
-export async function listenContract({ listenAddress, listenToken, chain, proxy = null, tokenFile = './backend/data/token.json', direction = 'in' }) {
+export async function listenContract({ listenAddress, listenToken, chain, proxy = null, tokenFile = './data/token.json', direction = 'in' }) {
 	const { network, provider } = getNetworkProvider(chain, proxy);
 	const tokenInfo = getTokenInfo({ token: listenToken, chain: network, tokenFile });
 	if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };

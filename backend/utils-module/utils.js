@@ -1,5 +1,5 @@
 import fs from 'fs';
-import XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 import { parse } from 'csv-parse';
 
 /**
@@ -7,10 +7,10 @@ import { parse } from 'csv-parse';
  *
  * @param {string} token - 代币名称。
  * @param {Object} options - 可选参数对象。
- * @param {string} [options.tokenFile='./backend/data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './backend/data/token.json'。
+ * @param {string} [options.tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @returns {Promise<Object>} - 返回一个包含代币地址、ABI 和小数位数的对象。
  */
-export function getTokenInfo({ token, chain, tokenFile = './backend/data/token.json' }) {
+export function getTokenInfo({ token, chain, tokenFile = './data/token.json' }) {
     try {
         token = token.toUpperCase();
         chain = chain.toLowerCase();
@@ -82,9 +82,9 @@ export async function getCsvData(csvFile) {
  * @param {string} options.csvFile - 要读取的 CSV 文件路径。
  * @param {string} options.columnName - 要提取的列名。
  * @param {boolean} [options.saveToFile=false] - 是否将提取的数据保存到临时文件，默认为 false。
- * @param {string} [options.tempFile='./backend/data/temp.csv'] - 临时文件的路径，用于存储提取的数据（如果 saveToFile 为 true）。
+ * @param {string} [options.tempFile='./data/temp.csv'] - 临时文件的路径，用于存储提取的数据（如果 saveToFile 为 true）。
  */
-export async function getCsvDataByColumnName({ csvFile, columnName, saveToFile = false, tempFile = './backend/data/temp.csv' }) {
+export async function getCsvDataByColumnName({ csvFile, columnName, saveToFile = false, tempFile = './data/temp.csv' }) {
     try {
         const fileStream = fs.createReadStream(csvFile);
 

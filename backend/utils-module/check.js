@@ -13,7 +13,7 @@ import { getCsvDataByColumnName } from './utils.js';
  * @example
  * // JSON 文件格式：
  * // {"address1": amount1, "address2": amount2, ...}
- * const matches = await check('./backend/data/addresses.json', './backend/data/our-addresses.csv', 'address');
+ * const matches = await check('./data/addresses.json', './data/our-addresses.csv', 'address');
  * 
  * // TXT 文件格式（支持空格或逗号分隔）：
  * // address1 amount1
@@ -21,7 +21,7 @@ import { getCsvDataByColumnName } from './utils.js';
  * // 或
  * // address1,amount1
  * // address2,amount2
- * const matches = await check('./backend/data/addresses.txt', './backend/data/our-addresses.csv', 'address');
+ * const matches = await check('./data/addresses.txt', './data/our-addresses.csv', 'address');
  */
 export async function check(givenFilePath, ourCsvPath, columnName) {
     try {

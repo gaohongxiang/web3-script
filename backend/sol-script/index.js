@@ -110,31 +110,54 @@ export async function getTokenAccounts(wallet) {
  * @param {Object} params - 函数参数对象。
  * @param {string} params.address - 要查询余额的地址。
  * @param {string} [params.token='SOL'] - 要查询的代币类型，默认为 'SOL'。
- * @param {string} [params.tokenFile='./backend/data/token.json'] - 存储代币信息的 JSON 文件路径，默认为 './backend/data/token.json'。
+ * @param {string} [params.tokenFile='./data/token.json'] - 存储代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * 
  * @returns {Promise<number>} - 返回指定地址的余额。
  * 
  * @throws {Error} - 如果代币信息缺失或余额为 null，将抛出相应的错误。
  */
-export async function getBalance({ address, token = 'SOL', tokenFile = './backend/data/token.json' }) {
+export async function getBalance({ address, token = 'SOL', tokenAddr = '', tokenFile = './data/token.json' }) {
     try {
         token = token.toUpperCase();
         const connection = await createConnection();
         let balance;
+        let balanceLamports;
+
         if (token === 'SOL') {
-            balance = await connection.getBalance(new PublicKey(address));
-            balance = balance / LAMPORTS_PER_SOL;
+            balanceLamports = await connection.getBalance(new PublicKey(address));
+            balance = balanceLamports / LAMPORTS_PER_SOL;
         } else {
-            const tokenInfo = getTokenInfo({ token, chain: 'solana', tokenFile });
-            if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-            const { address: tokenAddr } = tokenInfo;
-            const ataAddress = getAtaAddress(address, tokenAddr);
-            const info = await connection.getTokenAccountBalance(ataAddress);
+            // 如果没有传入，则从配置文件获取
+            if (!tokenAddr) {
+                const tokenInfo = getTokenInfo({ token, chain: 'solana', tokenFile });
+                if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
+
+                tokenAddr = tokenInfo.address;
+            }
+            const ata = await getAtaAddress(address, tokenAddr);
+            const info = await connection.getTokenAccountBalance(ata);
             balance = info.value.uiAmount;
         }
-        console.log(`地址 ${address} ${token} 余额: ${balance}`);
+        console.log(balance)
+        console.log(typeof balance)
         return balance;
-    } catch (error) { throw error }
+    } catch (error) {
+        return null;
+    }
+}
+
+/**
+ * 从加密的私钥中生成密钥对并返回公钥地址。
+ * 
+ * @param {string} enPrivateKey - 加密的私钥
+ * @returns {Promise<Object>} - 返回一个包含密钥对和公钥地址的对象
+ */
+export async function getKeyPairAndAddress(enPrivateKey) {
+    try {
+        const privateKey = await deCryptText(enPrivateKey);
+        const keyPair = Keypair.fromSecretKey(bs58.decode(privateKey));
+        return { keyPair, address: keyPair.publicKey.toString() };
+    } catch (error) { return null }
 }
 
 /**
@@ -145,7 +168,7 @@ export async function getBalance({ address, token = 'SOL', tokenFile = './backen
  * @param {string} enPrivateKey - 加密的私钥，用于生成发送方的密钥对。
  * @param {Array<Array<string>>} toData - 目标地址和对应转账金额的数组，格式为 [['地址1', 金额1], ['地址2', 金额2], ...]。
  * @param {string} token - 要转账的代币类型（例如 'SOL' 或 'USDC'）。
- * @param {string} [tokenFile='./backend/data/token.json'] - 存储代币信息的 JSON 文件路径，默认 './backend/data/token.json'。
+ * @param {string} [tokenFile='./data/token.json'] - 存储代币信息的 JSON 文件路径，默认 './data/token.json'。
  * 
  * @throws {Error} 如果余额不足或代币信息缺失，将输出相应的错误信息并退出。
  * 
@@ -159,7 +182,7 @@ export async function getBalance({ address, token = 'SOL', tokenFile = './backen
  * 5. 将所有转账指令添加到交易中。
  * 6. 发送交易并确认。
  */
-export async function transfer({ enPrivateKey, toData, token, tokenFile = './backend/data/token.json' }) {
+export async function transfer({ enPrivateKey, toData, token, tokenAddr = '', tokenDecimals = null, tokenFile = './data/token.json' }) {
     try {
         token = token.toUpperCase();
         const connection = await createConnection();
@@ -170,9 +193,7 @@ export async function transfer({ enPrivateKey, toData, token, tokenFile = './bac
         }
 
         // 从私钥生成密钥对
-        const privateKey = await deCryptText(enPrivateKey);
-        const keyPair = Keypair.fromSecretKey(bs58.decode(privateKey));
-        const fromAddress = keyPair.publicKey.toString();
+        const { keyPair, address: fromAddress } = await getKeyPairAndAddress(enPrivateKey);
 
         // 估算统一的交易费用
         const unifiedFee = await estimateTransactionFee(connection, keyPair.publicKey);
@@ -184,9 +205,9 @@ export async function transfer({ enPrivateKey, toData, token, tokenFile = './bac
         if (token === 'SOL') {
             // 获取 SOL 余额
             const balance = await connection.getBalance(keyPair.publicKey);
-            const requiredLamports = BigInt(totalAmount * LAMPORTS_PER_SOL) + BigInt(unifiedFee);
+            const requiredLamports = totalAmount * LAMPORTS_PER_SOL + unifiedFee;
 
-            if (BigInt(balance) < requiredLamports) {
+            if (balance < requiredLamports) {
                 console.log(`余额不足，当前余额: ${balance / LAMPORTS_PER_SOL} SOL, 所需: ${Number(requiredLamports) / LAMPORTS_PER_SOL} SOL`);
                 return;
             }
@@ -196,20 +217,23 @@ export async function transfer({ enPrivateKey, toData, token, tokenFile = './bac
                 tx.add(SystemProgram.transfer({
                     fromPubkey: keyPair.publicKey,
                     toPubkey: new PublicKey(toAddress),
-                    lamports: Number(amount) * LAMPORTS_PER_SOL, 
+                    lamports: Number(amount) * LAMPORTS_PER_SOL,
                 }));
                 console.log(`从 ${fromAddress} 向 ${toAddress} 转账 ${amount} SOL`);
             }
         } else {
-            const tokenInfo = getTokenInfo({ token, chain: 'solana', tokenFile });
-            if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
-            const { address: tokenAddr, decimals: tokenDecimals } = tokenInfo;
+            if (!(tokenAddr && tokenDecimals)) {
+                const tokenInfo = getTokenInfo({ token, chain: 'solana', tokenFile });
+                if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
+                tokenAddr = tokenInfo.address;
+                tokenDecimals = tokenInfo.decimals;
+            }
             const mint = new PublicKey(tokenAddr);
             const fromAta = await getOrCreateAssociatedTokenAccount(connection, keyPair, mint, keyPair.publicKey);
             const info = await connection.getTokenAccountBalance(fromAta.address);
-            const requiredAmount = BigInt(totalAmount * 10 ** tokenDecimals);
+            const requiredAmount = totalAmount * 10 ** tokenDecimals;
 
-            if (BigInt(info.value.amount) < requiredAmount) {
+            if (info.value.amount < requiredAmount) {
                 console.log(`${token} 余额不足，当前余额: ${info.value.uiAmount} ${token}，所需: ${requiredAmount} ${token}`);
                 return;
             }
@@ -230,7 +254,7 @@ export async function transfer({ enPrivateKey, toData, token, tokenFile = './bac
                     fromAta.address,
                     toAta.address,
                     keyPair.publicKey,
-                    BigInt(Number(amount) * 10 ** tokenDecimals),
+                    Number(amount) * 10 ** tokenDecimals,
                 ));
                 console.log(`从 ${fromAddress} 向 ${toAddress} 转账 ${amount} ${token}`);
             }));
@@ -239,11 +263,12 @@ export async function transfer({ enPrivateKey, toData, token, tokenFile = './bac
         const latestBlockHash = await connection.getLatestBlockhash('confirmed');
         tx.recentBlockhash = await latestBlockHash.blockhash;
         // maxRetries重试次数。skipPreflight跳过预检查
-        const signature = await sendAndConfirmTransaction(connection, tx, [keyPair], { commitment: 'confirmed', maxRetries: 5, skipPreflight: false });
-        console.log(`交易成功!🎉, 交易哈希: ${signature}`);
+        const txid = await sendAndConfirmTransaction(connection, tx, [keyPair], { commitment: 'confirmed', maxRetries: 5, skipPreflight: false });
+        console.log(`交易成功!🎉, 交易哈希: ${txid}`);
+        return txid;
     } catch (error) {
         console.error('转账过程中发生错误:', error);
-        throw error;
+        return null;
     }
 }
 
@@ -254,10 +279,10 @@ export async function transfer({ enPrivateKey, toData, token, tokenFile = './bac
  * @param {Array<string>} params.enPrivateKeys - 加密的私钥数组
  * @param {string} params.toAddress - 归集目标地址
  * @param {string} params.token - 代币类型（'SOL' 或 SPL 代币名称）
- * @param {string} [params.tokenFile='./backend/data/token.json'] - 代币信息文件路径
+ * @param {string} [params.tokenFile='./data/token.json'] - 代币信息文件路径
  * @returns {Promise<string|null>} 返回交易签名，如果没有执行交易则返回 null
  */
-export async function consolidateFunds({ enPrivateKeys, toAddress, token, tokenFile = './backend/data/token.json' }) {
+export async function consolidateFunds({ enPrivateKeys, toAddress, token, tokenFile = './data/token.json' }) {
     const connection = await createConnection();
     token = token.toUpperCase();
     const toPublicKey = new PublicKey(toAddress);
@@ -272,9 +297,7 @@ export async function consolidateFunds({ enPrivateKeys, toAddress, token, tokenF
 
     for (const enPrivateKey of enPrivateKeys) {
         try {
-            const privateKey = await deCryptText(enPrivateKey);
-            const keyPair = Keypair.fromSecretKey(bs58.decode(privateKey));
-            const fromAddress = keyPair.publicKey.toString();
+            const { keyPair, address: fromAddress } = await getKeyPairAndAddress(enPrivateKey);
 
             if (token === 'SOL') {
                 const balance = await connection.getBalance(keyPair.publicKey);
@@ -316,7 +339,7 @@ export async function consolidateFunds({ enPrivateKeys, toAddress, token, tokenF
                         fromAta.address,
                         toAta.address,
                         keyPair.publicKey,
-                        BigInt(transferAmount)
+                        transferAmount
                     ));
                     signers.push(keyPair);
                     console.log(`从 ${fromAddress} 归集 ${transferAmount / (10 ** tokenInfo.decimals)} ${token} 到 ${toAddress}`);

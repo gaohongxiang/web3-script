@@ -3,7 +3,7 @@
 ## 注意事项
 - 本脚本使用heliusKey、quickNodeKey的rpc服务，需要自己申请，将apiKey配置到.env文件
 - 创建钱包文件，并加密私钥、助记词数据
-- spl代币信息存储在`./backend/data/token.json`文件,需要的token信息可自行添加
+- spl代币信息存储在`./data/token.json`文件,需要的token信息可自行添加
 
 ## 示例
 ```
@@ -11,8 +11,8 @@
 import { getBalance as solanaGetBalance, transfer as solanaTransfer } from './packages/sol-script/index.js'
 
 // 获取地址余额
-// 参数：{ address, token='SOL', tokenFile = './backend/data/token.json' }
-// const balance = await solanaGetBalance({ address: 'HgkB9gJH58zxauqwLqgGVgoHH5FWNdiiVrUsXjTFVukx', token: 'sol', tokenFile = './backend/data/token.json' })
+// 参数：{ address, token='SOL', tokenFile = './data/token.json' }
+// const balance = await solanaGetBalance({ address: 'HgkB9gJH58zxauqwLqgGVgoHH5FWNdiiVrUsXjTFVukx', token: 'sol', tokenFile = './data/token.json' })
 
 // 几个数据就是发送给几个
 const toData = [
@@ -21,8 +21,8 @@ const toData = [
 ]
 
 // 发送代币
-// 参数：{ enPrivateKey, toData, token, tokenFile='./backend/data/token.json' }
-solanaTransfer({ enPrivateKey: '加密的私钥', toData, token:'sol', tokenFile:'./backend/data/token.json' })
+// 参数：{ enPrivateKey, toData, token, tokenFile='./data/token.json' }
+solanaTransfer({ enPrivateKey: '加密的私钥', toData, token:'sol', tokenFile:'./data/token.json' })
 ```
 
 ## 参考

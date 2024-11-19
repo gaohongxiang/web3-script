@@ -80,9 +80,9 @@ myFormatData(1, 2)
 import { getCsvData, getCsvDataByColumnName } from './packages/utils-module/utils.js';
 
 // 从指定的 CSV 文件中读取数据并返回解析后的结果
-await getCsvData('./backend/data/wallet.csv');
+await getCsvData('./data/wallet.csv');
 
 // 从指定的 CSV 文件中读取数据，并将指定列的数据转存到临时文件。
-// 参数；csvFile, columnName, tempFile='./backend/data/temp.csv'
-await getCsvDataByColumnName('./backend/data/wallet.csv', 'address');
+// 参数；csvFile, columnName, tempFile='./data/temp.csv'
+await getCsvDataByColumnName('./data/wallet.csv', 'address');
 ```

@@ -1,13 +1,13 @@
 {
     "dataFiles": [
-        "./backend/data/walletBtc.csv",
-        "./backend/data/walletEth.csv",
-        "./backend/data/walletSol.csv",
-        "./backend/data/walletSui.csv",    
+        "./data/walletBtc.csv",
+        "./data/walletEth.csv",
+        "./data/walletSol.csv",
+        "./data/walletSui.csv",    
 
-        "./backend/data/addressBinance.csv",
-        "./backend/data/addressOkx.csv",
+        "./data/addressBinance.csv",
+        "./data/addressOkx.csv",
 
-        "./backend/data/ip.csv"
+        "./data/ip.csv"
     ]
 }

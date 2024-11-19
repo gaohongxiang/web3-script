@@ -16,7 +16,7 @@ const rpc = [
   'https://sui-mainnet-us-2.cosmostation.io',
 ]
 
-export async function getBalance({ address, token = 'SUI', tokenFile = './backend/data/token.json' }) {
+export async function getBalance({ address, token = 'SUI', tokenFile = './data/token.json' }) {
   try {
     token = token.toUpperCase();
     const tokenInfo = getTokenInfo({ token, chain: 'sui', tokenFile });
@@ -32,7 +32,7 @@ export async function getBalance({ address, token = 'SUI', tokenFile = './backen
 }
 
 // // suiKit库查询余额用的是私钥，不太方便。该用官方库实现方式
-// export async function getBalance({ enPrivateKey, token = "SUI", tokenFile = './backend/data/token.json' }) {
+// export async function getBalance({ enPrivateKey, token = "SUI", tokenFile = './data/token.json' }) {
 //   try {
 //     token = token.toUpperCase();
 //     const secretKey = await deCryptText(enPrivateKey);
@@ -50,7 +50,7 @@ export async function getBalance({ address, token = 'SUI', tokenFile = './backen
 //   } catch (error) { throw error; }
 // }
 
-export async function transfer({ enPrivateKey, toData, token = "SUI", tokenFile = './backend/data/token.json' }) {
+export async function transfer({ enPrivateKey, toData, token = "SUI", tokenFile = './data/token.json' }) {
   try {
     token = token.toUpperCase();
     const tokenInfo = getTokenInfo({ token, chain: 'sui', tokenFile });

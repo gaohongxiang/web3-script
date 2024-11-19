@@ -22,7 +22,7 @@ import { enCryptText } from '../crypt-module/crypt.js';
  */
 export async function generateEthWallet(num = 10) {
   const currentTime = getCurrentTime();
-  const walletfile = `./backend/data/walletEth-${currentTime}.csv`; // 生成文件名
+  const walletfile = `./data/walletEth-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
   try {
@@ -61,7 +61,7 @@ export async function generateBtcWallet(num = 10) {
   const convertToXOnly = (pubKey) => pubKey.length === 32 ? pubKey : pubKey.slice(1, 33);
 
   const currentTime = getCurrentTime();
-  const walletfile = `./backend/data/walletBtc-${currentTime}.csv`; // 生成文件名
+  const walletfile = `./data/walletBtc-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
   try {
@@ -106,7 +106,7 @@ export async function generateBtcWallet(num = 10) {
  */
 export async function generateSolWallet(num = 10) {
   const currentTime = getCurrentTime();
-  const walletfile = `./backend/data/walletSol-${currentTime}.csv`; // 生成文件名
+  const walletfile = `./data/walletSol-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
   try {
@@ -141,7 +141,7 @@ export async function generateSolWallet(num = 10) {
  */
 export async function generateSuiWallet(num = 10) {
   const currentTime = getCurrentTime();
-  const walletfile = `./backend/data/walletSui-${currentTime}.csv`; // 生成文件名
+  const walletfile = `./data/walletSui-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
   try {
@@ -174,7 +174,7 @@ export async function generateSuiWallet(num = 10) {
  */
 export async function generatePassword(num = 10) {
   const currentTime = getCurrentTime();
-  const walletfile = `./backend/data/walletPassword-${currentTime}.csv`; // 生成文件名
+  const walletfile = `./data/walletPassword-${currentTime}.csv`; // 生成文件名
 
   // 判断文件是否存在
   try {

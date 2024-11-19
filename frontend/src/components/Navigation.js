@@ -40,26 +40,6 @@ export function Navigation() {
               >
                 UTXO 工具
               </Link>
-              <Link 
-                href="/chains/utxo/speedUp" 
-                className={`block px-4 py-2 ${
-                  pathname === '/chains/utxo/speedUp'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                加速交易
-              </Link>
-              <Link 
-                href="/chains/utxo/split" 
-                className={`block px-4 py-2 last:rounded-b-lg ${
-                  pathname === '/chains/utxo/split'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                拆分UTXO
-              </Link>
             </div>
           </div>
 
@@ -74,24 +54,14 @@ export function Navigation() {
             </button>
             <div className="absolute top-full left-0 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <Link 
-                href="/chains/solana/transfer" 
+                href="/chains/solana" 
                 className={`block px-4 py-2 first:rounded-t-lg ${
-                  pathname === '/chains/solana/transfer'
+                  pathname === '/chains/solana'
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                转账
-              </Link>
-              <Link 
-                href="/chains/solana/spl" 
-                className={`block px-4 py-2 last:rounded-b-lg ${
-                  pathname === '/chains/solana/spl'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                SPL Token
+                Solana工具
               </Link>
             </div>
           </div>

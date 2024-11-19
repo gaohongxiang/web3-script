@@ -12,6 +12,19 @@ export function ResultDialog({
 }) {
   if (!isOpen) return null;
 
+  const getExplorerUrl = (txId) => {
+    switch (network) {
+      case 'btc':
+        return `https://mempool.space/tx/${txId}`;
+      case 'fractal':
+        return `https://mempool.fractalbitcoin.io/tx/${txId}`;
+      case 'solana':
+        return `https://solscan.io/tx/${txId}`;
+      default:
+        return '';
+    }
+  };
+
   const getTitle = () => {
     const actionMap = {
       transfer: '转账',
@@ -42,7 +55,7 @@ export function ResultDialog({
                   </div>
                   <div className="break-all">
                     <a
-                      href={`${network === 'btc' ? 'https://mempool.space' : 'https://mempool.fractalbitcoin.io/'}/tx/${txid}`}
+                      href={getExplorerUrl(txid)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-500 hover:text-blue-600"
@@ -57,7 +70,7 @@ export function ResultDialog({
                   <div className="text-gray-600 mb-2">新交易ID：</div>
                   <div className="break-all">
                     <a
-                      href={`${network === 'btc' ? 'https://mempool.space' : 'https://mempool.fractalbitcoin.io/'}/tx/${newTxid}`}
+                      href={getExplorerUrl(newTxid)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-500 hover:text-blue-600"

@@ -33,13 +33,6 @@ export default function HomePage() {
                   <h3 className="font-medium mb-1">UTXO 工具</h3>
                   <p className="text-sm text-gray-600">BTC 等 UTXO 类型公链系列操作</p>
                 </Link>
-                <Link 
-                  href="/chains/utxo/speedUp"
-                  className="block px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <h3 className="font-medium mb-1">交易加速</h3>
-                  <p className="text-sm text-gray-600">加速未确认的 BTC 交易</p>
-                </Link>
               </div>
             </div>
 
@@ -48,11 +41,11 @@ export default function HomePage() {
               <h2 className="text-xl font-semibold mb-4">Solana Scripts</h2>
               <div className="space-y-3">
                 <Link 
-                  href="/chains/solana/transfer"
+                  href="/chains/solana"
                   className="block px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <h3 className="font-medium mb-1">Solana 转账</h3>
-                  <p className="text-sm text-gray-600">SOL 和 SPL Token 转账</p>
+                  <h3 className="font-medium mb-1">Solana 工具</h3>
+                  <p className="text-sm text-gray-600">Solana 公链系列操作</p>
                 </Link>
               </div>
             </div>

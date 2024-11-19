@@ -1,6 +1,7 @@
 'use client';
 
 import { LoadingButton } from './LoadingButton';
+import { Select } from './Select';
 
 export function NetworkAndGas({
   networks,
@@ -15,6 +16,17 @@ export function NetworkAndGas({
   onCustomGasChange,
   onGasLevelChange
 }) {
+  // 转换网络数据格式以适配 Select 组件
+  const networkOptions = networks.map(network => ({
+    value: network.key,
+    label: network.label
+  }));
+
+  // 获取当前选中的网络选项
+  const selectedNetworkOption = networkOptions.find(
+    option => option.value === selectedNetwork
+  );
+
   return (
     <div className="flex space-x-4">
       <div className="w-2/5">
@@ -23,17 +35,13 @@ export function NetworkAndGas({
             网络
           </label>
         </div>
-        <select
-          value={selectedNetwork}
-          onChange={(e) => onNetworkChange(e.target.value)}
-          className="w-full h-[51px] px-4 border border-gray-300 rounded-lg text-gray-600 cursor-pointer focus:outline-none focus:border-blue-500"
-        >
-          {networks.map((network) => (
-            <option key={network.key} value={network.key}>
-              {network.label}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={selectedNetworkOption}
+          onChange={option => onNetworkChange(option.value)}
+          options={networkOptions}
+          placeholder="选择网络"
+          disabled={false}
+        />
       </div>
 
       <div className="w-3/5">

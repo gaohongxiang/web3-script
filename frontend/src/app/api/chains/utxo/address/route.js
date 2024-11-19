@@ -11,7 +11,7 @@ export async function POST(request) {
     if (!result || !result.address) {
       return NextResponse.json({
         success: false,
-        ...ADDRESS_ERRORS.PARSE_ERROR
+        ...ADDRESS_ERRORS.utxo.PARSE_ERROR
       });
     }
 
@@ -25,7 +25,7 @@ export async function POST(request) {
   } catch (error) {
     return NextResponse.json({
       success: false,
-      ...ADDRESS_ERRORS.PARSE_ERROR
+      ...ADDRESS_ERRORS.utxo.PARSE_ERROR
     });
   }
 } 

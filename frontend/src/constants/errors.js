@@ -1,7 +1,12 @@
 export const ADDRESS_ERRORS = {
   PARSE_ERROR: {
     type: 'PARSE_ERROR',
-    message: '解析地址失败，请输入正确的加密助记词或私钥'
+    utxo: {
+      message: '解析地址失败，请输入正确的加密助记词或私钥'
+    },
+    solana: {
+      message: '解析地址失败，请输入正确的加密私钥'
+    }
   },
   BALANCE_ERROR: {
     type: 'BALANCE_ERROR',
@@ -17,8 +22,7 @@ export const TX_ERRORS = {
   NOT_FOUND: {
     type: 'NOT_FOUND',
     message: '交易不存在，请检查网络或交易ID是否正确'
-  },
-  // ... 其他交易相关错误
+  }
 };
 
 export const UTXO_ERRORS = {

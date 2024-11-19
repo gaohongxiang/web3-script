@@ -53,10 +53,10 @@ function normalizeChain(chain) {
  * 创建并配置一个交易所实例。
  * @param {Object} params - 创建交易所的参数对象（必填）。
  * @param {string} params.account - 要使用的账户名称，用于选择正确的API密钥。（必填）。
- * @param {string} [params.apiFile='./backend/data/binance.json'] - 存储账户信息的 JSON 文件路径，默认为 './backend/data/binance.json'。
+ * @param {string} [params.apiFile='./data/binance.json'] - 存储账户信息的 JSON 文件路径，默认为 './data/binance.json'。
  * @returns {Promise<Object>} - 返回一个 Promise，解析为配置好的 Binance 交易所实例。
  */
-async function createExchange({ account, apiFile='./backend/data/binance.json'} ) {
+async function createExchange({ account, apiFile='./data/binance.json'} ) {
 
     // 异步读取文件并解析JSON
     const accountApis = JSON.parse(fs.readFileSync(apiFile, 'utf-8'));
@@ -86,10 +86,10 @@ async function createExchange({ account, apiFile='./backend/data/binance.json'} 
  * @param {string} params.toAddress - 提取的目标地址。
  * @param {string} params.coin - 要提取的加密货币类型，例如 'BTC'、'ETH' 等。
  * @param {number} params.amount - 要提取的数量。
- * @param {string} [apiFile='./backend/data/binance.json'] - 存储账户信息的 JSON 文件路径，默认为 './backend/data/binance.json'。
+ * @param {string} [apiFile='./data/binance.json'] - 存储账户信息的 JSON 文件路径，默认为 './data/binance.json'。
  * @returns {Promise<Object>} - 返回一个 Promise，解析为提取操作的结果。
  */
-export async function withdraw({ account, chain, toAddress, coin, amount, apiFile='./backend/data/binance.json' }) {
+export async function withdraw({ account, chain, toAddress, coin, amount, apiFile='./data/binance.json' }) {
     /**
      * ccxt统一api: 
             fetchBalance(): 查询账户信息
