@@ -18,7 +18,15 @@ const initialState = {
 
   // 交易相关
   txInfo: null,
-  validationError: null
+  validationError: null,
+
+  // 收集相关
+  sendAll: false,
+  keepAmount: false,
+  customAmount: false,
+  sendAmount: '',
+  keepValue: '',
+  eligibleCount: 0
 };
 
 // 创建 Context
@@ -42,6 +50,14 @@ export function SolanaProvider({ children }) {
   const [txInfo, setTxInfo] = useState(initialState.txInfo);
   const [validationError, setValidationError] = useState(initialState.validationError);
 
+  // 收集相关
+  const [sendAll, setSendAll] = useState(initialState.sendAll);
+  const [keepAmount, setKeepAmount] = useState(initialState.keepAmount);
+  const [customAmount, setCustomAmount] = useState(initialState.customAmount);
+  const [sendAmount, setSendAmount] = useState(initialState.sendAmount);
+  const [keepValue, setKeepValue] = useState(initialState.keepValue);
+  const [eligibleCount, setEligibleCount] = useState(initialState.eligibleCount);
+
   // 清空所有状态
   const clearState = useCallback(() => {
     setEncryptedKey(initialState.encryptedKey);
@@ -52,6 +68,12 @@ export function SolanaProvider({ children }) {
     setIsReceiverValid(initialState.isReceiverValid);
     setTxInfo(initialState.txInfo);
     setValidationError(initialState.validationError);
+    setSendAll(initialState.sendAll);
+    setKeepAmount(initialState.keepAmount);
+    setCustomAmount(initialState.customAmount);
+    setSendAmount(initialState.sendAmount);
+    setKeepValue(initialState.keepValue);
+    setEligibleCount(initialState.eligibleCount);
   }, []);
 
   const value = {
@@ -65,6 +87,14 @@ export function SolanaProvider({ children }) {
     txInfo,
     validationError,
 
+    // 收集相关状态
+    sendAll,
+    keepAmount,
+    customAmount,
+    sendAmount,
+    keepValue,
+    eligibleCount,
+
     // 设置函数
     setEncryptedKey,
     setAddressList,
@@ -74,6 +104,12 @@ export function SolanaProvider({ children }) {
     setIsReceiverValid,
     setTxInfo,
     setValidationError,
+    setSendAll,
+    setKeepAmount,
+    setCustomAmount,
+    setSendAmount,
+    setKeepValue,
+    setEligibleCount,
     clearState
   };
 

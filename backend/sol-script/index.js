@@ -92,7 +92,7 @@ export async function getTokenAccounts(wallet) {
     accounts.forEach((account, i) => {
         //Parse the account data
         const parsedAccountInfo = account.account.data;
-        console.log(parsedAccountInfo)
+        // console.log(parsedAccountInfo)
         const mintAddress = parsedAccountInfo["parsed"]["info"]["mint"];
         const tokenBalance = parsedAccountInfo["parsed"]["info"]["tokenAmount"]["uiAmount"];
         //Log results
@@ -105,12 +105,13 @@ export async function getTokenAccounts(wallet) {
 /**
  * 获取指定地址的余额。
  * 
- * 该函数根据提供的地址和代币类型，查询并返回该地址的余额。
+ * 该函数根据提供的地址和代币信息，查询并返回该地址的余额。
  * 
  * @param {Object} params - 函数参数对象。
  * @param {string} params.address - 要查询余额的地址。
  * @param {string} [params.token='SOL'] - 要查询的代币类型，默认为 'SOL'。
- * @param {string} [params.tokenFile='./data/token.json'] - 存储代币信息的 JSON 文件路径，默认为 './data/token.json'。
+ * @param {string} [params.tokenAddr=''] - 代币合约地址。如果提供，将直接使用此地址；否则从 tokenFile 中读取。
+ * @param {string} [params.tokenFile='./data/token.json'] - 存储代币信息的 JSON 文件路径。仅在未提供 tokenAddr 时使用。
  * 
  * @returns {Promise<number>} - 返回指定地址的余额。
  * 
@@ -121,11 +122,11 @@ export async function getBalance({ address, token = 'SOL', tokenAddr = '', token
         token = token.toUpperCase();
         const connection = await createConnection();
         let balance;
-        let balanceLamports;
+        let balanceSat;
 
         if (token === 'SOL') {
-            balanceLamports = await connection.getBalance(new PublicKey(address));
-            balance = balanceLamports / LAMPORTS_PER_SOL;
+            balanceSat = await connection.getBalance(new PublicKey(address));
+            balance = balanceSat / LAMPORTS_PER_SOL;
         } else {
             // 如果没有传入，则从配置文件获取
             if (!tokenAddr) {
@@ -135,13 +136,21 @@ export async function getBalance({ address, token = 'SOL', tokenAddr = '', token
                 tokenAddr = tokenInfo.address;
             }
             const ata = await getAtaAddress(address, tokenAddr);
-            const info = await connection.getTokenAccountBalance(ata);
-            balance = info.value.uiAmount;
+            const accountInfo = await connection.getAccountInfo(ata);
+            // 不存在ata直接返回0
+            if (!accountInfo) {
+                balance = 0,
+                balanceSat = 0;
+            } else {
+                const info = await connection.getTokenAccountBalance(ata);
+                balance = info.value.uiAmount;
+                balanceSat = info.value.amount;
+            }
+
         }
-        console.log(balance)
-        console.log(typeof balance)
-        return balance;
+        return { balance, balanceSat };
     } catch (error) {
+        // console.log(error)
         return null;
     }
 }
@@ -165,12 +174,15 @@ export async function getKeyPairAndAddress(enPrivateKey) {
  * 
  * 该函数根据提供的私钥、目标地址和转账金额，构建并发送一个包含多个转账指令的交易。
  * 
- * @param {string} enPrivateKey - 加密的私钥，用于生成发送方的密钥对。
- * @param {Array<Array<string>>} toData - 目标地址和对应转账金额的数组，格式为 [['地址1', 金额1], ['地址2', 金额2], ...]。
- * @param {string} token - 要转账的代币类型（例如 'SOL' 或 'USDC'）。
- * @param {string} [tokenFile='./data/token.json'] - 存储代币信息的 JSON 文件路径，默认 './data/token.json'。
+ * @param {Object} params - 函数参数对象。
+ * @param {string} params.enPrivateKey - 加密的私钥，用于生成发送方的密钥对。
+ * @param {Array<Array<string>>} params.toData - 目标地址和对应转账金额的数组，格式为 [['地址1', 金额1], ['地址2', 金额2], ...]。
+ * @param {string} params.token - 要转账的代币类型（例如 'SOL' 或 'USDC'）。
+ * @param {string} [params.tokenAddr=''] - 代币合约地址。如果提供，将直接使用此地址；否则从 tokenFile 中读取。
+ * @param {number|null} [params.tokenDecimals=null] - 代币精度。如果提供，将直接使用此精度；否则从 tokenFile 中读取。
+ * @param {string} [params.tokenFile='./data/token.json'] - 存储代币信息的 JSON 文件路径。仅在未提供 tokenAddr 或 tokenDecimals 时使用。
  * 
- * @throws {Error} 如果余额不足或代币信息缺失，将输出相应的错误信息并退出。
+ * @throws {Error} 如果余额不足或代币信息缺失，将抛出相应的错误。
  * 
  * 发送交易，就是构建 Instructions 数组，然后构造 Message，再放到 Transaction 里面，做签名并进行发送。
  * 
@@ -204,11 +216,11 @@ export async function transfer({ enPrivateKey, toData, token, tokenAddr = '', to
 
         if (token === 'SOL') {
             // 获取 SOL 余额
-            const balance = await connection.getBalance(keyPair.publicKey);
+            const balanceSat = await connection.getBalance(keyPair.publicKey);
             const requiredLamports = totalAmount * LAMPORTS_PER_SOL + unifiedFee;
 
-            if (balance < requiredLamports) {
-                console.log(`余额不足，当前余额: ${balance / LAMPORTS_PER_SOL} SOL, 所需: ${Number(requiredLamports) / LAMPORTS_PER_SOL} SOL`);
+            if (balanceSat < requiredLamports) {
+                console.log(`余额不足，当前余额: ${balanceSat / LAMPORTS_PER_SOL} SOL, 所需: ${Number(requiredLamports) / LAMPORTS_PER_SOL} SOL`);
                 return;
             }
 
@@ -275,77 +287,76 @@ export async function transfer({ enPrivateKey, toData, token, tokenAddr = '', to
 /**
  * 将多个地址的 SOL 或 SPL 代币归集到一个地址。
  * 
+ * 该函数根据提供的地址列表和目标地址，将多个地址中的代币归集到一个地址。
+ * 
  * @param {Object} params - 函数参数对象
- * @param {Array<string>} params.enPrivateKeys - 加密的私钥数组
+ * @param {Array<Object>} params.fromData - 源地址数据数组，每个对象包含地址和加密的私钥
+ * @param {string} params.fromData[].enPrivateKey - 加密的私钥
+ * @param {string} params.fromData[].collectAmountSat - 地址归集金额
  * @param {string} params.toAddress - 归集目标地址
- * @param {string} params.token - 代币类型（'SOL' 或 SPL 代币名称）
- * @param {string} [params.tokenFile='./data/token.json'] - 代币信息文件路径
+ * @param {Object} params.tokenInfo - 代币信息对象
+ * @param {string} params.tokenInfo.token - 代币类型（'SOL' 或 SPL 代币名称）
+ * @param {string} [params.tokenInfo.tokenAddr] - 代币合约地址（SPL 代币必需）
+ * @param {number} [params.tokenInfo.tokenDecimals] - 代币精度（SPL 代币必需）
+ * 
  * @returns {Promise<string|null>} 返回交易签名，如果没有执行交易则返回 null
+ * 
+ * @throws {Error} 如果余额不足或代币信息缺失，将抛出相应的错误
  */
-export async function consolidateFunds({ enPrivateKeys, toAddress, token, tokenFile = './data/token.json' }) {
+export async function consolidateFunds({ fromData, toAddress, tokenInfo }) {
     const connection = await createConnection();
-    token = token.toUpperCase();
     const toPublicKey = new PublicKey(toAddress);
     let tx = new Transaction();
     const signers = [];
-
     // 估算统一的交易费用
-    const firstPrivateKey = await deCryptText(enPrivateKeys[0]);
+    const firstPrivateKey = await deCryptText(fromData[0].enPrivateKey);
     const firstKeyPair = Keypair.fromSecretKey(bs58.decode(firstPrivateKey));
     const unifiedFee = await estimateTransactionFee(connection, firstKeyPair.publicKey);
     console.log(`估算的统一费用: ${unifiedFee / LAMPORTS_PER_SOL} SOL`);
 
-    for (const enPrivateKey of enPrivateKeys) {
+    for (const { enPrivateKey, collectAmountSat } of fromData) {
+        const collectNum = Number(collectAmountSat);
         try {
             const { keyPair, address: fromAddress } = await getKeyPairAndAddress(enPrivateKey);
 
-            if (token === 'SOL') {
-                const balance = await connection.getBalance(keyPair.publicKey);
-                const transferAmount = Math.max(balance - unifiedFee, 0);
-                if (transferAmount > 0) {
+            if (tokenInfo.symbol === 'SOL') {
+                const balanceSat = await connection.getBalance(keyPair.publicKey);
+                const value = balanceSat - (collectNum + unifiedFee);
+                if (value > 0) {
                     tx.add(SystemProgram.transfer({
                         fromPubkey: keyPair.publicKey,
                         toPubkey: toPublicKey,
-                        lamports: transferAmount,
+                        lamports: collectNum,
                     }));
                     signers.push(keyPair);
-                    console.log(`从 ${fromAddress} 归集 ${transferAmount / LAMPORTS_PER_SOL} SOL 到 ${toAddress}`);
+                    console.log(`从 ${fromAddress} 归集 ${collectNum / LAMPORTS_PER_SOL} SOL 到 ${toAddress}`);
                 } else {
                     console.log(`${fromAddress} SOL 余额不足以支付交易费用和保持账户活跃`);
                 }
             } else {
                 // SPL token 逻辑
-                const tokenInfo = getTokenInfo({ token, chain: 'solana', tokenFile });
-                if (!tokenInfo) {
-                    console.log('没有此代币信息，请先添加');
-                    continue;
-                }
-                const mint = new PublicKey(tokenInfo.address);
+                const tokenAddr = tokenInfo.address;
+                const tokenDecimals = tokenInfo.decimals;
+                
+                const mint = new PublicKey(tokenAddr);
                 const fromAta = await getOrCreateAssociatedTokenAccount(connection, keyPair, mint, keyPair.publicKey);
                 const toAta = await getOrCreateAssociatedTokenAccount(connection, keyPair, mint, toPublicKey);
 
-                const tokenBalance = await connection.getTokenAccountBalance(fromAta.address);
-                const transferAmount = tokenBalance.value.amount;
-
-                if (parseInt(transferAmount) > 0) {
-                    // 检查 SOL 余额是否足够支付费用
-                    const solBalance = await connection.getBalance(keyPair.publicKey);
-                    if (solBalance < unifiedFee) {
-                        console.log(`${fromAddress} SOL 余额不足以支付交易费用`);
-                        continue;
-                    }
-
-                    tx.add(createTransferInstruction(
-                        fromAta.address,
-                        toAta.address,
-                        keyPair.publicKey,
-                        transferAmount
-                    ));
-                    signers.push(keyPair);
-                    console.log(`从 ${fromAddress} 归集 ${transferAmount / (10 ** tokenInfo.decimals)} ${token} 到 ${toAddress}`);
-                } else {
-                    console.log(`${fromAddress} ${token} 余额为零`);
+                // 检查 SOL 余额是否足够支付费用
+                const solBalance = await connection.getBalance(keyPair.publicKey);
+                if (solBalance < unifiedFee) {
+                    console.log(`${fromAddress} SOL 余额不足以支付交易费用`);
+                    continue;
                 }
+
+                tx.add(createTransferInstruction(
+                    fromAta.address,
+                    toAta.address,
+                    keyPair.publicKey,
+                    collectNum
+                ));
+                signers.push(keyPair);
+                console.log(`从 ${fromAddress} 归集 ${collectNum / (10 ** tokenDecimals)} ${tokenInfo.symbol} 到 ${toAddress}`);
             }
         } catch (error) {
             console.error(`处理账户时发生错误:`, error);
@@ -354,17 +365,29 @@ export async function consolidateFunds({ enPrivateKeys, toAddress, token, tokenF
 
     if (tx.instructions.length > 0) {
         try {
-            const signature = await sendAndConfirmTransaction(connection, tx, signers, {
-                commitment: 'confirmed',
-                maxRetries: 5,
-                skipPreflight: false
-            });
-            console.log(`归集成功! 交易哈希: ${signature}`);
-            return signature;
+            // 在发送交易前立即获取最新的 blockhash
+            const latestBlockHash = await connection.getLatestBlockhash('confirmed');
+            tx.recentBlockhash = latestBlockHash.blockhash;
+            tx.lastValidBlockHeight = latestBlockHash.lastValidBlockHeight;
+            const txid = await sendAndConfirmTransaction(
+                connection,
+                tx,
+                signers,
+                {
+                    commitment: 'confirmed',
+                    maxRetries: 5,
+                    skipPreflight: true,
+                }
+            );
+
+            console.log('交易发送成功, txid:', txid);
+            return { txid };
         } catch (error) {
-            console.error('发送交易时发生错误:', error);
-            console.error('错误详情:', error.logs);
-            // 不要抛出错误，而是返回 null
+            console.error('交易失败详情:', {
+                error: error.message,
+                stack: error.stack,
+                logs: error.logs
+            });
             return null;
         }
     } else {

@@ -9,11 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.0",
+    "@tanstack/react-query": "^5.17.19",
+    "@uiw/react-codemirror": "^4.23.6",
+    "ahooks": "^3.7.8",
     "next": "14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "ahooks": "^3.7.8",
-    "@tanstack/react-query": "^5.17.19",
     "react-icons": "^5.0.1"
   },
   "devDependencies": {
@@ -22,8 +24,6 @@
     "eslint": "^8.56.0",
     "eslint-config-next": "14.1.0",
     "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "@headlessui/react": "^2.2.0",
-    "@uiw/react-codemirror": "^4.23.6"
+    "tailwindcss": "^3.4.1"
   }
 }

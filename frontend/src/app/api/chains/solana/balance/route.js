@@ -15,7 +15,6 @@ export async function POST(request) {
     }
 
     const result = await getBalance({ address, token, tokenAddr });
-    console.log('Backend balance result:', result);
 
     // Handle null or undefined result
     if (result === null || result === undefined) {
@@ -26,13 +25,11 @@ export async function POST(request) {
       });
     }
 
-    // Ensure we have a valid number or string balance
-    const balance = result?.toString() || '0';
-    
     return NextResponse.json({
       success: true,
       data: { 
-        balance,
+        balance: result.balance?.toString() || '0',
+        balanceSat: result.balanceSat?.toString() || '0',
         token,
         tokenAddr 
       }

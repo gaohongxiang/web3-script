@@ -40,11 +40,6 @@ export default function TransferPage() {
   const handleTransfer = useCallback(async () => {
     setConfirmLoading(true);
     try {
-      console.log('Transfer Request Data:', {
-        selectedToken,
-        receiverList: receiverList
-      });
-
       const response = await fetch('/api/chains/solana/transfer', {
         method: 'POST',
         headers: {
@@ -58,7 +53,6 @@ export default function TransferPage() {
       });
 
       const result = await response.json();
-      console.log('Transfer Response:', result);
 
       if (!result.success) {
         throw new Error(result.error);
@@ -130,7 +124,7 @@ export default function TransferPage() {
             <span className="text-gray-500">接收地址：</span>
             <div className="mt-1 pl-2 space-y-1">
               {Array.isArray(receiverList) && receiverList.map(([address, amount], index) => (
-                <div key={index} className="break-all">{address},{amount}</div>
+                <div key={index} className="break-all">{address}, {amount} {selectedToken?.symbol}</div>
               ))}
             </div>
           </div>

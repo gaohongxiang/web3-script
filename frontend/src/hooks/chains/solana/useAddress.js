@@ -135,10 +135,14 @@ export function useAddress() {
       }
 
       const balance = result.data.balance?.toString() || '0';
-      
+      const balanceSat = result.data.balanceSat?.toString() || '0';
+
       return {
         success: true,
-        data: { balance }
+        data: { 
+          balance,
+          balanceSat 
+        }
       };
 
     } catch (error) {

@@ -9,8 +9,5 @@
     "dev": "cd frontend && next dev -- -p 3003",
     "build": "cd frontend && next build",
     "start": "cd frontend && next build && next start -- -p 3001"
-  },
-  "dependencies": {
-    "@headlessui/react": "^2.2.0"
   }
 }

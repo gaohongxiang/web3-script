@@ -19,7 +19,6 @@ if (fs.existsSync(tokenJsonPath)) {
 fs.watch(tokenJsonPath, (eventType) => {
   if (eventType === 'change') {
     fs.copyFileSync(tokenJsonPath, publicTokenPath);
-    console.log('token.json updated');
   }
 });
 
