@@ -124,9 +124,9 @@ export async function getBalance({ address, chain = 'btc' }) {
         const { baseURl } = getNetwork(chain);
         const response = await fetch(`${baseURl}/address/${address}`);
         const data = await response.json();
-        // console.log(data);
-        const balanceSat = data.chain_stats.funded_txo_sum;
-        const balance = data.chain_stats.funded_txo_sum / 100000000;
+        console.log(data);
+        const balanceSat = data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum;
+        const balance = balanceSat / 100000000;
         console.log(`Address ${address} ${chain}链 余额: ${balance}`);
         return { balanceSat, balance };
     } catch (error) {

@@ -75,8 +75,8 @@ export function useAddress() {
       return {
         success: true,
         data: {
-          balance: data.chain_stats.funded_txo_sum / 100000000,
-          balanceSat: data.chain_stats.funded_txo_sum
+          balance: (data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum) / 100000000,
+          balanceSat: data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum
         }
       };
     } catch (error) {
