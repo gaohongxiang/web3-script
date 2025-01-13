@@ -43,11 +43,6 @@ export async function myFormatData(startNum, endNum=null) {
                 if (filePath.includes('ip.csv')) {
                     const proxy = `socks5://${record.proxyUsername}:${record.proxyPassword}@${record.proxyIp}:${record.proxyPort}`;
                     record.proxy = proxy; // 将拼接后的代理字符串添加到记录中
-                    // 删除原始的代理字段
-                    delete record.proxyIp;
-                    delete record.proxyPort;
-                    delete record.proxyUsername;
-                    delete record.proxyPassword;
                 }
 
                 // 查找是否已经存在该 indexId 的记录
