@@ -4,12 +4,15 @@
 
 本系列脚本分为 
 - crypt-module(加解密模块)
+- exchange-module(交易所模块)
+- rpa-module(rpa模块)
+- chain-module(链上交互模块)
+    - utxo-script(utxo系交互脚本)
+    - evm-script(evm系交互脚本)
+    - sol-script(sol链交互脚本)
+    - sui-script(sui链交互脚本)
 - utils-module(工具库模块)
-- exchange-script(交易所脚本)
-- utxo-script(utxo系交互脚本)
-- evm-script(evm系交互脚本)
-- sol-script(sol链交互脚本)
-- sui-script(sui链交互脚本)
+- social-module(社交模块)
 
 持续完善中。。。
 

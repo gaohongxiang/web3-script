@@ -8,6 +8,12 @@
         "./data/addressBinance.csv",
         "./data/addressOkx.csv",
 
-        "./data/ip.csv"
+        "./data/email.csv",
+        "./data/twitter.csv",
+        "./data/discord.csv",
+
+        "./data/ip.csv",
+
+        "./data/bitbrowser.xlsx"
     ]
 }
