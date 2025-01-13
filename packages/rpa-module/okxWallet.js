@@ -92,34 +92,12 @@ export class OkxWalletUtil extends BitBrowserUtil {
         }
     }
 
-    async unlock() {
-        try {
-            if(!process.env.OKXWALLETPASSWORD) {   
-                process.env.OKXWALLETPASSWORD = await parseToken(process.env.okxWalletPassword);
-            }
-            await this.okxPage.goto(this.unlockUrl);
-            await this.okxPage.waitForTimeout(3000);
-            if (this.okxPage.url() == this.unlockUrl) {
-                const isExist = await this.isElementExist('input[placeholder="请输入密码"]',  { waitTime: 5, page: this.okxPage})
-                console.log(isExist)
-                if (isExist) {
-                    await this.okxPage.locator('input[placeholder="请输入密码"]').fill(process.env.OKXWALLETPASSWORD);
-                    await this.okxPage.click('text="解锁"');
-                    await this.okxPage.waitForTimeout(3000);
-                } else {
-                    await this.unlock();
-                }
-            }
-        } catch (error) { console.log(error) }
-    }
-
-    async changeAccount() {
+    async changeAccount(accountName = '撸毛') {
         try {
             await this.okxPage.goto(this.homeUrl);
             
-            // 检查是否已经在"撸毛"账户
-            const isExist = await this.isElementExist('div:has-text("撸毛")', { waitTime: 5, page: this.okxPage });
-            // console.log('是否已在撸毛账户:', isExist);
+            // 检查是否已经在指定账户
+            const isExist = await this.isElementExist(`div:has-text("${accountName}")`, { waitTime: 5, page: this.okxPage });
             
             if (!isExist) {
                 // 点击头像打开下拉菜单
@@ -139,23 +117,44 @@ export class OkxWalletUtil extends BitBrowserUtil {
                     await this.okxPage.waitForTimeout(1000);
                 }
                 
-                // 使用更精确的选择器定位"撸毛"账户
-                const luMaoAccount = this.okxPage
+                // 使用更精确的选择器定位指定账户
+                const targetAccount = this.okxPage
                     .locator('[data-testid="okd-virtual-list-filler-inner"]')
                     .locator('div')
-                    .filter({ hasText: '撸毛' })
+                    .filter({ hasText: accountName })
                     .first();
                 
                 // 等待元素可见并可点击
-                await luMaoAccount.waitFor({ state: 'visible' });
-                await luMaoAccount.click();
+                await targetAccount.waitFor({ state: 'visible' });
+                await targetAccount.click();
                 
-                console.log('已切换到撸毛账户');
+                console.log(`已切换到${accountName}账户`);
             } else {
-                console.log('已在撸毛账户，无需切换');
+                console.log(`已在${accountName}账户，无需切换`);
             }
         } catch (error) {
-            console.error('切换账户时发生错误:', error);
+            console.error(`切换到${accountName}账户时发生错误:`, error);
         }
+    }
+
+    async unlock() {
+        try {
+            if(!process.env.OKXWALLETPASSWORD) {   
+                process.env.OKXWALLETPASSWORD = await parseToken(process.env.okxWalletPassword);
+            }
+            await this.okxPage.goto(this.unlockUrl);
+            await this.okxPage.waitForTimeout(3000);
+            if (this.okxPage.url() == this.unlockUrl) {
+                const isExist = await this.isElementExist('input[placeholder="请输入密码"]',  { waitTime: 5, page: this.okxPage})
+                console.log(isExist)
+                if (isExist) {
+                    await this.okxPage.locator('input[placeholder="请输入密码"]').fill(process.env.OKXWALLETPASSWORD);
+                    await this.okxPage.click('text="解锁"');
+                    await this.okxPage.waitForTimeout(3000);
+                } else {
+                    await this.unlock();
+                }
+            }
+        } catch (error) { console.log(error) }
     }
 }
