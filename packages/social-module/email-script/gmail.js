@@ -33,8 +33,17 @@ export class GmailAuth extends BitBrowserUtil {
         });
     }
 
-    // 自动授权获取token
-    async autoAuth({email, csvFile, matchField, targetField='gmailRefreshToken'}) {
+    /**
+     * Gmail自动授权，获取refresh token并保存到CSV文件。此函数需要打开浏览器授权，需要配合指纹浏览器使用。
+     * @param {Object} options - 授权配置选项
+     * @param {string} options.email - Gmail邮箱地址
+     * @param {string} options.csvFile - CSV文件路径，用于保存refresh token
+     * @param {string} options.matchField - CSV文件中用于匹配的字段名（通常是'email'）
+     * @param {string} [options.targetField='gmailRefreshToken'] - CSV文件中保存refresh token的字段名
+     * @param {string} [options.appName='ghx_gmail'] - 应用名称，用于浏览器标识
+     * @returns {Promise<boolean>} - 授权成功返回true，失败返回false
+     */
+    async autoAuth({email, csvFile, matchField, targetField='gmailRefreshToken', appName='ghx_gmail'}) {
         try {
             // 检查是否是 Gmail 邮箱
             if (!email.endsWith('@gmail.com')) {
@@ -63,7 +72,7 @@ export class GmailAuth extends BitBrowserUtil {
                 console.log('检测到安全警告页面，尝试处理...');
                 await this.page.getByText('高级').click();
                 await this.page.waitForTimeout(500);
-                await this.page.getByText('转至ghx_gmail（不安全）').click();
+                await this.page.getByText(`转至${appName}（不安全）`).click();
             }
             await this.page.waitForTimeout(2000);
             await this.page.getByText('继续').click();            
