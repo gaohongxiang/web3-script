@@ -1,6 +1,9 @@
-import fs from 'fs';
+import fs from 'fs';  // 同步操作
+import { promises as fsPromises } from 'fs';  // 异步操作
+import { createReadStream } from 'fs';  // 流操作
 import XLSX from 'xlsx';
 import { parse } from 'csv-parse';
+import { stringify } from 'csv-stringify/sync';
 
 /**
  * 获取指定代币的信息，包括地址、ABI 和小数位数。
@@ -24,34 +27,45 @@ export function getTokenInfo({ token, chain, tokenFile = './data/token.json' }) 
 }
 
 /**
+ * 从CSV文件中读取第一行并确定分隔符
+ * @param {string} csvFile - CSV文件路径
+ * @returns {Promise<{firstLine: string, sep: string}>} - 返回第一行内容和分隔符
+ */
+async function getFirstLineAndSeparator(csvFile) {
+    const fileStream = createReadStream(csvFile);
+
+    // 读取第一行以确定分隔符
+    const firstLine = await new Promise((resolve, reject) => {
+        let line = '';
+        fileStream.on('data', chunk => {
+            line += chunk;
+            const lines = line.split('\n');
+            if (lines.length > 1) {
+                fileStream.destroy(); // 读取到第二行后停止读取
+                resolve(lines[0]); // 返回第一行
+            }
+        });
+        fileStream.on('error', reject);
+        fileStream.on('end', () => resolve(line)); // 如果文件结束，返回读取的内容
+    });
+
+    // 获取第一行的第一个标点符号作为分隔符
+    const sep = firstLine.match(/[:|,]/) ? firstLine.match(/[:|,]/)[0] : ','; // 默认分隔符为逗号
+
+    return { firstLine, sep };
+}
+
+/**
  * 从指定的 CSV 文件中读取数据并返回解析后的结果。第一行的第一个标点符号作为分隔符
  * @param {string} csvFile - 要读取的 CSV 文件路径（必填）。
  * @returns {Promise<Array<Object>|null>} - 返回一个 Promise，解析为包含每一行数据的对象数组。如果读取失败，则返回 null。
  */
 export async function getCsvData(csvFile) {
     try {
-
-        const fileStream = fs.createReadStream(csvFile);
-
-        // 读取第一行以确定分隔符
-        const firstLine = await new Promise((resolve, reject) => {
-            let line = '';
-            fileStream.on('data', chunk => {
-                line += chunk;
-                const lines = line.split('\n');
-                if (lines.length > 1) {
-                    fileStream.destroy(); // 读取到第二行后停止读取
-                    resolve(lines[0]); // 返回第一行
-                }
-            });
-            fileStream.on('error', reject);
-            fileStream.on('end', () => resolve(line)); // 如果文件结束，返回读取的内容
-        });
-        // 获取第一行的第一个标点符号作为分隔符
-        const sep = firstLine.match(/[:|,]/) ? firstLine.match(/[:|,]/)[0] : ','; // 默认分隔符为逗号
+        const { sep } = await getFirstLineAndSeparator(csvFile);
 
         const results = [];
-        const parser = fs.createReadStream(csvFile).pipe(parse({
+        const parser = createReadStream(csvFile).pipe(parse({
             columns: true, // 第一行为列名
             delimiter: sep, // 分隔符为sep，默认逗号
             skip_empty_lines: true, // 跳过空行
@@ -86,24 +100,7 @@ export async function getCsvData(csvFile) {
  */
 export async function getCsvDataByColumnName({ csvFile, columnName, saveToFile = false, tempFile = './data/temp.csv' }) {
     try {
-        const fileStream = fs.createReadStream(csvFile);
-
-        // 读取第一行以确定分隔符
-        const firstLine = await new Promise((resolve, reject) => {
-            let line = '';
-            fileStream.on('data', chunk => {
-                line += chunk;
-                const lines = line.split('\n');
-                if (lines.length > 1) {
-                    fileStream.destroy(); // 读取到第二行后停止读取
-                    resolve(lines[0]); // 返回第一行
-                }
-            });
-            fileStream.on('error', reject);
-            fileStream.on('end', () => resolve(line)); // 如果文件结束，返回读取的内容
-        });
-        // 获取第一行的第一个标点符号作为分隔符
-        const sep = firstLine.match(/[:|,]/) ? firstLine.match(/[:|,]/)[0] : ','; // 默认分隔符为逗号
+        const { firstLine, sep } = await getFirstLineAndSeparator(csvFile);
 
         // 检查第一行是否包含 columnName
         const columnNames = firstLine.split(sep); // 根据分隔符分割列名
@@ -112,26 +109,144 @@ export async function getCsvDataByColumnName({ csvFile, columnName, saveToFile =
             return; // 如果不存在，返回
         }
 
-        const parser = fs.createReadStream(csvFile).pipe(parse({
+        const parser = createReadStream(csvFile).pipe(parse({
             delimiter: sep, // 分隔符为sep，默认逗号
             columns: true, // 第一行为列名
             skip_empty_lines: true, // 跳过空行
             escape: false, // 用于转义的单个字符。它仅适用于与 匹配的字符
             quote: false, // 用于包围字段的字符，该字段周围是否存在引号是可选的，并且会自动检测。false禁用引号检测（abi很多引号，不需要检测）
         }));
+
         const allData = [];
         for await (const row of parser) {
-            let data = row[columnName];
-            allData.push(data);
+            allData.push(row[columnName]);
         }
         // 仅在 saveToFile 为 true 时存储所有数据
         if (saveToFile) {
-            // 将 allData 数组的内容写入 tempFile
-            await fs.promises.writeFile(tempFile, allData.join('\n') + '\n');
+            await fsPromises.writeFile(tempFile, allData.join('\n') + '\n');
         }
         return allData;
     } catch (error) {
         console.error(error)
+    }
+}
+
+/**
+ * 根据匹配字段更新CSV文件中的指定字段值
+ * @param {Object} options - 函数的配置选项
+ * @param {string} options.csvFile - CSV文件路径
+ * @param {string} options.matchField - 用于匹配的字段名（例如：'email'）
+ * @param {string} options.matchValue - 用于匹配的字段值（例如：'example@gmail.com'）
+ * @param {string} options.targetField - 要更新的目标字段名（例如：'refreshToken'）
+ * @param {string} options.targetValue - 要更新的新值
+ * @returns {Promise<boolean>} - 更新成功返回true，失败返回false
+ */
+export async function updateCsvData({ csvFile, matchField, matchValue, targetField, targetValue }) {
+    try {
+        // 检查文件是否存在
+        if (!fs.existsSync(csvFile)) {
+            console.error(`文件不存在: ${csvFile}`);
+            return false;
+        }
+
+        const { sep, firstLine } = await getFirstLineAndSeparator(csvFile);
+        // console.log(sep, firstLine)
+
+        if (!firstLine) {
+            console.error('CSV文件为空');
+            return false;
+        }
+        
+        // 检查匹配字段是否存在
+        const headers = firstLine.split(sep);
+        if (!headers.includes(matchField)) {
+            console.error(`匹配字段 "${matchField}" 不存在于文件中`);
+            return false;
+        }
+
+        // 检查目标字段是否存在，如果不存在则先添加该字段
+        if (!headers.includes(targetField)) {
+            try {
+                console.log(`目标字段 "${targetField}" 不存在，将添加新字段`);
+                headers.push(targetField);
+                
+                const allRows = await fsPromises.readFile(csvFile, 'utf8');
+                const rows = allRows.split('\n');
+                
+                rows[0] = headers.join(sep);
+                
+                // 只给非空行添加分隔符，保留空行
+                for (let i = 1; i < rows.length; i++) {
+                    if (rows[i]) {  // 非空行添加分隔符
+                        rows[i] = rows[i] + sep;
+                    }
+                }
+                
+                await fsPromises.writeFile(csvFile, rows.join('\n'));
+            } catch (error) {
+                console.error('添加新字段失败:', error);
+                return false;
+            }
+        }
+
+        // 读取并更新数据
+        const rows = [];
+        try {
+            const parser = createReadStream(csvFile).pipe(
+                parse({
+                    delimiter: sep, // 分隔符为sep，默认逗号
+                    columns: true, // 自动将第一行作为列名
+                    skip_empty_lines: true,  // 跳过空行
+                    trim: true // 添加trim选项处理空格
+                })
+            );
+
+            for await (const row of parser) {
+                rows.push(row);
+            }
+        } catch (error) {
+            console.error('读取CSV内容失败:', error);
+            return false;
+        }
+
+        // 更新匹配的数据
+        let found = false;
+        const updatedRows = rows.map(row => {
+            if (row[matchField] === matchValue) {
+                found = true;
+                return {
+                    ...row,
+                    [targetField]: targetValue
+                };
+            }
+            return row;
+        });
+
+        if (!found) {
+            console.log(`未找到匹配的记录: ${matchField}=${matchValue}`);
+            return false;
+        }
+
+        // 写回文件
+        try {
+            const csvContent = stringify(updatedRows, {
+                header: true,
+                columns: headers, // 使用保存的headers确保列顺序一致
+                delimiter: sep, // 使用原文件的分隔符
+                skip_empty_lines: true  // 跳过空行
+            });
+
+            await fsPromises.writeFile(csvFile, csvContent);
+            console.log(`匹配项: ${matchField} = ${matchValue} , 更新项: ${targetField} = ${targetValue}`);
+            return true;
+        } catch (error) {
+            console.error('写入文件失败:', error);
+            return false;
+        }
+
+    } catch (error) {
+        console.error('更新CSV文件失败:', error);
+        return false;
     }
 }
 
