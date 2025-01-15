@@ -32,6 +32,8 @@
     "dotenv": "^16.4.5",
     "ecpair": "^2.1.0",
     "ethers": "^6.13.3",
+    "google-auth-library": "^9.15.0",
+    "googleapis": "^144.0.0",
     "imap": "^0.8.19",
     "mailparser": "^3.7.2",
     "node-pop3": "^0.9.0",
