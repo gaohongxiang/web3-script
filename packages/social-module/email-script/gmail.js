@@ -36,18 +36,18 @@ export class GmailAuth extends BitBrowserUtil {
     /**
      * Gmail自动授权，获取refresh token并保存到CSV文件。此函数需要打开浏览器授权，需要配合指纹浏览器使用。
      * @param {Object} options - 授权配置选项
-     * @param {string} options.email - Gmail邮箱地址
      * @param {string} options.csvFile - CSV文件路径，用于保存refresh token
      * @param {string} options.matchField - CSV文件中用于匹配的字段名（通常是'email'）
+     * @param {string} options.matchValue - CSV文件中用于匹配的值 （通常是email地址）
      * @param {string} [options.targetField='gmailRefreshToken'] - CSV文件中保存refresh token的字段名
      * @param {string} [options.appName='ghx_gmail'] - 应用名称，用于浏览器标识
      * @returns {Promise<boolean>} - 授权成功返回true，失败返回false
      */
-    async autoAuth({email, csvFile, matchField, targetField='gmailRefreshToken', appName='ghx_gmail'}) {
+    async autoAuth({csvFile, matchField, matchValue, targetField='gmailRefreshToken', appName='ghx_gmail'}) {
         try {
             // 检查是否是 Gmail 邮箱
-            if (!email.endsWith('@gmail.com')) {
-                console.log(`跳过非 Gmail 邮箱: ${email}`);
+            if (!matchValue.endsWith('@gmail.com')) {
+                console.log(`跳过非 Gmail 邮箱: ${matchValue}`);
                 return false;
             }
             // 初始化
@@ -57,16 +57,16 @@ export class GmailAuth extends BitBrowserUtil {
             await this.start();  // 添加这行，确保浏览器已启动
         
             // 获取授权URL
-            const authUrl = this.generateAuthUrl(email);
+            const authUrl = this.generateAuthUrl(matchValue);
 
             // 打开授权页面
             await this.page.goto(authUrl);
             await this.page.waitForTimeout(2000);
-            const isExist = await this.page.locator(`div[data-email="${email}"]`);
+            const isExist = await this.page.locator(`div[data-email="${matchValue}"]`);
             if(!isExist) {
                 throw new Error('未找到邮箱,请先登录');
             }
-            await this.page.locator(`div[data-email="${email}"]`).click();
+            await this.page.locator(`div[data-email="${matchValue}"]`).click();
             const isDangerWarning = await this.page.locator('h1[text="此应用未经 Google 验证"]');
             if(isDangerWarning) {
                 console.log('检测到安全警告页面，尝试处理...');
@@ -103,7 +103,7 @@ export class GmailAuth extends BitBrowserUtil {
             await updateCsvData({
                 csvFile,
                 matchField,
-                matchValue: email,
+                matchValue,
                 targetField,
                 targetValue: refreshToken
             })
@@ -137,13 +137,15 @@ function createOAuth2Client() {
  * @param {string} options.subject - 邮件主题关键词
  * @param {number} [options.pollInterval=10] - 轮询间隔（秒）
  * @param {number} [options.timeout=300] - 总超时时间（秒）
+ * @param {number} [options.recentMinutes=5] - 查询最近几分钟内的邮件
  * @returns {Promise<string|null>} 验证码或null
  */
-export async function waitForVerificationCode(refreshToken, { 
+export async function waitForGmailVerificationCode(refreshToken, { 
     from, 
     subject, 
     pollInterval = 10,
-    timeout = 300 
+    timeout = 300,
+    recentMinutes = 5
 }) {
     try {
         const startTime = Date.now();
@@ -156,8 +158,8 @@ export async function waitForVerificationCode(refreshToken, {
             oauth2Client.setCredentials({ refresh_token: refreshToken });
             const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
             
-            // 构建查询语句，只查询5分钟内的邮件
-            const query = `from:${from} subject:${subject} newer_than:5m`;
+            // 构建查询语句，使用参数化的时间范围
+            const query = `from:${from} subject:${subject} newer_than:${recentMinutes}m`;
             
             // 获取邮件列表
             const response = await gmail.users.messages.list({
