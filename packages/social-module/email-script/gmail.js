@@ -3,11 +3,13 @@ import { BitBrowserUtil } from '../../rpa-module/bitbrowser.js';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import { updateCsvData } from '../../utils-module/utils.js';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 
 export class GmailAuth extends BitBrowserUtil {
-    constructor(browserId) {
+    constructor(browserId, proxy = null) {
         super(browserId);
         this.oauth2Client = null;
+        this.proxy = proxy;
     }
 
     // 初始化 OAuth2 客户端
@@ -15,11 +17,19 @@ export class GmailAuth extends BitBrowserUtil {
         if (!process.env.gmailClientId || !process.env.gmailClientSecret || !process.env.gmailRedirectUri) {
             throw new Error('缺少必要的环境变量配置');
         }
-        this.oauth2Client = new OAuth2Client({
+
+        const options = {
             clientId: process.env.gmailClientId,
             clientSecret: process.env.gmailClientSecret,
             redirectUri: process.env.gmailRedirectUri
-        });
+        };
+
+        // 如果设置了代理，添加代理配置
+        if (this.proxy) {
+            options.httpAgent = new SocksProxyAgent(this.proxy);
+        }
+
+        this.oauth2Client = new OAuth2Client(options);
     }
 
     // 生成授权URL
@@ -50,6 +60,7 @@ export class GmailAuth extends BitBrowserUtil {
                 console.log(`跳过非 Gmail 邮箱: ${matchValue}`);
                 return false;
             }
+
             // 初始化
             this.init();
 
@@ -115,18 +126,24 @@ export class GmailAuth extends BitBrowserUtil {
     }
 }
 
-
-
 /**
  * 创建 OAuth2 客户端
+ * @param {string} [proxy] - SOCKS5 代理字符串（可选）
  * @returns {OAuth2Client} Google OAuth2 客户端实例
  */
-function createOAuth2Client() {
-    return new google.auth.OAuth2(
-        process.env.gmailClientId,
-        process.env.gmailClientSecret,
-        process.env.gmailRedirectUri
-    );
+function createOAuth2Client(proxy = null) {
+    const options = {
+        clientId: process.env.gmailClientId,
+        clientSecret: process.env.gmailClientSecret,
+        redirectUri: process.env.gmailRedirectUri
+    };
+
+    // 如果提供了代理，添加代理配置
+    if (proxy) {
+        options.httpAgent = new SocksProxyAgent(proxy);
+    }
+
+    return new google.auth.OAuth2(options);
 }
 
 /**
@@ -138,6 +155,7 @@ function createOAuth2Client() {
  * @param {number} [options.pollInterval=10] - 轮询间隔（秒）
  * @param {number} [options.timeout=300] - 总超时时间（秒）
  * @param {number} [options.recentMinutes=5] - 查询最近几分钟内的邮件
+ * @param {string} [options.proxy] - SOCKS5 代理字符串（可选）
  * @returns {Promise<string|null>} 验证码或null
  */
 export async function waitForGmailVerificationCode(refreshToken, { 
@@ -145,16 +163,23 @@ export async function waitForGmailVerificationCode(refreshToken, {
     subject, 
     pollInterval = 10,
     timeout = 300,
-    recentMinutes = 5
+    recentMinutes = 5,
+    proxy = null
 }) {
     try {
+        // 检查 refreshToken 是否存在
+        if (!refreshToken) {
+            console.log('未提供 refresh token, 请先完成授权');
+            return null;
+        }
+
         const startTime = Date.now();
         const timeoutMs = timeout * 1000;
         
         while (Date.now() - startTime < timeoutMs) {
             console.log('正在查找验证码邮件...');
             
-            const oauth2Client = createOAuth2Client();
+            const oauth2Client = createOAuth2Client(proxy);
             oauth2Client.setCredentials({ refresh_token: refreshToken });
             const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
             

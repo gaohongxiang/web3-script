@@ -4,6 +4,8 @@ import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { updateCsvData } from '../../utils-module/utils.js';
 import express from 'express';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import fetch from 'node-fetch';
 
 // MSAL配置对象
 const msalConfig = {
@@ -11,17 +13,7 @@ const msalConfig = {
         clientId: process.env.outlookClientId,        // 应用程序ID
         authority: "https://login.microsoftonline.com/common",  // OAuth2授权端点
         clientSecret: process.env.outlookClientSecret  // 应用程序密钥
-    },
-    // // 添加日志
-    // system: {
-    //     loggerOptions: {
-    //         loggerCallback: (level, message, containsPii) => {
-    //             console.log(message);
-    //         },
-    //         piiLoggingEnabled: false,
-    //         logLevel: 3  // Info级别日志
-    //     }
-    // }
+    }
 };
 
 // OAuth2所需的权限范围
@@ -41,16 +33,62 @@ const extraQueryParameters = {
     'domain_hint': ''       // 可选：指定登录域
 };
 
+// 创建一个专门的函数来处理MSAL配置
+function createMsalConfig(proxy = null) {
+    const config = {
+        auth: {
+            clientId: process.env.outlookClientId,        // 应用程序ID
+            authority: "https://login.microsoftonline.com/common",  // OAuth2授权端点
+            clientSecret: process.env.outlookClientSecret  // 应用程序密钥
+        }
+    };
+
+    if (proxy) {
+        config.system = {
+            networkClient: {
+                sendGetRequestAsync: async (url, options) => {
+                    const proxyAgent = new SocksProxyAgent(proxy);
+                    const response = await fetch(url, {
+                        ...options,
+                        agent: proxyAgent,
+                        method: 'GET'
+                    });
+                    return {
+                        status: response.status,
+                        headers: Object.fromEntries(response.headers),
+                        body: await response.json() // 直接返回解析后的 JSON 对象
+                    };
+                },
+                sendPostRequestAsync: async (url, options) => {
+                    const proxyAgent = new SocksProxyAgent(proxy);
+                    const response = await fetch(url, {
+                        ...options,
+                        agent: proxyAgent,
+                        method: 'POST',
+                        body: options.body
+                    });
+                    return {
+                        status: response.status,
+                        headers: Object.fromEntries(response.headers),
+                        body: await response.json() // 直接返回解析后的 JSON 对象
+                    };
+                }
+            }
+        };
+    }
+
+    return config;
+}
+
 /**
  * Outlook授权类
  * 继承自BitBrowserUtil，用于处理Outlook的OAuth2.0授权流程
  */
 export class OutlookAuth extends BitBrowserUtil {
-    constructor(browserId) {
+    constructor(browserId, proxy = null) {
         super(browserId);
-        // 初始化MSAL客户端
-        this.msalClient = new ConfidentialClientApplication(msalConfig);
-        // 设置回调地址
+        // 使用新的配置创建函数
+        this.msalClient = new ConfidentialClientApplication(createMsalConfig(proxy));
         this.REDIRECT_URI = process.env.outlookRedirectUri;
     }
 
@@ -179,14 +217,27 @@ export class OutlookAuth extends BitBrowserUtil {
             await this.page.waitForTimeout(3000);
 
             try {
+                try{
                 // 等待并点击接受按钮
                 await this.page.waitForSelector('input[name="ucaccept"][value="接受"]', { timeout: 5000 });
                 await this.page.click('input[name="ucaccept"][value="接受"]');
+                }catch(e){
+                    console.log('未找到接受按钮');
+                }
                 await this.page.waitForTimeout(3000);
                 // 检查是否需要点击继续按钮
-                const isElementExist = await this.isElementExist('input[name="appConfirmContinue"]', {waitTime: 5});
-                if (isElementExist) {
-                    await this.page.click('input[name="appConfirmContinue"]');
+                try{
+                    const isElementExist1 = await this.isElementExist('input[name="appConfirmContinue"]', {waitTime: 5});
+                    if (isElementExist1) {
+                        await this.page.click('input[name="appConfirmContinue"]');
+                    }
+                    await this.page.waitForTimeout(3000);
+                    const isElementExist2 = await this.isElementExist('input[name="appConfirmContinue"]', {waitTime: 5});
+                    if (isElementExist2) {
+                        await this.page.click('input[name="appConfirmContinue"]');
+                    }
+                }catch(e){
+                    console.log('未找到继续按钮');
                 }
 
                 // 等待重定向
@@ -246,6 +297,7 @@ export class OutlookAuth extends BitBrowserUtil {
  * @param {number} [options.pollInterval=10] - 轮询间隔（秒）
  * @param {number} [options.timeout=300] - 总超时时间（秒）
  * @param {number} [options.recentMinutes=5] - 查询最近几分钟内的邮件
+ * @param {string} [options.proxy] - SOCKS5 代理字符串（可选）
  * @returns {Promise<string|null>} 返回验证码或null
  */
 export async function waitForOutlookVerificationCode(refreshToken, {
@@ -253,14 +305,21 @@ export async function waitForOutlookVerificationCode(refreshToken, {
     subject,
     pollInterval = 10,
     timeout = 300,
-    recentMinutes = 5
+    recentMinutes = 5,
+    proxy = null
 }) {
     try {
+        // 检查 refreshToken 是否存在
+        if (!refreshToken) {
+            console.log('未提供 refresh token, 请先完成授权');
+            return null;
+        }
+
         const startTime = Date.now();
         const timeoutMs = timeout * 1000;
 
-        // 创建MSAL客户端实例
-        const msalClient = new ConfidentialClientApplication(msalConfig);
+        // 创建MSAL客户端实例,使用相同的配置创建函数
+        const msalClient = new ConfidentialClientApplication(createMsalConfig(proxy));
 
         while (Date.now() - startTime < timeoutMs) {
             console.log('正在查找验证码邮件...');
@@ -269,7 +328,7 @@ export async function waitForOutlookVerificationCode(refreshToken, {
                 // 使用refresh token获取新的access token
                 const tokenResponse = await msalClient.acquireTokenByRefreshToken({
                     refreshToken,
-                    scopes: ['Mail.Read']
+                    scopes: scopes
                 });
 
                 // 初始化Graph API客户端
