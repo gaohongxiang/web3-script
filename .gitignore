@@ -1,7 +1,11 @@
 data/*
 !data/token-example.json
-example.js
 filesConfig.json
+
+# Example JS files
+*[eE]xample*.js
+example*.js
+*[eE]xample.js
 
 .DS_Store
 
