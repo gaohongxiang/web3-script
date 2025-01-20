@@ -1,5 +1,5 @@
 import fs from 'fs';  // 同步操作
-import { promises as fsPromises } from 'fs';  // 异步操作
+import fsPromises from 'fs/promises';  // 异步操作
 import { createReadStream } from 'fs';  // 流操作
 import XLSX from 'xlsx';
 import { parse } from 'csv-parse';
@@ -141,7 +141,7 @@ export async function getCsvDataByColumnName({ csvFile, columnName, saveToFile =
  * @param {string} options.targetValue - 要更新的新值
  * @returns {Promise<boolean>} - 更新成功返回true，失败返回false
  */
-export async function updateCsvData({ csvFile, matchField, matchValue, targetField, targetValue }) {
+export async function updateCsvFieldValueByMatch({ csvFile, matchField, matchValue, targetField, targetValue }) {
     try {
         // 检查文件是否存在
         if (!fs.existsSync(csvFile)) {
@@ -237,7 +237,7 @@ export async function updateCsvData({ csvFile, matchField, matchValue, targetFie
             });
 
             await fsPromises.writeFile(csvFile, csvContent);
-            console.log(`匹配项: ${matchField} = ${matchValue} , 更新项: ${targetField} = ${targetValue}`);
+            console.log(`匹配项: ${matchField} = ${matchValue} , 更新项: ${targetField} = ${maskValue(targetValue)}`);
             return true;
         } catch (error) {
             console.error('写入文件失败:', error);
@@ -376,5 +376,24 @@ export function generateRandomString(length) {
     }
     result = array.join('');
     // console.log(result);
+    return result;
+}
+
+export function maskValue(value, startKeep = 6, endKeep = 6) {
+    if (typeof value !== 'string') {
+        value = String(value);
+    }
+    
+    // 如果字符串长度小于等于前后保留位数之和，直接返回原值
+    if (value.length <= startKeep + endKeep) {
+        return value;
+    }
+    
+    // 分别保留前后指定位数，中间统一用3个*替代
+    const start = value.slice(0, startKeep);
+    const end = value.slice(-endKeep);
+    const mask = '***';
+    const result = `${start}${mask}${end}`;
+    // console.log(result)
     return result;
 }

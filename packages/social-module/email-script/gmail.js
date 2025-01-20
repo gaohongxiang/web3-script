@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { BitBrowserUtil } from '../../rpa-module/bitbrowser.js';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
-import { updateCsvData } from '../../utils-module/utils.js';
+import { updateCsvFieldValueByMatch} from '../../utils-module/utils.js';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 
 export class GmailAuth extends BitBrowserUtil {
@@ -111,7 +111,7 @@ export class GmailAuth extends BitBrowserUtil {
             const { tokens: newTokens } = await this.oauth2Client.getToken(code);
             // console.log('newTokens:',newTokens);
             const refreshToken = newTokens.refresh_token;
-            await updateCsvData({
+            await updateCsvFieldValueByMatch({
                 csvFile,
                 matchField,
                 matchValue,

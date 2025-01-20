@@ -2,19 +2,10 @@ import 'dotenv/config';
 import { BitBrowserUtil } from '../../rpa-module/bitbrowser.js';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
-import { updateCsvData } from '../../utils-module/utils.js';
+import { updateCsvFieldValueByMatch } from '../../utils-module/utils.js';
 import express from 'express';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import fetch from 'node-fetch';
-
-// MSAL配置对象
-const msalConfig = {
-    auth: {
-        clientId: process.env.outlookClientId,        // 应用程序ID
-        authority: "https://login.microsoftonline.com/common",  // OAuth2授权端点
-        clientSecret: process.env.outlookClientSecret  // 应用程序密钥
-    }
-};
 
 // OAuth2所需的权限范围
 const scopes = [
@@ -262,7 +253,7 @@ export class OutlookAuth extends BitBrowserUtil {
                 // });
 
                 // 更新CSV文件
-                await updateCsvData({
+                await updateCsvFieldValueByMatch({
                     csvFile,
                     matchField,
                     matchValue,
