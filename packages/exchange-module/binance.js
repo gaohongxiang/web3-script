@@ -1,6 +1,7 @@
 import fs from 'fs';
 import ccxt from 'ccxt';
 import { deCryptText } from '../crypt-module/crypt.js';
+import { dingdingNotifier } from '../notification-module/notifier.js';
 
 /**
  * 根据输入的链名称返回标准化的链名称。
@@ -169,20 +170,82 @@ export async function withdraw({ account, chain, toAddress, coin, amount, apiFil
 }
 
 /**
- * 价格预警函数，监控币种价格并发送提醒。
- * 
- * @param {string} coin - 要监控的币种，如 'BTC/USDT'。
- * @param {number} price - 触发提醒的价格阈值。
- * @returns {Promise<void>} - 不返回值，但会在控制台输出结果。
- * @throws {Error} 当API调用失败或币种不存在时抛出错误。
- * 
- * @example
- * await priceAlert('BTC/USDT', 50000);
+ * 价格预警循环函数
+ * @param {Object} params - 预警参数对象
+ * @param {string} [params.symbol='BTC/USDT'] - 交易对
+ * @param {number} [params.price=100000] - 预警价格
+ * @param {number} [params.waitTime=600] - 检查间隔时间(秒)
+ * @param {string} [params.direction='down'] - 价格方向，'up'表示涨到，'down'表示跌到
+ * @returns {Promise<void>}
  */
-export async function priceAlert(coin, price) {
-    const binance = await createExchange({ account, apiFile })
-    coin = coin.toUpperCase()
-    // 获取当前价格
-    const currentPrice = await binance.fetchTicker(coin)
-    console.log(currentPrice)
+export async function priceAlertLoop({symbol = 'BTC/USDT', price = 100000, waitTime = 600, direction = 'down'}) {
+    while (true) {
+        try {
+            symbol = symbol.toUpperCase();
+            const binance = await new ccxt.binance({'enableRateLimit': true});
+            const ticker = await binance.fetchTicker(symbol);
+            const tokenPrice = parseFloat(ticker.last);
+            
+            // 根据方向判断是否触发预警
+            const isAlertTriggered = direction === 'up' 
+                ? tokenPrice > parseFloat(price)  // 涨到价格时触发
+                : tokenPrice < parseFloat(price); // 跌到价格时触发
+            
+            if (isAlertTriggered) {
+                const directionText = direction === 'up' ? '涨到' : '跌到';
+                const context = `binance交易所 ${symbol} 价格已${directionText}预警线 ${price}，最新成交价：${tokenPrice}`;
+                await dingdingNotifier(context);
+                // break; // 发送一次后退出，如果需要持续监控可以去掉这行
+            }
+            
+            // 等待指定时间后再次检查
+            await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+            
+        } catch (error) {
+            console.error('价格预警失败:', error);
+            // 出错后等待一段时间再重试
+            await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+        }
+    }
+}
+
+/**
+ * 价格区间预警循环函数
+ * @param {Object} params - 预警参数对象
+ * @param {string} [params.symbol='BTC/USDT'] - 交易对
+ * @param {number} [params.minPrice=90000] - 区间下限价格
+ * @param {number} [params.maxPrice=110000] - 区间上限价格
+ * @param {number} [params.waitTime=600] - 检查间隔时间(秒)
+ * @returns {Promise<void>}
+ */
+export async function priceRangeAlertLoop({ symbol = 'BTC/USDT', minPrice = 90000, maxPrice = 110000, waitTime = 600 }) {
+    while (true) {
+        try {
+            symbol = symbol.toUpperCase();
+            const binance = await new ccxt.binance({'enableRateLimit': true});
+            const ticker = await binance.fetchTicker(symbol);
+            const tokenPrice = parseFloat(ticker.last);
+            
+            // 判断价格是否在区间外
+            if (tokenPrice < minPrice || tokenPrice > maxPrice) {
+                let alertType = tokenPrice < minPrice ? '低于' : '高于';
+                let alertPrice = tokenPrice < minPrice ? minPrice : maxPrice;
+                
+                const context = `binance交易所 ${symbol} 价格已${alertType}预警线 ${alertPrice},` + 
+                              `当前价格：${tokenPrice}\n` +
+                              `预设区间：${minPrice} - ${maxPrice}`;
+                              
+                await dingdingNotifier(context);
+                // break; // 发送一次后退出，如果需要持续监控可以去掉这行
+            }
+            
+            // 等待指定时间后再次检查
+            await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+            
+        } catch (error) {
+            console.error('价格区间预警失败:', error);
+            // 出错后等待一段时间再重试
+            await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+        }
+    }
 }

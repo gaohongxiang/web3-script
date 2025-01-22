@@ -59,7 +59,7 @@
 - 先小额测试，没问题再大额提现。
 
 ```
-import { withdraw as binanceWithdraw } from "./binance.js";
+import { withdraw as binanceWithdraw, priceAlertLoop, priceRangeAlertLoop } from "./binance.js";
 import { withdraw as okxWithdraw } from "./okx.js";
 import { withdraw as bybitWithdraw } from "./bybit.js";
 
@@ -97,6 +97,13 @@ await bybitWithdraw({
     withdrawType: 'out',
     apiFile: './data/exchange/bybit.json'
 })
+
+
+// binance交易所价格跌破或涨到警报 参数 { symbol = 'BTC/USDT', price = 100000, waitTime = 600, direction = 'down' }
+priceAlertLoop({symbol: 'BTC/USDT', price: 110000, waitTime: 600, direction: 'down'});
+
+// binance交易所价格超出区间警报 参数 { symbol = 'BTC/USDT', minPrice = 90000, maxPrice = 110000, waitTime = 600 }
+priceRangeAlertLoop({symbol: 'SOL/USDT', minPrice: 253.27, maxPrice: 260.45, waitTime: 300});
 ```
 
 ### 官方文档
