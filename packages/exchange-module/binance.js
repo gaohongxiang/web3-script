@@ -231,9 +231,9 @@ export async function priceRangeAlertLoop({ symbol = 'BTC/USDT', minPrice = 9000
                 let alertType = tokenPrice < minPrice ? '低于' : '高于';
                 let alertPrice = tokenPrice < minPrice ? minPrice : maxPrice;
                 
-                const context = `binance交易所 ${symbol} 价格已${alertType}预警线 ${alertPrice},` + 
-                              `当前价格：${tokenPrice}\n` +
-                              `预设区间：${minPrice} - ${maxPrice}`;
+                const context = `binance交易所 ${symbol} 价格已${alertType}预警线 ${alertPrice}\n` +
+                                `当前价格: ${tokenPrice}\n` +
+                                `预设区间: ${minPrice} - ${maxPrice}`;
                               
                 await dingdingNotifier(context);
                 // break; // 发送一次后退出，如果需要持续监控可以去掉这行
