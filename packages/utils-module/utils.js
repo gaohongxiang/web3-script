@@ -291,17 +291,39 @@ export async function getExcelData(excelFile, { sheetIndex = 0, fieldMappings = 
 }
 
 /**
- * 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS 格式的字符串。
+ * 获取指定时区的当前时间
+ * @param {number} [timezone=8] - 时区，默认为8（UTC+8北京时间）
+ * @param {boolean} [showTimezone=true] - 是否显示时区信息
+ * @returns {string} 格式化的时间字符串 YYYY-MM-DD_HH-MM-SS (UTC+X)
  * 
- * 该函数返回一个字符串，表示当前的时间，适用于文件命名或日志记录等场景。
- * 
- * @returns {string} - 返回格式化后的当前时间字符串。
+ * @example
+ * getCurrentTime()      // "2024-01-20_14-30-45 (UTC+8)"
+ * getCurrentTime(0)     // "2024-01-20_06-30-45 (UTC+0)"
+ * getCurrentTime(-5)    // "2024-01-20_01-30-45 (UTC-5)"
+ * getCurrentTime(9)     // "2024-01-20_15-30-45 (UTC+9)"
+ * getCurrentTime(8, false) // "2024-01-20_14-30-45"
  */
-export function getCurrentTime() {
-    // 获取当前时间并格式化为 YYYY-MM-DD_HH-MM-SS
+export function getCurrentTime(timezone = 8, showTimezone = true) {
+    // 获取当前时间
     const now = new Date();
-    const currentTime = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0]; // 格式化时间
-    return currentTime;
+    
+    // 转换为指定时区
+    const targetTime = new Date(now.getTime() + (timezone * 60 * 60 * 1000));
+    
+    // 格式化时间
+    const year = targetTime.getUTCFullYear();
+    const month = String(targetTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(targetTime.getUTCDate()).padStart(2, '0');
+    const hours = String(targetTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(targetTime.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(targetTime.getUTCSeconds()).padStart(2, '0');
+    
+    const timeStr = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+    
+    // 根据showTimezone参数决定是否显示时区信息
+    return showTimezone 
+        ? `${timeStr} (UTC${timezone >= 0 ? '+' : ''}${timezone})`
+        : timeStr;
 }
 
 /**
