@@ -13,6 +13,7 @@
     - sui-script(sui链交互脚本)
 - utils-module(工具库模块)
 - social-module(社交模块)
+- notification-module(消息通知/日志模块)
 
 持续完善中。。。
 
@@ -65,41 +66,7 @@ indexId,address,enPrivateKey,enMnemonic
 - 一类是api文件，此类文件存放交易所api，用于转出。采用`.json`格式，如 `binance.json`、`okx.json`。
 - 一类是地址文件，此类文件存放交易所的收款地址，用于转入。采用`.csv`格式，如`addressBinance.csv`、`addressOkx.csv`。
 
-交易所api文件
-```
-{
-    "币安api示例账户":{
-        "main":{
-            "apiKey": "加密后的key",
-            "apiSecret": "加密后的secret",
-            "apiProxy": ["socks5代理,不加密。创建api时设置只允许受信任的api访问,增加安全性","socks5://xxx:xxx@xxx:xxx"]
-        },
-        "sub1":{
-            "apiKey": "加密后的key",
-            "apiSecret": "加密后的secret",
-            "apiProxy": ["socks5代理,不加密。创建api时设置只允许受信任的api访问,增加安全性","socks5://xxx:xxx@xxx:xxx"]
-        }
-    },
-
-
-
-    "欧意api示例账户":{
-        "main":{
-            "apiKey": "加密后的key",
-            "apiSecret": "加密后的secret",
-            "apiPassword": "加密后的密码",
-            "apiProxy": ["socks5代理,不加密。创建api时设置只允许受信任的api访问,增加安全性","socks5://xxx:xxx@xxx:xxx"]
-        },
-        "sub1":{
-            "subAccountName":"xxxxxx",
-            "apiKey": "加密后的key",
-            "apiSecret": "加密后的secret",
-            "apiPassword": "加密后的密码",
-            "apiProxy": ["socks5代理,不加密。创建api时设置只允许受信任的api访问,增加安全性","socks5://xxx:xxx@xxx:xxx"]
-        }
-    }
-}
-```
+交易所api文件,见`exchange-module/README.md`
 
 交易所地址文件。以ok为例，主账户和5个子账户都能生成20个地址
 ```
@@ -121,106 +88,4 @@ xxxxxx:xxxxxx:xxxxxx:xxxxxx
 
 ## 各模块使用示例
 
-根目录新建一个js文件，示例都在此文件里进行。
-
-基础使用示例详见各模块文档。
-
-### 一对一转账示例
-
-此场景主要为防女巫。通过交易所中转，地址一对一转账，避免关联。同时也可以配合使用不同ip，进一步避免关联。
-
->交易所 -> 链上地址 -> 进行链上活动 -> 交易所
-
-```
-import { withdraw as binanceWithdraw } from "./packages/exchange-script/binance.js";
-import { withdraw as okxWithdraw } from "./packages/exchange-script/okx.js";
-import { transfer as evmTransfer, getBalance as evmGetBalance } from "./packages/evm-script/index.js";
-import { myFormatData } from "./packages/utils-module/formatdata.js";
-
-async function mainEvm({startNum, endNum}){
-    try{
-        const data = await myFormatData(startNum, endNum);
-        for(const d of data) {
-            console.log(`第${d['indexId']}个账号`)
-
-            // okx转账到链上evm系地址
-            // 参数：{ account, chain, toAddress, coin, amount, apiFile='./data/okx.json' }
-            // await okxWithdraw({ account: 'okx api账户', chain: 'arb', toAddress: d['ethAddress'], coin: 'usdt', amount: 5 })
-
-            // 获取地址余额
-            // 参数：{ address, token, chain, proxy=null, tokenFile = './data/token.json' }
-            // const balance = await evmGetBalance({ address: d['ethAddress'], token: 'usdt', chain: 'arb', proxy:d['proxy'] })
-
-            // evm系发送代币到okx交易所evm系地址
-            //参数：{ enPrivateKey, toAddress, token, value, chain, proxy=null, tokenFile = './data/token.json' }
-            // await evmTransfer({ enPrivateKey: d['enEthPrivateKey'], toAddress: 'd['okxEthAddress']', token: 'usdt', value: 1, chain: 'arb', proxy:d['proxy'] })
-
-        }
-    }catch(error){console.log(error)}
-}
-
-mainEvm({startNum:1, endNum:2})
-```
-
-### 一对多转账示例
-
->交易所 -> 链上地址 -> 批量发送到多个地址 -> 链上活动 -> 链上地址或交易所地址
-
-```
-import { withdraw as okxWithdraw } from "./packages/exchange-script/okx.js";
-import { getBalance as solanaGetBalance, transfer as solanaTransfer } from './packages/sol-script/index.js';
-import { getCsvDataByColumnName } from './packages/utils-module/utils.js';
-
-
-const fromAddress = xxxxxx
-const enfromPrivateKey = xxxxxx
-
-// okx转账
-// 参数：{ account, chain, toAddress, coin, amount, apiFile='./data/okx.json' }
-// await okxWithdraw({ account: 'gaohongxiang69@gmail.com', chain: 'solana', toAddress: fromAddress, coin: 'sol', amount: 0.1 })
-
-
-// 组装toData数据
-
-// 方法1: 直接组装数据
-const toData = [
-    ['DkdFPsdnoGfPN5ACRf2pxCHcQdfgFdYg87DnXVpb9xG6', 0.01],
-    ['HyQxTMcUC7oudaSedzNUUBXt4jJPRyLgNkSYa65Je6Bb', 0.01],
-]
-
-// 方法2: 从文件中获取数据
-async function getToData(num = 10){
-    // 参数 {csvFile, columnName, saveToFile = false, tempFile='./data/temp.csv'}
-    let toAddresses = await getCsvDataByColumnName({csvFile:'./data/walletSol.csv', columnName:'solAddress'});
-    console.log(toAddresses)
-    toAddresses = toAddresses.slice(0, num);
-    const amounts = toAddresses.map(() => 0.01); // 这里可以根据需要修改金额
-    // const amounts = toAddresses.map(() => (Math.random() * (1.00 - 0.01) + 0.01).toFixed(2)); // 保留两位小数
-    // 使用 map 方法组合成所需的格式
-    const toData = toAddresses.map((address, index) => [address, amounts[index]]);
-    return toData;
-}
-// const toData = await getToData(2);
-// console.log(toData);
-
-// 一对多分发代币
-// 参数：{ enPrivateKey, toData, token, tokenFile='./data/token.json' }
-// solanaTransfer({ enPrivateKey: enfromPrivateKey, toData, token:'sol', tokenFile:'./data/token.json' });
-
-
-// 获取地址余额
-// 参数：{ address, token='SOL', tokenFile = './data/token.json' }
-// const balance = await solanaGetBalance({ address: d['solAddress'], token: 'sol', tokenFile : './data/token.json' })
-
-
-// 归集代币
-const collectData = [fromAddress, 0.01];
-const data = await myFormatData(startNum, endNum);
-for(const d of data) {
-    console.log(`第${d['indexId']}个账号`)
-    // 发送代币
-    // 参数：{ enPrivateKey, toData, token, tokenFile='./data/token.json' }
-    solanaTransfer({ enPrivateKey: d['enSolPrivateKey'], toDat: collectData, token:'sol', tokenFile:'./data/token.json' });
-}
-```
-
+使用示例详见各模块文档。
