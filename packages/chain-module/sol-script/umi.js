@@ -19,7 +19,7 @@ import {
 import { findAssociatedTokenPda } from '@metaplex-foundation/mpl-toolbox';
 import { dasApi } from '@metaplex-foundation/digital-asset-standard-api';
 
-import { deCryptText } from '../crypt-module/crypt.js';
+import { deCryptText } from '../../crypt-module/crypt.js';
 
 /**
  * 创建 Umi 实例并设置签名者。

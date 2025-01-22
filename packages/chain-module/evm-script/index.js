@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { ethers } from 'ethers';
 import { SocksProxyAgent } from 'socks-proxy-agent';
-import { deCryptText } from '../crypt-module/crypt.js';
-import { getTokenInfo } from '../utils-module/utils.js';
+import { deCryptText } from '../../crypt-module/crypt.js';
+import { getTokenInfo } from '../../utils-module/utils.js';
 
 const mainTokens = ['ETH', 'BNB', 'POL', 'AVAX'];
 

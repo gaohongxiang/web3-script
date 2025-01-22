@@ -1,7 +1,7 @@
 import { SuiKit } from '@scallop-io/sui-kit';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { deCryptText } from '../crypt-module/crypt.js';
-import { getTokenInfo } from '../utils-module/utils.js';
+import { deCryptText } from '../../crypt-module/crypt.js';
+import { getTokenInfo } from '../../utils-module/utils.js';
 
 const rpc = [
   'https://fullnode.mainnet.sui.io:443',

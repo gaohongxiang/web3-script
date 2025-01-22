@@ -4,8 +4,8 @@ import bs58 from 'bs58';
 import { Connection, PublicKey, Keypair, Transaction, SystemProgram, sendAndConfirmTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { createTransferInstruction, getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
-import { deCryptText } from '../crypt-module/crypt.js';
-import { getTokenInfo } from '../utils-module/utils.js';
+import { deCryptText } from '../../crypt-module/crypt.js';
+import { getTokenInfo } from '../../utils-module/utils.js';
 
 /**
  * 创建与 Solana 网络的连接。

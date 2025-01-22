@@ -11,7 +11,7 @@ import * as bip32 from 'bip32';
 import * as ecc from 'tiny-secp256k1';
 import { ECPairFactory } from 'ecpair';
 
-import { deCryptText } from '../crypt-module/crypt.js';
+import { deCryptText } from '../../crypt-module/crypt.js';
 
 //将 tiny-secp256k1 库初始化为比特币库（bitcoinjs-lib）所使用的椭圆曲线加密库。即 bitcoinjs-lib 库将能够利用 tiny-secp256k1 进行加密操作。
 bitcoin.initEccLib(ecc);
