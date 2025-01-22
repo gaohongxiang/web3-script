@@ -27,7 +27,7 @@
     "bip32": "^5.0.0-rc.0",
     "bip39": "^3.1.0",
     "bitcoinjs-lib": "^6.1.6",
-    "ccxt": "^4.4.10",
+    "ccxt": "^4.4.49",
     "clipboardy": "^4.0.0",
     "csv-parse": "^5.5.6",
     "csv-stringify": "^6.5.1",
