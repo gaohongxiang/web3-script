@@ -1,6 +1,6 @@
 import axios from 'axios';
 import 'dotenv/config';
-
+import { getCurrentTime } from '../utils-module/utils.js';
 /**
  * 发送钉钉通知消息
  * @param {string} content - 要发送的消息内容
@@ -13,7 +13,7 @@ export async function dingdingNotifier(content, keyWord = 'web3消息通知') {
         const url = 'https://oapi.dingtalk.com/robot/send?access_token=' + process.env.dingtalkAccessToken;
         const msg = {
             "msgtype": "text",
-            "text": {"content": keyWord + '\n' + content}
+            "text": {"content": keyWord + '\n' + content + '\n预警时间: ' + getCurrentTime()}
         };
         
         const response = await axios.post(url, msg, {
