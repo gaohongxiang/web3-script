@@ -176,13 +176,30 @@ export async function withdraw({ account, chain, toAddress, coin, amount, apiFil
  * @param {number} [params.price=100000] - 预警价格
  * @param {number} [params.waitTime=600] - 检查间隔时间(秒)
  * @param {string} [params.direction='down'] - 价格方向，'up'表示涨到，'down'表示跌到
+ * @param {number} [params.reconnectInterval=3600] - 重新连接间隔(秒)，默认1小时
  * @returns {Promise<void>}
  */
-export async function priceAlertLoop({symbol = 'BTC/USDT', price = 100000, waitTime = 600, direction = 'down'}) {
+export async function priceAlertLoop({ 
+    symbol = 'BTC/USDT', 
+    price = 100000, 
+    waitTime = 600, 
+    direction = 'down',
+    reconnectInterval = 3600 
+}) {
+    symbol = symbol.toUpperCase();
+    let lastReconnectTime = Date.now();
+    let binance = null;
+
     while (true) {
         try {
-            symbol = symbol.toUpperCase();
-            const binance = await new ccxt.binance({'enableRateLimit': true});
+            // 检查是否需要重新创建实例
+            const now = Date.now();
+            if (!binance || (now - lastReconnectTime) > reconnectInterval * 1000) {
+                console.log('创建或更新交易所连接...');
+                binance = await new ccxt.binance({'enableRateLimit': true});
+                lastReconnectTime = now;
+            }
+
             const ticker = await binance.fetchTicker(symbol);
             const tokenPrice = parseFloat(ticker.last);
             
@@ -202,7 +219,15 @@ export async function priceAlertLoop({symbol = 'BTC/USDT', price = 100000, waitT
             await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
             
         } catch (error) {
-            console.error('价格预警失败:', error);
+            console.error('监控出错:', error);
+            
+            // 如果是网络错误或API错误，强制下次重新创建实例
+            if (error.name === 'NetworkError' || 
+                error.name === 'ExchangeError' || 
+                error.name === 'AuthenticationError') {
+                binance = null;
+            }
+            
             // 出错后等待一段时间再重试
             await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
         }
@@ -216,13 +241,30 @@ export async function priceAlertLoop({symbol = 'BTC/USDT', price = 100000, waitT
  * @param {number} [params.minPrice=90000] - 区间下限价格
  * @param {number} [params.maxPrice=110000] - 区间上限价格
  * @param {number} [params.waitTime=600] - 检查间隔时间(秒)
+ * @param {number} [params.reconnectInterval=3600] - 重新连接间隔(秒)，默认1小时
  * @returns {Promise<void>}
  */
-export async function priceRangeAlertLoop({ symbol = 'BTC/USDT', minPrice = 90000, maxPrice = 110000, waitTime = 600 }) {
+export async function priceRangeAlertLoop({ 
+    symbol = 'BTC/USDT', 
+    minPrice = 90000, 
+    maxPrice = 110000, 
+    waitTime = 600,
+    reconnectInterval = 3600 
+}) {
+    symbol = symbol.toUpperCase();
+    let lastReconnectTime = Date.now();
+    let binance = null;
+
     while (true) {
         try {
-            symbol = symbol.toUpperCase();
-            const binance = await new ccxt.binance({'enableRateLimit': true});
+            // 检查是否需要重新创建实例
+            const now = Date.now();
+            if (!binance || (now - lastReconnectTime) > reconnectInterval * 1000) {
+                console.log('创建或更新交易所连接...');
+                binance = await new ccxt.binance({'enableRateLimit': true});
+                lastReconnectTime = now;
+            }
+
             const ticker = await binance.fetchTicker(symbol);
             const tokenPrice = parseFloat(ticker.last);
             
@@ -236,14 +278,21 @@ export async function priceRangeAlertLoop({ symbol = 'BTC/USDT', minPrice = 9000
                                 `预设区间: ${minPrice} - ${maxPrice}`;
                               
                 await dingdingNotifier(context);
-                // break; // 发送一次后退出，如果需要持续监控可以去掉这行
             }
             
             // 等待指定时间后再次检查
             await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
             
         } catch (error) {
-            console.error('价格区间预警失败:', error);
+            console.error('监控出错:', error);
+            
+            // 如果是网络错误或API错误，强制下次重新创建实例
+            if (error.name === 'NetworkError' || 
+                error.name === 'ExchangeError' || 
+                error.name === 'AuthenticationError') {
+                binance = null;
+            }
+            
             // 出错后等待一段时间再重试
             await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
         }
