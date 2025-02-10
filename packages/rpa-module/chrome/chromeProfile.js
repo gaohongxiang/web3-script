@@ -12,9 +12,7 @@ export class ChromeAutomation {
     this.CHROME_PATH = BASE_CONFIG.CHROME_PATH;
     this.AUTOMATION_CHROME_PATH = BASE_CONFIG.getChromeInstancePath(this.chromeNumber);
     this.AUTOMATION_CHROME_EXECUTABLE = BASE_CONFIG.getChromeExecutable(this.chromeNumber);
-    this.AUTOMATION_CHROME_INFO_PLIST = BASE_CONFIG.getChromePlist(this.chromeNumber);
     this.AUTOATION_CHROME_DATA_DIR = BASE_CONFIG.getProfileDataDir(this.chromeNumber);
-    this.AUTOMATION_CHROME_LOCAL_STATE = BASE_CONFIG.getLocalStatePath(this.chromeNumber);
     this.FINGERPRINT_PATH = BASE_CONFIG.getFingerprintPath(this.chromeNumber);
   }
 

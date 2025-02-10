@@ -27,16 +27,6 @@ export const BASE_CONFIG = {
     return path.join(BASE_CONFIG.getChromeInstancePath(chromeId), 'Contents/MacOS/Google Chrome');
   },
   
-  // 获取Chrome配置文件路径
-  getChromePlist: (chromeId) => {
-    return path.join(BASE_CONFIG.getChromeInstancePath(chromeId), 'Contents/Info.plist');
-  },
-  
-  // 获取Local State路径
-  getLocalStatePath: (chromeId) => {
-    return path.join(BASE_CONFIG.getProfileDataDir(chromeId), 'Local State');
-  },
-  
   // 获取指纹文件路径
   getFingerprintPath: (chromeId) => {
     return path.join(BASE_CONFIG.getProfileDataDir(chromeId), 'fingerprint.json');
@@ -47,6 +37,7 @@ export const BASE_CONFIG = {
     return BASE_CONFIG.DEBUG_BASE_PORT + parseInt(chromeId);
   },
 
+  // 获取监听端口
   getListenPort: (chromeId) => {
     return BASE_CONFIG.LISTEN_BASE_PORT + parseInt(chromeId);
   }
