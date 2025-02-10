@@ -4,9 +4,13 @@
   "description": "币圈交互系列脚本",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron --enable-experimental-vm-modules ."
   },
   "type": "module",
+  "bin": {
+    "proxy-manager": "./packages/rpa-module/chrome/proxyManger.js"
+  },
   "keywords": [],
   "author": "gaohongxiang",
   "license": "MIT",
@@ -27,6 +31,7 @@
     "bip32": "^5.0.0-rc.0",
     "bip39": "^3.1.0",
     "bitcoinjs-lib": "^6.1.6",
+    "canvas": "^3.1.0",
     "ccxt": "^4.4.49",
     "clipboardy": "^4.0.0",
     "csv-parse": "^5.5.6",
@@ -35,6 +40,8 @@
     "ecpair": "^2.1.0",
     "ethers": "^6.13.3",
     "express": "^4.21.2",
+    "fingerprint-generator": "^2.1.62",
+    "fingerprint-injector": "^2.1.62",
     "google-auth-library": "^9.15.0",
     "googleapis": "^144.0.0",
     "imap": "^0.8.19",
