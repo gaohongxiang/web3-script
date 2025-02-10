@@ -1,20 +1,15 @@
 import fs from 'fs';
-import { getCsvData, getExcelData } from './utils.js';
+import { getCsvData, getExcelData, parseInstanceNumbers } from './utils.js';
 
 // 整合多个 CSV 文件为一个 JSON 对象
-export async function myFormatData(startNum, endNum=null) {
-    // 不传endNum即表示查询一个账户
-    if (endNum === null) {
-        endNum = startNum;
-    }
-    if (parseInt(startNum) <= 0 || parseInt(endNum) <= 0) {
-        console.log('账号必须大于0');
+export async function myFormatData(...inputs) {
+
+    const instanceNumbers = parseInstanceNumbers(...inputs);
+    if (instanceNumbers.length === 0) {
+        console.log('至少输入一个账号');
         return;
     }
-    if (parseInt(startNum) > parseInt(endNum)) {
-        console.log('开始账号必须小于或等于结束账号');
-        return;
-    }
+
     const allData = [];
 
     // 读取配置文件
@@ -37,9 +32,8 @@ export async function myFormatData(startNum, endNum=null) {
         records.forEach(record => {
             const id = parseInt(record.indexId); // 使用每个文件中的 indexId 字段并转换为整数
 
-            // 只处理在 startNum 和 endNum 范围内的 ID
-            if (id >= startNum && id <= endNum) {
-                // 处理 ip.csv 文件的代理字符串
+            // 修改这里：只处理在 instanceNumbers 数组中的 ID
+            if (instanceNumbers.includes(id)) {
                 if (filePath.includes('ip.csv')) {
                     const proxy = `socks5://${record.proxyUsername}:${record.proxyPassword}@${record.proxyIp}:${record.proxyPort}`;
                     record.proxy = proxy; // 将拼接后的代理字符串添加到记录中
@@ -62,4 +56,3 @@ export async function myFormatData(startNum, endNum=null) {
 
     return allData;
 }
-

@@ -401,21 +401,76 @@ export function generateRandomString(length) {
     return result;
 }
 
+/**
+ * 对敏感信息进行部分隐藏处理
+ * @param {string|number} value - 需要处理的原始值（支持字符串和数字类型）
+ * @param {number} [startKeep=6] - 开头保留的字符数（默认保留6位）
+ * @param {number} [endKeep=6] - 结尾保留的字符数（默认保留6位）
+ * @returns {string} 处理后的字符串，中间部分用***替代
+ * 
+ * @example
+ * maskValue('1234567890ABCDEF')       // "123456***ABCDEF"
+ * maskValue('1234567890ABCDEF', 4)    // "1234***DEF"
+ * maskValue('1234567890ABCDEF', 2, 4) // "12***DEF"
+ * maskValue('1234', 3, 3)            // "1234"（总长度不足时返回原值）
+ * maskValue(123456789)                // "123456***"（处理数字类型）
+ * maskValue('')                       // ""（空值直接返回）
+ */
 export function maskValue(value, startKeep = 6, endKeep = 6) {
     if (typeof value !== 'string') {
         value = String(value);
     }
     
-    // 如果字符串长度小于等于前后保留位数之和，直接返回原值
-    if (value.length <= startKeep + endKeep) {
+    // 边界情况处理：空值或长度不足时直接返回
+    if (value.length === 0 || value.length <= startKeep + endKeep) {
         return value;
     }
     
     // 分别保留前后指定位数，中间统一用3个*替代
-    const start = value.slice(0, startKeep);
-    const end = value.slice(-endKeep);
-    const mask = '***';
+    const start = value.slice(0, startKeep); // 截取前N位
+    const end = value.slice(-endKeep); // 截取前N位
+    const mask = '***'; // 固定3个*作为掩码
     const result = `${start}${mask}${end}`;
     // console.log(result)
     return result;
 }
+
+/**
+ * 解析混合参数为实例编号数组
+ * @param {...(number|Array<number>)} inputs - 可接受多种参数格式：
+ *   - 单个数字：5 → [5]
+ *   - 多个数字：1,3,5 → [1,3,5]
+ *   - 范围数组：[4,7] → [4,5,6,7]
+ *   - 混合参数：1, [3,5], 7 → [1,3,4,5,7]
+ * @returns {number[]} 处理后的有序且去重的实例编号数组
+ * @example
+ * parseInstanceNumbers(1)          // → [1]
+ * parseInstanceNumbers(1, 3)       // → [1,3]
+ * parseInstanceNumbers([4,7])      // → [4,5,6,7]
+ * parseInstanceNumbers(1, [3,5], 7) // → [1,3,4,5,7]
+ */
+export function parseInstanceNumbers(...inputs) {
+    return inputs
+      // 第一步：展开所有参数
+      .flatMap(input => {
+        // 处理范围数组
+        if (Array.isArray(input) && input.length === 2) {
+          const [start, end] = input.sort((a, b) => a - b);
+          return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+        }
+        // 处理单个数字
+        if (typeof input === 'number') {
+          return [input];
+        }
+        // 过滤无效参数
+        return [];
+      })
+      // 第二步：过滤有效数字
+      .filter(n => Number.isInteger(n) && n > 0)
+      // 第三步：去重并排序
+      .reduce((acc, curr) => {
+        if (!acc.includes(curr)) acc.push(curr);
+        return acc;
+      }, [])
+      .sort((a, b) => a - b);
+  }
