@@ -42,7 +42,7 @@ chrome图标一样的话，多实例管理不好区分。 下面这个教程可�
 - 手动修改应用图标：https://blog.csdn.net/tekin_cn/article/details/140003742
 - 图标不规则不好看？手把手教你绘制苹果官方圆角图标：https://www.zhihu.com/zvideo/1656756405129486337?utm_id=0
 
-#### chrome网页图标
+##### chrome网页图标
 
 方案待定
 
@@ -56,20 +56,27 @@ chrome图标一样的话，多实例管理不好区分。 下面这个教程可�
 
 ### 指纹隔离
 
-指纹是创建多实例时同步创建的，使用的是`fingerprint-generator`库，指纹文件在``目录下。
+指纹是创建多实例时同步创建的，使用的是`fingerprint-generator`库，指纹文件在各实例数据目录下`fingerprint.json`。
 
 使用时是通过`fingerprint-injector`库直接注入浏览器里的
 
 ### 代理集成
 
-代理是通过监听端口的方式实现的，浏览器启动时添加参数 `--proxy-server=127.0.0.1:listenPort`，流量转发的socks代理
+买的代理一般是带认证的socks5代理，chrome不支持socks5认证，所以需要本地中转一下，浏览器启动时添加了参数 `--proxy-server=127.0.0.1:listenPort`，使用代理服务器转发流量到socks代理处理。
 
 ```
 浏览器 -> 代理服务器 -> SOCKS5代理 -> 目标网站
-浏览器 -> localhost:10001 -> 67.100.105.107:7686 -> 目标网站
+浏览器 -> localhost:20001 -> 67.100.105.107:7686 -> 目标网站
 ```
 
 #### 开始代理服务
+
+package.json配置了代理管理器
+```js
+"bin": {
+    "proxy-manager": "./packages/rpa-module/chrome/proxyManger.js"
+  }
+```
 
 第一次使用先执行以下命令
 
@@ -116,12 +123,12 @@ curl -s http://localhost:端口号/json/version | jq .webSocketDebuggerUrl
 
 ## 快速开始
 
-- 1. 创建多个chrome实例
-- 2. 修改chrome图标
-- 3. 启动代理服务
-- 4. 启动浏览器
-- 5. 关闭浏览器
-- 6. 停止代理服务
+1. 创建多个chrome实例
+2. 修改chrome图标
+3. 启动代理服务
+4. 启动浏览器
+5. 关闭浏览器
+6. 停止代理服务
 
 
 
