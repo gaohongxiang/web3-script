@@ -156,7 +156,7 @@ export async function updateCsvFieldValueByMatch({ csvFile, matchField, matchVal
             console.error('CSV文件为空');
             return false;
         }
-        
+
         // 检查匹配字段是否存在
         const headers = firstLine.split(sep);
         if (!headers.includes(matchField)) {
@@ -169,19 +169,19 @@ export async function updateCsvFieldValueByMatch({ csvFile, matchField, matchVal
             try {
                 console.log(`目标字段 "${targetField}" 不存在，将添加新字段`);
                 headers.push(targetField);
-                
+
                 const allRows = await fsPromises.readFile(csvFile, 'utf8');
                 const rows = allRows.split('\n');
-                
+
                 rows[0] = headers.join(sep);
-                
+
                 // 只给非空行添加分隔符，保留空行
                 for (let i = 1; i < rows.length; i++) {
                     if (rows[i]) {  // 非空行添加分隔符
                         rows[i] = rows[i] + sep;
                     }
                 }
-                
+
                 await fsPromises.writeFile(csvFile, rows.join('\n'));
             } catch (error) {
                 console.error('添加新字段失败:', error);
@@ -306,10 +306,10 @@ export async function getExcelData(excelFile, { sheetIndex = 0, fieldMappings = 
 export function getCurrentTime(timezone = 8, showTimezone = true) {
     // 获取当前时间
     const now = new Date();
-    
+
     // 转换为指定时区
     const targetTime = new Date(now.getTime() + (timezone * 60 * 60 * 1000));
-    
+
     // 格式化时间
     const year = targetTime.getUTCFullYear();
     const month = String(targetTime.getUTCMonth() + 1).padStart(2, '0');
@@ -317,11 +317,11 @@ export function getCurrentTime(timezone = 8, showTimezone = true) {
     const hours = String(targetTime.getUTCHours()).padStart(2, '0');
     const minutes = String(targetTime.getUTCMinutes()).padStart(2, '0');
     const seconds = String(targetTime.getUTCSeconds()).padStart(2, '0');
-    
+
     const timeStr = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
-    
+
     // 根据showTimezone参数决定是否显示时区信息
-    return showTimezone 
+    return showTimezone
         ? `${timeStr} (UTC${timezone >= 0 ? '+' : ''}${timezone})`
         : timeStr;
 }
@@ -420,12 +420,12 @@ export function maskValue(value, startKeep = 6, endKeep = 6) {
     if (typeof value !== 'string') {
         value = String(value);
     }
-    
+
     // 边界情况处理：空值或长度不足时直接返回
     if (value.length === 0 || value.length <= startKeep + endKeep) {
         return value;
     }
-    
+
     // 分别保留前后指定位数，中间统一用3个*替代
     const start = value.slice(0, startKeep); // 截取前N位
     const end = value.slice(-endKeep); // 截取前N位
@@ -437,40 +437,67 @@ export function maskValue(value, startKeep = 6, endKeep = 6) {
 
 /**
  * 解析混合参数为实例编号数组
- * @param {...(number|Array<number>)} inputs - 可接受多种参数格式：
+ * @param {...(number|string|Array<number>)} inputs - 可接受多种参数格式：
+ *   代码中使用:
  *   - 单个数字：5 → [5]
  *   - 多个数字：1,3,5 → [1,3,5]
+ *   - 单元素数组：[1] → [1]
  *   - 范围数组：[4,7] → [4,5,6,7]
  *   - 混合参数：1, [3,5], 7 → [1,3,4,5,7]
+ * 
+ *   命令行使用:
+ *   - 单个数字：5 → [5]
+ *   - 范围参数：3,5 → [3,4,5]
+ *   - 混合参数：1 3,5 7 → [1,3,4,5,7]
+ * 
  * @returns {number[]} 处理后的有序且去重的实例编号数组
  * @example
+ * // 代码中使用
  * parseInstanceNumbers(1)          // → [1]
- * parseInstanceNumbers(1, 3)       // → [1,3]
- * parseInstanceNumbers([4,7])      // → [4,5,6,7]
- * parseInstanceNumbers(1, [3,5], 7) // → [1,3,4,5,7]
+ * parseInstanceNumbers([1])        // → [1]
+ * parseInstanceNumbers(1, [3,5])   // → [1,3,4,5]
+ * 
+ * // 命令行使用
+ * proxy-manager start 1 3,5 7    // → [1,3,4,5,7]
  */
 export function parseInstanceNumbers(...inputs) {
     return inputs
-      // 第一步：展开所有参数
-      .flatMap(input => {
-        // 处理范围数组
-        if (Array.isArray(input) && input.length === 2) {
-          const [start, end] = input.sort((a, b) => a - b);
-          return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-        }
-        // 处理单个数字
-        if (typeof input === 'number') {
-          return [input];
-        }
-        // 过滤无效参数
-        return [];
-      })
-      // 第二步：过滤有效数字
-      .filter(n => Number.isInteger(n) && n > 0)
-      // 第三步：去重并排序
-      .reduce((acc, curr) => {
-        if (!acc.includes(curr)) acc.push(curr);
-        return acc;
-      }, [])
-      .sort((a, b) => a - b);
-  }
+        // 第一步：展开所有参数
+        .flatMap(input => {
+            // 处理范围数组
+            if (Array.isArray(input)) {
+                // 如果是单元素数组，直接返回该元素
+                if (input.length === 1) {
+                    return [Number(input[0])];
+                }
+                // 如果是双元素数组，处理为范围
+                if (input.length === 2) {
+                    const [start, end] = input.sort((a, b) => a - b);
+                    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+                }
+            }
+            // 处理字符串范围（支持 "3,5" 或 3,5 格式）
+            const inputStr = input.toString();
+            if (inputStr.includes(',')) {
+                const [start, end] = inputStr.split(',').map(Number);
+                if (!isNaN(start) && !isNaN(end)) {
+                    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+                }
+            }
+            // 处理数字或数字字符串
+            const num = Number(input);
+            if (!isNaN(num)) {
+                return [num];
+            }
+            // 过滤无效参数
+            return [];
+        })
+        // 第二步：过滤有效数字
+        .filter(n => Number.isInteger(n) && n > 0)
+        // 第三步：去重并排序
+        .reduce((acc, curr) => {
+            if (!acc.includes(curr)) acc.push(curr);
+            return acc;
+        }, [])
+        .sort((a, b) => a - b);
+}
