@@ -28,21 +28,22 @@ const chromeAutomation = new ChromeAutomation(1);
 await chromeAutomation.createChromeProfile();
 ```
 
-#### 实例管理
+#### 打开实例
 
-##### 退出实例
-mac版chrome手动关闭浏览器无法完全退出，比较麻烦。退出有3种方式
-- command + q 退出
-- 右键点击dock图标 退出
-- 脚本 退出
-- 参考：如何停止谷歌Chrome在后台运行：https://www.chrome64.com/skill/729.html
+```js
+import { ChromeBrowserUtil } from './chromeBrowser.js';
 
-##### chrome应用图标
+// 参数1：实例编号 参数2：代理配置，格式：socks5://host:post@username:password
+const chrome = new ChromeBrowserUtil(chromeId, proxy);          
+await chrome.start();
+```
+
+#### chrome应用图标
 chrome图标一样的话，多实例管理不好区分。 下面这个教程可以修改图标，让每个图标编号都不一样，比如chrome1、chrome2。`image`目录下是我做好的一些图标，可以直接用。
 - 手动修改应用图标：https://blog.csdn.net/tekin_cn/article/details/140003742
 - 图标不规则不好看？手把手教你绘制苹果官方圆角图标：https://www.zhihu.com/zvideo/1656756405129486337?utm_id=0
 
-##### chrome网页图标
+#### chrome网页图标
 
 方案待定
 
@@ -53,6 +54,13 @@ chrome图标一样的话，多实例管理不好区分。 下面这个教程可�
 ##### 方案2、通过启动一个自定义网页来显示chrome编号
 
 缺点是每次启动浏览器都要多打开一个网页
+
+#### 退出实例
+mac版chrome手动关闭浏览器无法完全退出，比较麻烦。退出有3种方式
+- command + q 退出
+- 右键点击dock图标 退出
+- 脚本 退出
+- 参考：如何停止谷歌Chrome在后台运行：https://www.chrome64.com/skill/729.html
 
 ### 指纹隔离
 
