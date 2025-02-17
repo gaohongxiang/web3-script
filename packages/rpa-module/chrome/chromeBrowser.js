@@ -61,31 +61,52 @@ export class ChromeBrowserUtil {
    * @throws {Error} 连接失败时抛出错误
    */
   async connectToInstance(hasPage = true) {
-    let retries = 0;
-    const maxRetries = 5;
-    const fingerprint = await this.getFingerprint();
-    while (retries < maxRetries) {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        this.browser = await chromium.connectOverCDP(`http://localhost:${this.debugPort}`);
-        this.context = this.browser.contexts()[0];
-        const injector = new FingerprintInjector();
-        await injector.attachFingerprintToPlaywright(this.context, fingerprint);
-        if (!hasPage) {
-          // 创建新页面
-          this.page = await this.context.newPage();
-        } else {
-          // 获取已有页面
-          this.page = this.context.pages()[0];
+    try {
+      let retries = 0;
+      const maxRetries = 5;
+      const fingerprint = await this.getFingerprint();
+      while (retries < maxRetries) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          this.browser = await chromium.connectOverCDP(`http://localhost:${this.debugPort}`);
+          this.context = this.browser.contexts()[0];
+          const injector = new FingerprintInjector();
+          await injector.attachFingerprintToPlaywright(this.context, fingerprint);
+          if (!hasPage) {
+            // 创建新页面
+            this.page = await this.context.newPage();
+          } else {
+            // 获取已有页面
+            this.page = this.context.pages()[0];
+          }
+          // 将浏览器窗口带到前台
+          await this.bringBrowserToFront();
+          break;
+        } catch (err) {
+          retries++;
+          if (retries === maxRetries) {
+            throw new Error(`无法连接到 Chrome: ${err.message}`);
+          }
+          console.log(`连接失败，重试 ${retries}/${maxRetries},错误信息:${err.message}`);
         }
-        break;
-      } catch (err) {
-        retries++;
-        if (retries === maxRetries) {
-          throw new Error(`无法连接到 Chrome: ${err.message}`);
-        }
-        console.log(`连接失败，重试 ${retries}/${maxRetries},错误信息:${err.message}`);
       }
+    } catch (error) { console.log(error) }
+  }
+
+  /**
+  * 激活浏览器窗口到前台
+  */
+  async bringBrowserToFront() {
+    const platform = process.platform;
+
+    if (platform === 'darwin') { // macOS
+      execSync(`
+        osascript -e '
+          tell application "Chrome${this.chromeNumber}"
+            activate
+            reopen --确保窗口非最小化状态
+          end tell'
+      `);
     }
   }
 
@@ -249,7 +270,7 @@ export class ChromeBrowserUtil {
       await this.page.waitForTimeout(3000);
       robot.mouseClick();
       await this.page.waitForTimeout(2000);
-    } catch(error) {
+    } catch (error) {
       // console.log(error);
     }
   }
