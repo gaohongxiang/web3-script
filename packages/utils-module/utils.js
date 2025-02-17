@@ -331,7 +331,7 @@ export function getCurrentTime(timezone = 8, showTimezone = true) {
  * @param {number} seconds - 要暂停的时间（以秒为单位，必填）。
  * @returns {Promise<void>} - 返回一个 Promise，表示延迟操作的完成。
  */
-export function sleep(seconds) {
+export async function sleep(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
@@ -500,4 +500,28 @@ export function parseInstanceNumbers(...inputs) {
             return acc;
         }, [])
         .sort((a, b) => a - b);
+}
+
+/**
+ * 格式化正整数为指定位数，不足补零
+ * @param {number|string} input - 要格式化的正整数或数字字符串
+ * @param {number} [digits=3] - 需要格式化的位数，默认3位
+ * @returns {string} 格式化后的字符串
+ * @throws {TypeError} 当输入无法转换为有效正整数时抛出错误
+ * @throws {RangeError} 当位数小于1时抛出错误
+ */
+export function formatNumber(input, digits = 3) {
+    // 参数校验
+    if (typeof digits !== 'number' || digits < 1) {
+        throw new RangeError('位数必须是大于等于1的整数');
+    }
+    
+    // 转换输入为数字
+    const num = Number(input);
+    if (!Number.isInteger(num) || num < 0) {
+        throw new TypeError('输入必须是正整数或可转换为正整数的字符串');
+    }
+    
+    // 格式化为指定位数
+    return num.toString().padStart(digits, '0');
 }
