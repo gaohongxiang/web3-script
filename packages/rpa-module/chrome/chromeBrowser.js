@@ -12,7 +12,7 @@ export class ChromeBrowserUtil {
    * @param {number} chromeNumber - 浏览器实例编号
    * @param {Object|null} proxy - 代理配置对象
    */
-  constructor(chromeNumber, proxy = null) {
+  constructor(chromeNumber, proxy = null, screenWidth = 1680, screenHeight = 1050) {
     this.chromeNumber = formatNumber(chromeNumber);
     this.debugPort = BASE_CONFIG.getDebugPort(chromeNumber);
     this.listenPort = BASE_CONFIG.getListenPort(chromeNumber);
@@ -20,6 +20,8 @@ export class ChromeBrowserUtil {
     this.AUTOATION_CHROME_DATA_DIR = BASE_CONFIG.getProfileDataDir(this.chromeNumber);
     this.FINGERPRINT_PATH = BASE_CONFIG.getFingerprintPath(this.chromeNumber);
     this.proxy = proxy;
+    this.screenWidth = screenWidth;
+    this.screenHeight = screenHeight;
     this.browser = null;
     this.context = null;
     this.page = null;
@@ -98,7 +100,7 @@ export class ChromeBrowserUtil {
         `--remote-debugging-port=${this.debugPort}`,
         `--user-data-dir=${this.AUTOATION_CHROME_DATA_DIR}`,
         '--no-first-run',
-        // '--window-size=1680,940',
+        `--window-size=${this.screenWidth},${this.screenHeight}`,
         '--no-default-browser-check',
         this.proxy ? `--proxy-server=127.0.0.1:${this.listenPort}` : ''
       ].filter(Boolean);
@@ -235,15 +237,20 @@ export class ChromeBrowserUtil {
    * @param {number} options.y - 确认按钮Y坐标
    */
   async installExtension(url, { x = 900, y = 575 } = {}) {
-    await this.page.goto(url);
-    await this.page.waitForTimeout(1000);
-    await this.page.locator('text=/(^添加至 Chrome$|^Add to Chrome$)/i').click();
-    await this.page.waitForTimeout(1000);
-    // 设置较长的延迟确保移动平滑
-    robot.setMouseDelay(100);
-    // 移动到目标位置（使用传入的坐标或默认值）
-    robot.moveMouse(x, y);
-    await this.page.waitForTimeout(1000);
-    robot.mouseClick();
+    try {
+      await this.page.goto(url);
+      await this.page.waitForTimeout(1000);
+      await this.page.locator('text=/(^添加至 Chrome$|^Add to Chrome$)/i').click();
+      await this.page.waitForTimeout(1000);
+      // 设置较长的延迟确保移动平滑
+      robot.setMouseDelay(100);
+      // 移动到目标位置（使用传入的坐标或默认值）
+      robot.moveMouse(x, y);
+      await this.page.waitForTimeout(3000);
+      robot.mouseClick();
+      await this.page.waitForTimeout(2000);
+    } catch(error) {
+      // console.log(error);
+    }
   }
 }
