@@ -144,6 +144,7 @@ curl -s http://localhost:端口号/json/version | jq .webSocketDebuggerUrl
 
 ## 参考
 
+- 资源汇总：https://github.com/zhaotoday/fingerprint-browser?tab=readme-ov-file
 - 开源的谷歌多开管理器
     - Chrome Power：https://github.com/zmzimpl/chrome-power-app
     - VirtualBrowser：https://github.com/Virtual-Browser/VirtualBrowser
