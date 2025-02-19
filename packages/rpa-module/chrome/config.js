@@ -17,14 +17,19 @@ export const BASE_CONFIG = {
     return path.join(BASE_CONFIG.CHROME_MULTI_DIR, `Chrome${chromeId}.app`);
   },
   
+  // 获取Chrome可执行文件路径
+  getChromeExecutable: (chromeId) => {
+    return path.join(BASE_CONFIG.getChromeInstancePath(chromeId), 'Contents/MacOS/Google Chrome');
+  },
+
   // 获取Chrome数据目录
   getProfileDataDir: (chromeId) => {
     return path.join(BASE_CONFIG.DATA_DIR, `Chrome${chromeId}`);
   },
-  
-  // 获取Chrome可执行文件路径
-  getChromeExecutable: (chromeId) => {
-    return path.join(BASE_CONFIG.getChromeInstancePath(chromeId), 'Contents/MacOS/Google Chrome');
+
+  // 获取Chrome默认目录
+  getChromeDefaultDir: (chromeId) => {
+    return path.join(BASE_CONFIG.getProfileDataDir(chromeId), 'Default');
   },
   
   // 获取指纹文件路径
