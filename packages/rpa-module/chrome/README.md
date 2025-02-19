@@ -62,6 +62,7 @@ await generateNumberedChromeIcon(1);
 #### chrome网页图标
 
 方案1是通过修改内置头像间接显示chrome编号。缺点是内置头像只有56个，浏览器实例超出数量的话就没法继续编号了
+
 方案2通过启动一个自定义网页来显示chrome编号。缺点是每次启动浏览器都要多打开一个网页
 
 ##### 最终方案，登录chrome账号，然后替换头像
@@ -98,6 +99,13 @@ mac版chrome手动关闭浏览器无法完全退出，比较麻烦。退出有3�
 - 右键点击dock图标 退出
 - 脚本 退出
 - 参考：如何停止谷歌Chrome在后台运行：https://www.chrome64.com/skill/729.html
+
+```js
+import { ChromeBrowserUtil } from './chromeBrowser.js';
+
+const chrome = new ChromeBrowserUtil(1, 'your-proxy');
+await chrome.shutdownChrome();
+```
 
 ### 指纹隔离
 
