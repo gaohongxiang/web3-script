@@ -37,20 +37,20 @@ export class ChromeBrowserUtil {
     switch (status) {
       case 'disconnected':
         // Chrome没有运行，启动新实例
-        console.log('Chrome未运行,启动新实例');
+        // console.log('Chrome未运行,启动新实例');
         await this.launchNewInstance();
         await this.connectToInstance(true);
         break;
 
       case 'connected_no_pages':
-        console.log('Chrome在运行但没有页面,创建新页面');
+        // console.log('Chrome在运行但没有页面,创建新页面');
         await this.connectToInstance(false);
         break;
 
       case 'connected_with_pages':
-        console.log('Chrome在运行且有页面,连接现有页面');
+        // console.log('Chrome在运行且有页面,连接现有页面');
         await this.connectToInstance(true);
-        console.log(`成功复用已有实例 [用户${this.chromeNumber}]`);
+        // console.log(`成功复用已有实例 [用户${this.chromeNumber}]`);
         break;
     }
   }
@@ -146,9 +146,32 @@ export class ChromeBrowserUtil {
       });
       chromeProcess.unref();
 
+
+      // 等待浏览器启动// 新增启动等待机制
+      let isReady = false;
+      let retries = 0;
+      const maxRetries = 5; // 5次重试 * 2000ms = 10秒超时
+
+      while (retries < maxRetries && !isReady) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+          const response = await fetch(`http://localhost:${this.debugPort}/json/version`);
+          if (response.ok) {
+            isReady = true;
+            // console.log(`Chrome实例${this.chromeNumber}启动成功`);
+          }
+        } catch (error) {
+          retries++;
+          if (retries === maxRetries) {
+            throw new Error(`浏览器启动超时，调试端口${this.debugPort}未响应`);
+          }
+        }
+      }
+
     } catch (error) {
       console.error(`Chrome启动失败 (实例${this.chromeNumber}):`, error);
       await this.cleanupFailedStart(); // 清理残留进程
+      throw error;
     }
   }
 
