@@ -1,9 +1,9 @@
 import 'dotenv/config';
 import { BitBrowserUtil } from './bitbrowser.js';
-import { parseToken } from '../crypt-module/onepassword.js';
-import { deCryptText } from '../crypt-module/crypt.js';
+import { parseToken } from '../../crypt-module/onepassword.js';
+import { deCryptText } from '../../crypt-module/crypt.js';
 
-const okxWalletID = 'dkaonkcpflfhalioalibgpdiamnjcpbn'
+const okxWalletID = 'mcohilncbfahbmgdjkbpemcciiolgcge'
 
 export class OkxWalletUtil extends BitBrowserUtil {
 

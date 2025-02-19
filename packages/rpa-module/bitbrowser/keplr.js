@@ -2,8 +2,8 @@ import fs from 'fs';
 import 'dotenv/config';
 import { BitBrowserUtil } from './bitbrowser.js';
 import { By, until } from 'selenium-webdriver';
-import { enCryptText, deCryptText } from '../crypt-module/crypt.js';
-import { parseToken } from '../crypt-module/onepassword.js';
+import { enCryptText, deCryptText } from '../../crypt-module/crypt.js';
+import { parseToken } from '../../crypt-module/onepassword.js';
 
 const keplrID = 'pchdmmkclkhmfmflbdgnildcgidfcghb';
 

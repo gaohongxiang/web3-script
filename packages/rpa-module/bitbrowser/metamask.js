@@ -1,5 +1,5 @@
 import { BitBrowserUtil } from './bitbrowser.js';
-import { deCryptText } from '../crypt-module/crypt.js';
+import { deCryptText } from '../../crypt-module/crypt.js';
 
 const metamaskID = 'nkbihfbeogaeaoehlefnkodbefgpgknn'
 

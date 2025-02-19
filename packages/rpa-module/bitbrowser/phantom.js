@@ -1,11 +1,10 @@
 import fs from 'fs';
 import 'dotenv/config';
 import { BitBrowserUtil } from './bitbrowser.js';
-import { By, until } from 'selenium-webdriver';
-import { enCryptText } from '../crypt-module/crypt.js';
-import { parseToken } from '../crypt-module/onepassword.js';
+import { enCryptText } from '../../crypt-module/crypt.js';
+import { parseToken } from '../../crypt-module/onepassword.js';
 
-const phantomID = 'hllcbhiiebohplnhonnmmhmbppoaegcn'
+const phantomID = 'bfnaelmomeimhlpmgjnjophhpkkoljpa'
 
 export class PhantomUtil extends BitBrowserUtil {
     
@@ -85,46 +84,46 @@ export class PhantomUtil extends BitBrowserUtil {
 
     }
 
-    async connectWallet(url,{hasConnectButton=true, connectButton='text=/(Connect|Connect Wallet|Connect to Wallet|连接钱包|Login)/i', hasCheckButton=false, checkButton='text=/(Phantom)/i', waitTime=3}={}){
-        if(!process.env.PHANTOMPASSWORD) {                    
-            process.env.PHANTOMPASSWORD = await parseToken(process.env.phantomPassword);
-        }
-        await this.page.goto(url)
-        if(hasConnectButton){
-            try{
-                await this.page.waitForTimeout(500)
-                await this.page.waitForSelector(connectButton, {timeout:10000}).then(element => { element.click() });
-                await this.page.waitForTimeout(500)
-            }catch(error){console.log(error)}
-        }
-        // 有些应用还需要先点一下checkbox才能选钱包。。。
-        if(hasCheckButton){
-            try{
-                await this.page.waitForTimeout(500)
-                await this.page.waitForSelector(checkButton, {timeout:6000}).then(element => { element.click() });
-                await this.page.waitForTimeout(500)
-            }catch(error){console.log(error)}
-        }
+    // async connectWallet(url,{hasConnectButton=true, connectButton='text=/(Connect|Connect Wallet|Connect to Wallet|连接钱包|Login)/i', hasCheckButton=false, checkButton='text=/(Phantom)/i', waitTime=3}={}){
+    //     if(!process.env.PHANTOMPASSWORD) {                    
+    //         process.env.PHANTOMPASSWORD = await parseToken(process.env.phantomPassword);
+    //     }
+    //     await this.page.goto(url)
+    //     if(hasConnectButton){
+    //         try{
+    //             await this.page.waitForTimeout(500)
+    //             await this.page.waitForSelector(connectButton, {timeout:10000}).then(element => { element.click() });
+    //             await this.page.waitForTimeout(500)
+    //         }catch(error){console.log(error)}
+    //     }
+    //     // 有些应用还需要先点一下checkbox才能选钱包。。。
+    //     if(hasCheckButton){
+    //         try{
+    //             await this.page.waitForTimeout(500)
+    //             await this.page.waitForSelector(checkButton, {timeout:6000}).then(element => { element.click() });
+    //             await this.page.waitForTimeout(500)
+    //         }catch(error){console.log(error)}
+    //     }
 
-        let status = await this.changeHandle()
-        // console.log(`status: ${status}`)
-        if(status){
-            try{
-                await this.driver.wait(until.elementLocated(By.xpath('//form[@id="unlock-form"]/div/div[2]/div/input')), 5000)
-                    .then(element => this.driver.wait(until.elementIsVisible(element), 5000))
-                    .then(element => element.sendKeys(process.env.PHANTOMPASSWORD));
-                await this.driver.wait(until.elementLocated(By.xpath('//button[text()="解锁"]')), 5000)
-                    .then(element => this.driver.wait(until.elementIsVisible(element), 5000))
-                    .then(element => element.click());
-            }catch{}
-            try{
-                await this.driver.wait(until.elementLocated(By.xpath('//button[text()="连接"]')), 5000)
-                    .then(element => this.driver.wait(until.elementIsVisible(element), 5000))
-                    .then(element => element.click());
-            }catch{}
-        }
+    //     let status = await this.changeHandle()
+    //     // console.log(`status: ${status}`)
+    //     if(status){
+    //         try{
+    //             await this.driver.wait(until.elementLocated(By.xpath('//form[@id="unlock-form"]/div/div[2]/div/input')), 5000)
+    //                 .then(element => this.driver.wait(until.elementIsVisible(element), 5000))
+    //                 .then(element => element.sendKeys(process.env.PHANTOMPASSWORD));
+    //             await this.driver.wait(until.elementLocated(By.xpath('//button[text()="解锁"]')), 5000)
+    //                 .then(element => this.driver.wait(until.elementIsVisible(element), 5000))
+    //                 .then(element => element.click());
+    //         }catch{}
+    //         try{
+    //             await this.driver.wait(until.elementLocated(By.xpath('//button[text()="连接"]')), 5000)
+    //                 .then(element => this.driver.wait(until.elementIsVisible(element), 5000))
+    //                 .then(element => element.click());
+    //         }catch{}
+    //     }
         
-    }
+    // }
 
     async executeTransaction(selector, { page='', isElementhadle=false, isConfirmPage=false, confirmButton='text=/(^Confirm Swap%$)/', canEditGas=true, gasLimitRate=0.5 }={}) {
         try{
