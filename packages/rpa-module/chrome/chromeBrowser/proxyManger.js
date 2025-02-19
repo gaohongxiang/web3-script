@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { ProxyServer } from './proxyServer.js';
-import { myFormatData } from '../../utils-module/formatData.js';
+import { myFormatData } from '../../../utils-module/formatData.js';
 import { BASE_CONFIG } from './config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';

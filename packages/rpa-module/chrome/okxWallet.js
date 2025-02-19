@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { ChromeBrowserUtil } from './chrome/chromeBrowser.js';
-import { parseToken } from '../crypt-module/onepassword.js';
-import { deCryptText } from '../crypt-module/crypt.js';
+import { ChromeBrowserUtil } from './chromeBrowser/chromeBrowser.js';
+import { parseToken } from '../../crypt-module/onepassword.js';
+import { deCryptText } from '../../crypt-module/crypt.js';
 
 const okxWalletID = 'mcohilncbfahbmgdjkbpemcciiolgcge'
 

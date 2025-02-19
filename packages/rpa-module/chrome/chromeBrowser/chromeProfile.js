@@ -3,7 +3,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { FingerprintGenerator } from 'fingerprint-generator';
 import { createCanvas, loadImage } from 'canvas';
-import { formatNumber } from '../../utils-module/utils.js';
+import { formatNumber } from '../../../utils-module/utils.js';
 import { BASE_CONFIG } from './config.js';
 import { fileURLToPath } from 'url';
 

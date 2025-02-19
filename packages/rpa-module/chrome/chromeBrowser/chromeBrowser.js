@@ -4,7 +4,7 @@ import fsp from 'fs/promises';
 import robot from 'robotjs';
 import { spawn, execSync } from 'child_process';
 import { BASE_CONFIG } from './config.js';
-import { formatNumber } from '../../utils-module/utils.js';
+import { formatNumber } from '../../../utils-module/utils.js';
 
 export class ChromeBrowserUtil {
   /**
