@@ -4,8 +4,7 @@
   "description": "币圈交互系列脚本",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron --enable-experimental-vm-modules ."
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",
   "bin": {
@@ -49,6 +48,7 @@
     "node-pop3": "^0.9.0",
     "otplib": "^12.0.1",
     "playwright": "^1.49.1",
+    "robotjs": "^0.6.0",
     "socks-proxy-agent": "^8.0.4",
     "tiny-secp256k1": "^2.2.3",
     "xlsx": "^0.18.5"
