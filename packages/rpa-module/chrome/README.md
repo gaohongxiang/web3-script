@@ -45,17 +45,52 @@ chrome图标一样的话，多实例管理不好区分。 下面这个教程可�
 - 手动修改应用图标：https://blog.csdn.net/tekin_cn/article/details/140003742
 - 图标不规则不好看？手把手教你绘制苹果官方圆角图标：https://www.zhihu.com/zvideo/1656756405129486337?utm_id=0
 
+1、生成带数字的chrome图标
+```js
+import { generateNumberedChromeIcon } from './chromeProfile.js';
+
+// 参数1: chromeNumber = 1,实例编号 参数2: savePath = 'image/icons/png'图标保存路径
+await generateNumberedChromeIcon(1);
+```
+
+2、使用`Image2Icon`工具将png图片转换为icons图标
+
+3、找到应用图标，右键选择 显示简介，复制上一步生成的icons图标，简介页面点击图标，替换chrome应用图标
+
+![dock显示栏](https://raw.githubusercontent.com/gaohongxiang/images/master/编程/google/dock显示栏.jpg)
+
 #### chrome网页图标
 
-方案待定
+方案1是通过修改内置头像间接显示chrome编号。缺点是内置头像只有56个，浏览器实例超出数量的话就没法继续编号了
+方案2通过启动一个自定义网页来显示chrome编号。缺点是每次启动浏览器都要多打开一个网页
 
-##### 方案1、通过修改内置头像间接显示chrome编号
+##### 最终方案，登录chrome账号，然后替换头像
+1、登录chrome账号，系统会在数据目录下生成一个`Google Profile Picture.png`图片。
 
-缺点是内置头像只有56个，浏览器实例超出数量的话就没法继续编号了
+2、生成一个数字图片替换上一步的图片
+```js
+import { ChromeAutomation } from './chromeProfile.js';
 
-##### 方案2、通过启动一个自定义网页来显示chrome编号
+// 参数1：实例编号
+const chromeAutomation = new ChromeAutomation(1);
+await chromeAutomation.replaceAvatar();
+```
 
-缺点是每次启动浏览器都要多打开一个网页
+![网页图标](https://raw.githubusercontent.com/gaohongxiang/images/master/编程/google/网页图标.jpg)
+
+#### 插件
+
+目前方案是使用rpa下载插件
+
+```js
+import { ChromeBrowserUtil } from './chromeBrowser.js';
+
+// 参数1：实例编号 参数2：代理配置，格式：socks5://host:post@username:password
+const chrome = new ChromeBrowserUtil(1, 'your-proxy');
+await chrome.start();
+// 安装okx插件
+await chrome.installExtension('https://chromewebstore.google.com/detail/%E6%AC%A7%E6%98%93-web3-%E9%92%B1%E5%8C%85/mcohilncbfahbmgdjkbpemcciiolgcge');
+```
 
 #### 退出实例
 mac版chrome手动关闭浏览器无法完全退出，比较麻烦。退出有3种方式
@@ -137,8 +172,10 @@ curl -s http://localhost:端口号/json/version | jq .webSocketDebuggerUrl
 2. 修改chrome图标
 3. 启动代理服务
 4. 启动浏览器
-5. 关闭浏览器
-6. 停止代理服务
+5. 登录chrome账号，替换头像
+6. 安装插件
+7. 关闭浏览器
+8. 停止代理服务
 
 
 
@@ -158,7 +195,7 @@ curl -s http://localhost:端口号/json/version | jq .webSocketDebuggerUrl
 - MacOS系统 多开 Google Chrome：https://x.com/ariel_sands_dan/status/1816498255792058394
 - MacOS系统 多开 Google Chrome：https://x.com/necaluo/status/1785214239793438774
 - Mac关闭和禁止Chrome自动更新方法：https://juejin.cn/post/7411187555776118819
-
+- 如何使用Chrome浏览器，打包生成自己的插件（crx格式文件）：https://www.cnblogs.com/Galesaur-wcy/p/15748799.html
 
 检测指纹网站：
 - https://zhuanlan.zhihu.com/p/654468171
