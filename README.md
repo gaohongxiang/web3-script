@@ -6,6 +6,8 @@
 - crypt-module(加解密模块)
 - exchange-module(交易所模块)
 - rpa-module(rpa模块)
+    - bitbrowser(bitbrowser指纹浏览器模块)
+    - chrome(本地chrome浏览器多开模块)
 - chain-module(链上交互模块)
     - utxo-script(utxo系交互脚本)
     - evm-script(evm系交互脚本)
