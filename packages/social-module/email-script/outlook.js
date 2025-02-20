@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { BitBrowserUtil } from '../../rpa-module/bitbrowser.js';
+import { ChromeBrowserUtil } from '../../rpa-module/chrome/chromeBrowser/chromeBrowser.js';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { updateCsvFieldValueByMatch } from '../../utils-module/utils.js';
@@ -73,11 +73,11 @@ function createMsalConfig(proxy = null) {
 
 /**
  * Outlook授权类
- * 继承自BitBrowserUtil，用于处理Outlook的OAuth2.0授权流程
+ * 继承自ChromeBrowserUtil，用于处理Outlook的OAuth2.0授权流程
  */
-export class OutlookAuth extends BitBrowserUtil {
-    constructor(browserId, proxy = null) {
-        super(browserId);
+export class OutlookAuth extends ChromeBrowserUtil {
+    constructor(chromeNumber, proxy = null) {
+        super(chromeNumber, proxy);
         // 使用新的配置创建函数
         this.msalClient = new ConfidentialClientApplication(createMsalConfig(proxy));
         this.REDIRECT_URI = process.env.outlookRedirectUri;

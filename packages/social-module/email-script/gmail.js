@@ -1,13 +1,13 @@
 import 'dotenv/config';
-import { BitBrowserUtil } from '../../rpa-module/bitbrowser.js';
+import { ChromeBrowserUtil } from '../../rpa-module/chrome/chromeBrowser/chromeBrowser.js';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import { updateCsvFieldValueByMatch} from '../../utils-module/utils.js';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 
-export class GmailAuth extends BitBrowserUtil {
-    constructor(browserId, proxy = null) {
-        super(browserId);
+export class GmailAuth extends ChromeBrowserUtil {
+    constructor(chromeNumber, proxy = null) {
+        super(chromeNumber, proxy);
         this.oauth2Client = null;
         this.proxy = proxy;
     }
