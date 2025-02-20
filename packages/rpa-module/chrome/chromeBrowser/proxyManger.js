@@ -9,7 +9,6 @@ import minimist from 'minimist';
 const startProxy = async (...inputs) => {
     try {
         const data = await myFormatData(...inputs);
-        console.log('data', data)
         for (const d of data) {
             const listenPort = BASE_CONFIG.getListenPort(d['indexId']);
             const proxyServer = new ProxyServer({ listenPort, proxy: d['proxy'] });
