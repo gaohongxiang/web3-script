@@ -81,6 +81,8 @@ export class ChromeBrowserUtil {
           }
           // 将浏览器窗口带到前台
           await this.bringBrowserToFront();
+          // 关闭其他页面
+          await this.closeOtherWindows();
           break;
         } catch (err) {
           retries++;
