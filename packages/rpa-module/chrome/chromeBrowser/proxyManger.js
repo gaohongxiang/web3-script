@@ -1,21 +1,15 @@
 #!/usr/bin/env node
 
 import { ProxyServer } from './proxyServer.js';
-import { myFormatData } from '../../../utils-module/formatData.js';
+import { myFormatData } from '../../../utils-module/formatdata.js';
 import { BASE_CONFIG } from './config.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import minimist from 'minimist';
-
-// 获取项目根目录并切换到该目录
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(__dirname, '../../..');
-process.chdir(projectRoot);
 
 // 启动代理
 const startProxy = async (...inputs) => {
     try {
         const data = await myFormatData(...inputs);
+        console.log('data', data)
         for (const d of data) {
             const listenPort = BASE_CONFIG.getListenPort(d['indexId']);
             const proxyServer = new ProxyServer({ listenPort, proxy: d['proxy'] });

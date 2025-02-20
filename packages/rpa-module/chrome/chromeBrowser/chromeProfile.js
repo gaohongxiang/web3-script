@@ -5,11 +5,7 @@ import { FingerprintGenerator } from 'fingerprint-generator';
 import { createCanvas, loadImage } from 'canvas';
 import { formatNumber } from '../../../utils-module/utils.js';
 import { BASE_CONFIG } from './config.js';
-import { fileURLToPath } from 'url';
-
-// 获取当前文件的目录路径
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { getPathFromCurrentDir } from '../../../utils-module/path.js';
 
 /**
  * Chrome自动化管理类
@@ -218,10 +214,9 @@ export async function generateNumberAvatar(chromeNumber, savePath = 'image/avata
     const buffer = canvas.toBuffer('image/png');
 
     // // 保存到Chrome的images目录
-    // const saveDir = path.join(__dirname, savePath);
-    // await fsp.mkdir(saveDir, { recursive: true });
     // const formatedNumber = formatNumber(chromeNumber);
-    // const outputPath = path.join(saveDir, `Chrome${formatedNumber}.png`);
+    // const outputPath = await getPathFromCurrentDir(import.meta.url, savePath, `Chrome${formatedNumber}.png`);
+    // // 写入文件
     // await fsp.writeFile(outputPath, buffer);
 
     return buffer;
@@ -242,8 +237,9 @@ export async function generateNumberAvatar(chromeNumber, savePath = 'image/avata
  */
 export async function generateNumberedChromeIcon(chromeNumber = 1, savePath = 'image/icons/png') {
   try {
+    // 加载Chrome图标
     const chromeIcon = await loadImage(
-      path.join(__dirname, 'image/icons/png/chrome.png')
+      await getPathFromCurrentDir(import.meta.url, 'image/icons/png/chrome.png')
     );
 
     const canvas = createCanvas(chromeIcon.width, chromeIcon.height);
@@ -319,11 +315,11 @@ export async function generateNumberedChromeIcon(chromeNumber = 1, savePath = 'i
 
     const buffer = canvas.toBuffer('image/png');
 
-    // 保存到Chrome的images目录
-    const saveDir = path.join(__dirname, savePath);
-    await fsp.mkdir(saveDir, { recursive: true });
+    // 保存图标
     const formatBadgeNumber = formatNumber(chromeNumber);
-    const outputPath = path.join(saveDir, `Chrome${formatBadgeNumber}.png`);
+    const outputPath = await getPathFromCurrentDir(import.meta.url, savePath, `Chrome${formatBadgeNumber}.png`);
+    
+    // 写入文件
     await fsp.writeFile(outputPath, buffer);
   } catch (error) {
     console.error('生成Chrome图标失败:', error);
