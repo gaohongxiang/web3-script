@@ -255,6 +255,40 @@ export class ChromeBrowserUtil {
     }
   }
 
+  async newContext() {
+    // Create new context 
+    return await this.browser.newContext()
+  }
+
+  async newPage(context = '') {
+    // 创建新的page.不传context就是使用默认的context创建page
+    if (!context) { context = this.context }
+    return await context.newPage()
+  }
+
+  async closeOtherWindows(context = '') {
+    // 关闭上下文中的无关页面。
+    if (!context) { context = this.context }
+    const allPages = context.pages()
+    allPages.forEach(page => {
+      if (page != this.page) {
+        page.close();
+      }
+    });
+  }
+
+  async isElementExist(selector, { waitTime = 5, page = '' } = {}) {
+    // 判断元素是否存在
+    if (!page) { page = this.page }
+    try {
+      await page.waitForSelector(selector, { timeout: waitTime * 1000 })
+      return true
+    } catch (error) {
+      // console.log(error)
+      return false
+    }
+  }
+
   /**
    * 安全关闭Chrome进程
    */
