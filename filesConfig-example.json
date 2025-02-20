@@ -1,19 +1,19 @@
 {
     "dataFiles": [
-        "./data/walletBtc.csv",
-        "./data/walletEth.csv",
-        "./data/walletSol.csv",
-        "./data/walletSui.csv",    
+        "data/walletBtc.csv",
+        "data/walletEth.csv",
+        "data/walletSol.csv",
+        "data/walletSui.csv",    
 
-        "./data/exchange/addressBinance.csv",
-        "./data/exchange/addressOkx.csv",
+        "data/exchange/addressBinance.csv",
+        "data/exchange/addressOkx.csv",
 
-        "./data/email.csv",
-        "./data/twitter.csv",
-        "./data/discord.csv",
+        "data/email.csv",
+        "data/twitter.csv",
+        "data/discord.csv",
 
-        "./data/ip.csv",
+        "data/ip.csv",
 
-        "./data/bitbrowser.xlsx"
+        "data/bitbrowser.xlsx"
     ]
 }

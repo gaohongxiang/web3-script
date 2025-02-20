@@ -8,7 +8,7 @@
   },
   "type": "module",
   "bin": {
-    "proxy-manager": "./packages/rpa-module/chrome/proxyManger.js"
+    "proxy-manager": "./packages/rpa-module/chrome/chromeBrowser/proxyManger.js"
   },
   "keywords": [],
   "author": "gaohongxiang",

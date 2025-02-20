@@ -4,7 +4,7 @@ import webdriver from 'selenium-webdriver';
 import * as chrome from 'selenium-webdriver/chrome.js';
 import { By, until } from 'selenium-webdriver';
 import axios from 'axios';
-import { myFormatData } from '../utils-module/formatData.js';
+import { myFormatData } from '../utils-module/formatdata.js';
 
 const bitbrowserUrl = 'http://127.0.0.1:54345'
 

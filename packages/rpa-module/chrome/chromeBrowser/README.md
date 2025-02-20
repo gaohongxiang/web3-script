@@ -127,7 +127,7 @@ await chrome.shutdownChrome();
 package.json配置了代理管理器
 ```js
 "bin": {
-    "proxy-manager": "./packages/rpa-module/chrome/proxyManger.js"
+    "proxy-manager": "./packages/rpa-module/chrome/chromeBrowser/proxyManger.js"
   }
 ```
 
@@ -144,10 +144,10 @@ sudo npm link
 which proxy-manager
 
 # 检查文件权限
-ls -l packages/rpa-module/chrome/proxyManger.js
+ls -l packages/rpa-module/chrome/chromeBrowser/proxyManger.js
 
 # 如果需要，添加执行权限
-chmod +x packages/rpa-module/chrome/proxyManger.js
+chmod +x packages/rpa-module/chrome/chromeBrowser/proxyManger.js
 ```
 
 后续使用可以单独使用一个终端来执行以下命令
