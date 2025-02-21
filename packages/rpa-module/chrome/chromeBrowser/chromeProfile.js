@@ -215,7 +215,7 @@ export async function generateNumberAvatar(chromeNumber, savePath = 'image/avata
 
     // // 保存到Chrome的images目录
     // const formatedNumber = formatNumber(chromeNumber);
-    // const outputPath = await getPathFromCurrentDir(import.meta.url, savePath, `Chrome${formatedNumber}.png`);
+    // const outputPath = getPathFromCurrentDir(import.meta.url, savePath, `Chrome${formatedNumber}.png`);
     // // 写入文件
     // await fsp.writeFile(outputPath, buffer);
 
@@ -239,7 +239,7 @@ export async function generateNumberedChromeIcon(chromeNumber = 1, savePath = 'i
   try {
     // 加载Chrome图标
     const chromeIcon = await loadImage(
-      await getPathFromCurrentDir(import.meta.url, 'image/icons/png/chrome.png')
+      getPathFromCurrentDir(import.meta.url, 'image/icons/png/chrome.png')
     );
 
     const canvas = createCanvas(chromeIcon.width, chromeIcon.height);
@@ -317,7 +317,7 @@ export async function generateNumberedChromeIcon(chromeNumber = 1, savePath = 'i
 
     // 保存图标
     const formatBadgeNumber = formatNumber(chromeNumber);
-    const outputPath = await getPathFromCurrentDir(import.meta.url, savePath, `Chrome${formatBadgeNumber}.png`);
+    const outputPath = getPathFromCurrentDir(import.meta.url, savePath, `Chrome${formatBadgeNumber}.png`);
     
     // 写入文件
     await fsp.writeFile(outputPath, buffer);

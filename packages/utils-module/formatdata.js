@@ -13,12 +13,12 @@ export async function myFormatData(...inputs) {
     const allData = [];
 
     // 读取配置文件
-    const config = JSON.parse(fs.readFileSync(await getPathFromRoot('filesConfig.json'), 'utf-8'));
+    const config = JSON.parse(fs.readFileSync(getPathFromRoot('filesConfig.json'), 'utf-8'));
     const dataFiles = config.dataFiles;
 
     for (const relativePath of dataFiles) {
         // 将相对路径转换为绝对路径
-        const filePath = await getPathFromRoot(relativePath);
+        const filePath = getPathFromRoot(relativePath);
         let records;
         try {
             // 读取 CSV 或 Excel 文件
