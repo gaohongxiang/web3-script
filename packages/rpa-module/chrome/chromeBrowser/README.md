@@ -199,11 +199,13 @@ curl -s http://localhost:端口号/json/version | jq .webSocketDebuggerUrl
     - https://github.com/zmzimpl/chrome-power-chromium
 - 撸毛群控：https://github.com/fabius8/chromeAuto
 - mac多开chrome（多应用）：https://juejin.cn/post/7370895432567816242
+- MacOS系统 多开 Google Chrome（同应用不同用户数据）：https://www.youtube.com/watch?v=UHCao7JhH-A
 - MacOS系统 多开 Google Chrome：https://x.com/dnvvgjyp/status/1793845106656890962
 - MacOS系统 多开 Google Chrome：https://x.com/ariel_sands_dan/status/1816498255792058394
 - MacOS系统 多开 Google Chrome：https://x.com/necaluo/status/1785214239793438774
 - Mac关闭和禁止Chrome自动更新方法：https://juejin.cn/post/7411187555776118819
 - 如何使用Chrome浏览器，打包生成自己的插件（crx格式文件）：https://www.cnblogs.com/Galesaur-wcy/p/15748799.html
+- 同步器（目前只有windows版）：https://github.com/devilflasher/Chrome-Manager
 
 检测指纹网站：
 - https://zhuanlan.zhihu.com/p/654468171
