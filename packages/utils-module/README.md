@@ -83,7 +83,7 @@ myFormatData(1, [2, 4], 6) // 1 2 3 4 6
 - nocaptcha：https://www.nocaptcha.io
 
 ```js
-import { yesCaptchaClient, nocaptchaClient } from './captcha.js';
+import { yesCaptchaClient, noCaptchaClient } from './captcha.js';
 
 // 参数：网站URL, 网站key, 验证码类型等，详细参数查看代码
 await yesCaptchaClient.verifyWebsite({
@@ -93,7 +93,7 @@ await yesCaptchaClient.verifyWebsite({
   websiteKey: ''
   });
 
-await nocaptchaClient.verifyWebsite({
+await noCaptchaClient.verifyWebsite({
   captchaType: 'recaptcha', // recaptcha|hcaptcha等
   taskVariant: 'universal', // universal等
   sitekey: '',
