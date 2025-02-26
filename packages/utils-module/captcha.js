@@ -451,7 +451,7 @@ class NoCaptchaClient {
 
 // 导出类和默认实例
 export const yesCaptchaClient = new YesCaptchaClient();
-export const nocaptchaClient = new NoCaptchaClient();
+export const noCaptchaClient = new NoCaptchaClient();
 
 
 /**
