@@ -78,17 +78,35 @@ myFormatData(1, [2, 4], 6) // 1 2 3 4 6
 
 ## 过谷歌验证码 `captcha.js`
 
-```js
-import { verifyWebsite } from './captcha.js';
+目前使用了两个服务商
+- yescaptcha：https://yescaptcha.com
+- nocaptcha：https://www.nocaptcha.io
 
-// 参数：网站URL, 网站key, 验证码类型
-await verifyWebsite(websiteURL, websiteKey, captchaType);
+```js
+import { yesCaptchaClient, nocaptchaClient } from './captcha.js';
+
+// 参数：网站URL, 网站key, 验证码类型等，详细参数查看代码
+await yesCaptchaClient.verifyWebsite({
+  captchaType: 'recaptchaV2', // recaptchaV2|recaptchaV3|hcaptcha等
+  taskVariant: 'standard',    // standard|advanced|k1|m1|m1s7|m1s9等
+  websiteURL: '',
+  websiteKey: ''
+  });
+
+await nocaptchaClient.verifyWebsite({
+  captchaType: 'recaptcha', // recaptcha|hcaptcha等
+  taskVariant: 'universal', // universal等
+  sitekey: '',
+  referer: '',
+  title: '',
+  size: 'normal'
+});
 ```
 
-使用的服务商是yescaptcha
-
-yescatpcha开发文档:https://yescaptcha.atlassian.net/wiki/spaces/YESCAPTCHA/overview
-
+如何获取captcha类型以及需要的各个参数请查看文档
+- yescatpcha开发文档:https://yescaptcha.atlassian.net/wiki/spaces/YESCAPTCHA/overview
+- nocaptcha开发文档:https://chrisyp.github.io/
+- capsolver开发文档:https://docs.capsolver.com/zh/
 
 ## 生成一次性密码 `otp.js`
 
