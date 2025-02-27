@@ -1,17 +1,17 @@
 {
   "fingerprint": {
     "screen": {
-      "availHeight": 899,
+      "availHeight": 950,
       "availWidth": 1512,
       "pixelDepth": 30,
       "height": 982,
       "width": 1512,
-      "availTop": 38,
+      "availTop": 32,
       "availLeft": 0,
       "colorDepth": 30,
       "innerHeight": 0,
-      "outerHeight": 842,
-      "outerWidth": 1457,
+      "outerHeight": 823,
+      "outerWidth": 1512,
       "innerWidth": 0,
       "screenX": 0,
       "pageXOffset": 0,
@@ -57,7 +57,7 @@
           }
         ],
         "model": "",
-        "platformVersion": "15.1.1",
+        "platformVersion": "14.5.0",
         "uaFullVersion": "131.0.6778.205"
       },
       "language": "zh-CN",
@@ -203,10 +203,10 @@
       ]
     },
     "battery": {
-      "charging": true,
-      "chargingTime": 0,
-      "dischargingTime": null,
-      "level": 1
+      "charging": false,
+      "chargingTime": null,
+      "dischargingTime": 9000,
+      "level": 0.43
     },
     "videoCard": {
       "vendor": "Google Inc. (Apple)",

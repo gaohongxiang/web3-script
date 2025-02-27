@@ -1,30 +1,34 @@
 {
   "fingerprint": {
     "screen": {
-      "availHeight": 804,
-      "availWidth": 1440,
-      "pixelDepth": 30,
-      "height": 900,
-      "width": 1440,
-      "availTop": 25,
-      "availLeft": 0,
-      "colorDepth": 30,
+      "availHeight": 1415,
+      "availWidth": 2560,
+      "pixelDepth": 24,
+      "height": 1440,
+      "width": 2560,
+      "availTop": -1415,
+      "availLeft": -446,
+      "colorDepth": 24,
       "innerHeight": 0,
-      "outerHeight": 801,
-      "outerWidth": 1440,
+      "outerHeight": 1415,
+      "outerWidth": 2560,
       "innerWidth": 0,
-      "screenX": 0,
+      "screenX": -446,
       "pageXOffset": 0,
       "pageYOffset": 0,
       "devicePixelRatio": 2,
       "clientWidth": 0,
       "clientHeight": 19,
-      "hasHDR": true
+      "hasHDR": false
     },
     "navigator": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
       "userAgentData": {
         "brands": [
+          {
+            "brand": "Google Chrome",
+            "version": "131"
+          },
           {
             "brand": "Chromium",
             "version": "131"
@@ -36,12 +40,16 @@
         ],
         "mobile": false,
         "platform": "macOS",
-        "architecture": "arm",
+        "architecture": "x86",
         "bitness": "64",
         "fullVersionList": [
           {
+            "brand": "Google Chrome",
+            "version": "131.0.6778.140"
+          },
+          {
             "brand": "Chromium",
-            "version": "131.0.6778.205"
+            "version": "131.0.6778.140"
           },
           {
             "brand": "Not_A Brand",
@@ -50,7 +58,7 @@
         ],
         "model": "",
         "platformVersion": "14.5.0",
-        "uaFullVersion": "131.0.6778.205"
+        "uaFullVersion": "131.0.6778.140"
       },
       "language": "zh-CN",
       "languages": [
@@ -58,7 +66,7 @@
       ],
       "platform": "MacIntel",
       "deviceMemory": 8,
-      "hardwareConcurrency": 8,
+      "hardwareConcurrency": 4,
       "maxTouchPoints": 0,
       "product": "Gecko",
       "productSub": "20030107",
@@ -201,8 +209,8 @@
       "level": 1
     },
     "videoCard": {
-      "vendor": "Google Inc. (Google)",
-      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      "vendor": "Google Inc. (Apple)",
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)"
     },
     "multimediaDevices": {
       "speakers": [
@@ -251,6 +259,7 @@
     "sec-fetch-user": "?1",
     "sec-fetch-dest": "document",
     "accept-encoding": "gzip, deflate, br, zstd",
-    "accept-language": "zh-CN"
+    "accept-language": "zh-CN",
+    "dnt": "1"
   }
 }

@@ -18,19 +18,19 @@ export async function getOrCreateFingerprint(number = 1, reuse = true) {
             console.log(`复用现有指纹文件: ${filePath}`);
             const data = await fsp.readFile(filePath, 'utf8');
             fingerprint = JSON.parse(data);
-        } 
-
-        // 生成新指纹
-        console.log(`生成新指纹...`);
-        fingerprint = await generateFingerprint();
-        
-        // 确保目录存在并保存
-        await makeSureDirExists(filePath);
-        await fsp.writeFile(
-            filePath,
-            JSON.stringify(fingerprint, null, 2),
-            'utf8'
-        );
+        } else {
+            // 生成新指纹
+            console.log(`生成新指纹...`);
+            fingerprint = await generateFingerprint();
+            
+            // 确保目录存在并保存
+            await makeSureDirExists(filePath);
+            await fsp.writeFile(
+                filePath,
+                JSON.stringify(fingerprint, null, 2),
+                'utf8'
+            );
+        }
 
         // console.log(`新指纹已保存到: ${filePath}`);
         return fingerprint;
@@ -53,7 +53,7 @@ export async function getOrCreateFingerprint(number = 1, reuse = true) {
  * @returns {Promise<Object>} 生成的指纹数据对象
  * @throws {Error} 如果指纹生成失败则抛出错误
  */
-export async function generateFingerprint(number = 1, {
+export async function generateFingerprint( {
     version = {
         minVersion: 130,
         maxVersion: 133

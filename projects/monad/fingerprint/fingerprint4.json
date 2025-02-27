@@ -1,17 +1,17 @@
 {
   "fingerprint": {
     "screen": {
-      "availHeight": 899,
-      "availWidth": 1512,
-      "pixelDepth": 30,
-      "height": 982,
-      "width": 1512,
-      "availTop": 38,
+      "availHeight": 1050,
+      "availWidth": 1680,
+      "pixelDepth": 24,
+      "height": 1050,
+      "width": 1680,
+      "availTop": 0,
       "availLeft": 0,
-      "colorDepth": 30,
+      "colorDepth": 24,
       "innerHeight": 0,
-      "outerHeight": 842,
-      "outerWidth": 1457,
+      "outerHeight": 962,
+      "outerWidth": 1680,
       "innerWidth": 0,
       "screenX": 0,
       "pageXOffset": 0,
@@ -19,7 +19,7 @@
       "devicePixelRatio": 2,
       "clientWidth": 0,
       "clientHeight": 19,
-      "hasHDR": true
+      "hasHDR": false
     },
     "navigator": {
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -57,7 +57,7 @@
           }
         ],
         "model": "",
-        "platformVersion": "15.1.1",
+        "platformVersion": "15.0.1",
         "uaFullVersion": "131.0.6778.205"
       },
       "language": "zh-CN",
@@ -66,13 +66,13 @@
       ],
       "platform": "MacIntel",
       "deviceMemory": 8,
-      "hardwareConcurrency": 8,
+      "hardwareConcurrency": 14,
       "maxTouchPoints": 0,
       "product": "Gecko",
       "productSub": "20030107",
       "vendor": "Google Inc.",
       "vendorSub": null,
-      "doNotTrack": null,
+      "doNotTrack": "1",
       "appCodeName": "Mozilla",
       "appName": "Netscape",
       "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -204,13 +204,13 @@
     },
     "battery": {
       "charging": true,
-      "chargingTime": 0,
+      "chargingTime": 840,
       "dischargingTime": null,
       "level": 1
     },
     "videoCard": {
-      "vendor": "Google Inc. (Apple)",
-      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)"
+      "vendor": "Google Inc. (Intel)",
+      "renderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) UHD Graphics 630, Unspecified Version)"
     },
     "multimediaDevices": {
       "speakers": [

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { verifyWebsite } from '../../packages/utils-module/captcha.js';
+import { yesCaptchaClient, noCaptchaClient } from '../../packages/utils-module/captcha.js';
 import { getOrCreateFingerprint } from './fingerprint.js';
 import { myFormatData } from '../../packages/utils-module/formatdata.js';
 
@@ -13,43 +13,43 @@ function generateVisitorId(fingerprint) {
             platform: fingerprint.fingerprint.navigator.platform,
             plugins: fingerprint.fingerprint.pluginsData.plugins
         },
-        
+
         // 屏幕信息
         screen: {
             width: fingerprint.fingerprint.screen.width,
             height: fingerprint.fingerprint.screen.height,
             colorDepth: fingerprint.fingerprint.screen.colorDepth
         },
-        
+
         // WebGL指纹
         webgl: fingerprint.fingerprint.videoCard,
-        
+
         // 音频指纹
         audio: fingerprint.fingerprint.audioCodecs,
-        
+
         // 字体检测
         fonts: fingerprint.fingerprint.fonts,
-        
+
         // 存储支持
         storage: {
             localStorage: true,
             sessionStorage: true,
             indexedDB: true
         },
-        
+
         // 时区
         timezone: fingerprint.fingerprint.timezone
     };
 
     // 将特征对象转换为字符串
     const featuresStr = JSON.stringify(features);
-    
+
     // 使用murmurX64Hash128算法(从代码中提取的算法)
     const visitorId = murmurX64Hash128(featuresStr);
-    
+
     // console.log('使用的指纹特征:', JSON.stringify(features, null, 2));
     // console.log('生成的visitorId:', visitorId);
-    
+
     return visitorId;
 }
 
@@ -154,18 +154,45 @@ function murmurX64Hash128(str) {
     );
 }
 
-async function faucet(number, address, reuse = true) {
+async function getCaptchaToken(serviceName, websiteKey) {
+    try {
+        const websiteURL = 'https://testnet.monad.xyz/';
+        switch (serviceName.toLowerCase()) {
+            case 'yescaptcha':
+                return await yesCaptchaClient.verifyWebsite({
+                    captchaType: 'recaptchaV2',
+                    taskVariant: 'universal',
+                    websiteKey,
+                    websiteURL,
+                });
+
+            case 'nocaptcha':
+                return await noCaptchaClient.verifyWebsite({
+                    captchaType: 'recaptcha',
+                    taskVariant: 'universal',
+                    sitekey: websiteKey,
+                    referer: websiteURL,
+                    title: "Monad Testnet: Test, Play and Build on Monad Testnet",
+                    size: 'normal',
+                });
+            default:
+                throw new Error(`不支持的验证码服务: ${serviceName}`);
+        }
+    } catch (error) {
+        console.error(`${serviceName} 验证失败:`, error.message);
+        throw error;
+    }
+}
+
+async function faucet({ number, address, reuse = true, serviceName, websiteKey }) {
     try {
         console.log(`第${number}个账号，地址 ${address} 开始领水`)
         // 加载指纹文件
         const fingerprint = await getOrCreateFingerprint(number, reuse);
-        // console.log(fingerprint)
         // 生成访客ID
         const visitorId = generateVisitorId(fingerprint);
-        // 验证网站
-        const recaptchaToken = await verifyWebsite('https://testnet.monad.xyz/', '6Le4e90qAAAAAFmgNU7C2dwxuRHj9lO7x54cKaJt', 'recaptchaV3')
-        // console.log(recaptchaToken);
-        const { data } = await axios.post('https://testnet.monad.xyz/api/claim', {
+        const recaptchaToken = await getCaptchaToken(serviceName, websiteKey);
+        await axios.post('https://testnet.monad.xyz/api/claim', {
             address,
             recaptchaToken,
             visitorId
@@ -174,23 +201,22 @@ async function faucet(number, address, reuse = true) {
                 'Content-Type': 'application/json'
             }
         });
-        
-        console.log('响应数据:', data);
-        return data;
     } catch (error) {
-        console.error('请求错误:', error.response?.data || error.message);
-        // throw error;
+        console.error('领水错误:', error.response?.data || error.message);
     }
 }
 
 const main = async (...inputs) => {
     try {
         const data = await myFormatData(...inputs);
-        // console.log(data)
         for (const d of data) {
-            // console.log(`第${d['indexId']}个账号`)
-            // console.log(d)
-            await faucet(d['indexId'], d['ethAddress'], false)
+            await faucet({
+                number: d['indexId'], // 账号索引
+                address: d['ethAddress'], // 账号地址
+                reuse: true, // 是否重用指纹
+                serviceName: 'nocaptcha', // 验证码服务名称
+                websiteKey: "6LcItOMqAAAAAF9ANohQEN4jGOjHRxU8f5MNJZHu" // 验证码网站密钥
+            })
         }
     } catch (error) {
         console.error(error);
