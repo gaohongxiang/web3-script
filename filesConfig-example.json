@@ -15,5 +15,9 @@
         "data/ip.csv",
 
         "data/bitbrowser.xlsx"
-    ]
+    ],
+    "fingerprintConfig": {
+        "basePath": "$HOME/Chrome多开",
+        "fileName": "fingerprint.json"
+    }
 }
