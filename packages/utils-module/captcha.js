@@ -214,7 +214,7 @@ class YesCaptchaClient {
                 throw new Error(`创建任务失败: ${result.errorDescription || '未知错误'}`);
             }
 
-            console.log(`${captchaType}${taskVariant ? ` (${taskVariant})` : ''} 任务创建成功:`, result.taskId);
+            // console.log(`${captchaType}${taskVariant ? ` (${taskVariant})` : ''} 任务创建成功:`, result.taskId);
             return result.taskId;
         } catch (error) {
             console.error(`创建 ${captchaType} 任务失败:`, error);
@@ -231,7 +231,7 @@ class YesCaptchaClient {
      * @returns {Promise<string>} 验证码结果
      */
     async getTaskResult(taskId, captchaType, maxAttempts = 40, interval = 3000) {
-        console.log(`正在识别 ${captchaType}...`);
+        // console.log(`正在识别 ${captchaType}...`);
 
         // 获取对应的策略
         const strategy = this.captchaStrategies[captchaType];
@@ -260,12 +260,12 @@ class YesCaptchaClient {
                     // 使用策略提取结果
                     const captchaResponse = strategy.extractResult(result);
                     if (captchaResponse) {
-                        console.log(`${captchaType} 识别成功 (尝试 ${attempt}/${maxAttempts})`);
+                        // console.log(`${captchaType} 识别成功 (尝试 ${attempt}/${maxAttempts})`);
                         return captchaResponse;
                     }
                 }
 
-                console.log(`等待 ${captchaType} 结果... (${attempt}/${maxAttempts})`);
+                // console.log(`等待 ${captchaType} 结果... (${attempt}/${maxAttempts})`);
             } catch (error) {
                 console.error(`获取 ${captchaType} 结果失败 (尝试 ${attempt}/${maxAttempts}):`, error);
             }
@@ -289,15 +289,20 @@ class YesCaptchaClient {
         const { captchaType = 'recaptchaV2', taskVariant, maxAttempts, interval, ...params } = options;
 
         try {
+            console.log(`[YesCaptcha] 开始${captchaType}验证${taskVariant ? ` (${taskVariant})` : ''}...`);
+            
             const taskId = await this.createTask({
                 captchaType,
                 taskVariant,
                 ...params
             });
 
-            return await this.getTaskResult(taskId, captchaType, maxAttempts, interval);
+            const result = await this.getTaskResult(taskId, captchaType, maxAttempts, interval);
+            console.log(`[YesCaptcha] ${captchaType}验证完成${taskVariant ? ` (${taskVariant})` : ''}`);
+            
+            return result;
         } catch (error) {
-            console.error(`${captchaType} 验证失败:`, error);
+            console.error(`[YesCaptcha] ${captchaType}验证失败:`, error);
             throw error;
         }
     }
@@ -392,6 +397,8 @@ class NoCaptchaClient {
     const { captchaType = 'recaptcha', taskVariant, ...params } = options;
     
     try {
+      console.log(`[NoCaptcha] 开始${captchaType}验证${taskVariant ? ` (${taskVariant})` : ''}...`);
+      
       // 获取对应的策略
       const strategy = this.captchaStrategies[captchaType];
       if (!strategy) {
@@ -438,12 +445,12 @@ class NoCaptchaClient {
         throw new Error(`验证失败: ${result.msg || '未知错误'}`);
       }
       
-      console.log(`${captchaType}${taskVariant ? ` (${taskVariant})` : ''} 验证成功，耗时: ${result.cost}`);
+      console.log(`[NoCaptcha] ${captchaType}验证完成${taskVariant ? ` (${taskVariant})` : ''}`);
       
       // 提取结果
       return strategy.extractResult(result);
     } catch (error) {
-      console.error(`${captchaType} 验证失败:`, error);
+      console.error(`[NoCaptcha] ${captchaType}验证失败:`, error);
       throw error;
     }
   }
@@ -458,50 +465,42 @@ export const noCaptchaClient = new NoCaptchaClient();
  * 在浏览器中查找reCAPTCHA信息
  * 在控制台中运行此函数可获取页面上所有reCAPTCHA实例的信息
  */
-export function findRecaptchaClients() {
+function findRecaptchaClients() {
     // eslint-disable-next-line camelcase
-    if (typeof (___grecaptcha_cfg) === 'undefined') {
-        console.log('页面上没有找到reCAPTCHA');
-        return [];
-    }
-
-    // eslint-disable-next-line camelcase, no-undef
-    return Object.entries(___grecaptcha_cfg.clients).map(([cid, client]) => {
+    if (typeof (___grecaptcha_cfg) !== 'undefined') {
+      // eslint-disable-next-line camelcase, no-undef
+      return Object.entries(___grecaptcha_cfg.clients).map(([cid, client]) => {
         const data = { id: cid, version: cid >= 10000 ? 'V3' : 'V2' };
-
-        Object.entries(client)
-            .filter(([_, value]) => value && typeof value === 'object')
-            .forEach(([toplevelKey, toplevel]) => {
-                // 获取页面URL
-                if (toplevel instanceof HTMLElement && toplevel.tagName === 'DIV') {
-                    data.pageurl = toplevel.baseURI;
-                }
-
-                // 查找包含sitekey的对象
-                const found = Object.entries(toplevel).find(([_, value]) => (
-                    value && typeof value === 'object' && 'sitekey' in value && 'size' in value
-                ));
-
-                if (found) {
-                    const [sublevelKey, sublevel] = found;
-
-                    data.sitekey = sublevel.sitekey;
-                    const callbackKey = data.version === 'V2' ? 'callback' : 'promise-callback';
-                    const callback = sublevel[callbackKey];
-
-                    data.function = callback || null;
-
-                    if (callback) {
-                        const keys = [cid, toplevelKey, sublevelKey, callbackKey]
-                            .map((key) => `['${key}']`)
-                            .join('');
-                        data.callback = `___grecaptcha_cfg.clients${keys}`;
-                    } else {
-                        data.callback = null;
-                    }
-                }
-            });
-
+        const objects = Object.entries(client).filter(([_, value]) => value && typeof value === 'object');
+  
+        objects.forEach(([toplevelKey, toplevel]) => {
+          const found = Object.entries(toplevel).find(([_, value]) => (
+            value && typeof value === 'object' && 'sitekey' in value && 'size' in value
+          ));
+       
+          if (typeof toplevel === 'object' && toplevel instanceof HTMLElement && toplevel['tagName'] === 'DIV'){
+              data.pageurl = toplevel.baseURI;
+          }
+          
+          if (found) {
+            const [sublevelKey, sublevel] = found;
+  
+            data.sitekey = sublevel.sitekey;
+            const callbackKey = data.version === 'V2' ? 'callback' : 'promise-callback';
+            const callback = sublevel[callbackKey];
+            if (!callback) {
+              data.callback = null;
+              data.function = null;
+            } else {
+              data.function = callback;
+              const keys = [cid, toplevelKey, sublevelKey, callbackKey].map((key) => `['${key}']`).join('');
+              data.callback = `___grecaptcha_cfg.clients${keys}`;
+            }
+          }
+        });
         return data;
-    });
-}
+      });
+    }
+    return [];
+  }
+  findRecaptchaClients()
