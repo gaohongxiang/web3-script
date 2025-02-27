@@ -1,6 +1,7 @@
 import fs from 'fs';
-import { getCsvData, getExcelData, parseInstanceNumbers } from './utils.js';
+import { getCsvData, getExcelData, parseInstanceNumbers, formatNumber } from './utils.js';
 import { getPathFromRoot } from './path.js';
+import path from 'path';
 
 // 整合多个 CSV 文件为一个 JSON 对象
 export async function myFormatData(...inputs) {
@@ -57,5 +58,42 @@ export async function myFormatData(...inputs) {
         }
     }
 
+    // 添加指纹文件内容
+    for (const id of instanceNumbers) {
+        const chromeDir = `Chrome${formatNumber(id, 3)}`;
+        const basePath = config.fingerprintConfig.basePath.replace('$HOME', process.env.HOME);
+        const fingerprintPath = path.join(basePath, chromeDir, config.fingerprintConfig.fileName);
+        
+        const existingRecord = allData.find(item => item.indexId === id.toString());
+        if (existingRecord) {
+            try {
+                if (fs.existsSync(fingerprintPath)) {
+                    // 读取并解析指纹文件内容
+                    const fingerprintContent = JSON.parse(fs.readFileSync(fingerprintPath, 'utf8'));
+                    
+                    // 提取关键信息
+                    existingRecord.fingerprint = {
+                        // 基本浏览器信息
+                        userAgent: fingerprintContent.fingerprint.navigator.userAgent,
+                        // 请求头信息
+                        headers: fingerprintContent.headers,
+                        // 屏幕信息（可能有用）
+                        screen: fingerprintContent.fingerprint.screen,
+                        // WebGL信息（反爬可能会用到）
+                        videoCard: fingerprintContent.fingerprint.videoCard,
+                        // 音频编解码器支持情况
+                        audioCodecs: fingerprintContent.fingerprint.audioCodecs,
+                        // 字体列表
+                        fonts: fingerprintContent.fingerprint.fonts
+                    };
+                } else {
+                    console.warn(`警告: 指纹文件不存在 ${fingerprintPath}`);
+                }
+            } catch (error) {
+                console.error(`读取指纹文件失败 ${fingerprintPath}:`, error);
+            }
+        }
+    }
+    // console.log(allData);
     return allData;
 }
