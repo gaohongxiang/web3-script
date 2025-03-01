@@ -8,9 +8,9 @@
         "data/exchange/addressBinance.csv",
         "data/exchange/addressOkx.csv",
 
-        "data/email.csv",
-        "data/twitter.csv",
+        "data/x.csv",
         "data/discord.csv",
+        "data/email.csv",
 
         "data/ip.csv",
 
