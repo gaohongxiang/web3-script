@@ -194,6 +194,7 @@ curl -s http://localhost:端口号/json/version | jq .webSocketDebuggerUrl
     - Chrome Power：https://github.com/zmzimpl/chrome-power-app
     - VirtualBrowser：https://github.com/Virtual-Browser/VirtualBrowser
     - toolBoxClient：https://github.com/web3ToolBoxDev/toolBoxClient
+    - XChrome：https://github.com/chanawudi/XChrome/?tab=readme-ov-file
 - 使用 NodeJS 实现 IP 和指纹独立的 Chrome 多开管理程序
     - https://blog.ulsincere.com/multiple-chrome
     - https://github.com/zmzimpl/chrome-power-chromium
