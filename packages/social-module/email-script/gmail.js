@@ -4,6 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import { updateCsvFieldValueByMatch} from '../../utils-module/utils.js';
 import { SocksProxyAgent } from 'socks-proxy-agent';
+import { getOTP } from '../../utils-module/otp.js';
 
 export class GmailAuth extends ChromeBrowserUtil {
     constructor(chromeNumber, proxy = null) {
@@ -254,4 +255,111 @@ function getTextFromParts(parts) {
         }
     }
     return text;
+}
+
+
+export class Gmail extends ChromeBrowserUtil {
+    constructor(chromeNumber, proxy = null) {
+        super(chromeNumber, proxy);
+    }
+
+    async login(username, password, otpSecretKey) {
+        await this.page.goto('https://accounts.google.com/');
+        await this.page.waitForTimeout(2000);
+        const currentUrl = this.page.url();
+        if(currentUrl.includes('signin')) {
+            try { // 判断是不是第一次登录，不是第一次登录会有用户名留存，直接点击用户名登录
+                await this.page.locator('input[autocomplete="username webauthn"]').fill(username);
+                await this.page.locator('div[id="identifierNext"]').click();
+            } catch (error) {
+                await this.page.getByText(username).click({ timeout: 10000 });
+            }
+            await this.page.waitForTimeout(2000);
+            await this.page.locator('input[autocomplete="current-password"]').fill(password);
+            await this.page.locator('div[id="passwordNext"]').click();
+            await this.page.waitForTimeout(2000);
+            try { // 有时候不需要这个验证码
+                const otp = await getOTP(otpSecretKey);
+                await this.page.locator('input[id="totpPin"]').fill(otp);
+                await this.page.locator('div[id="totpNext"]').click();
+                await this.page.waitForTimeout(2000);
+            } catch (error) {
+                console.log('未找到“验证码”输入框，跳过');
+            }
+            try {
+                await this.page.locator('text=/(^以后再说$|^Not now$)/i').click();
+            } catch (error) {
+                console.log('未找到“以后再说”按钮，跳过');
+            }
+            try { // 设置辅助邮箱等
+                await this.page.locator('text=/(^取消$|^Cancel$)/i').click();
+            } catch (error) {
+                console.log('未找到“取消”按钮，跳过');
+            }
+        } else {
+            console.log('已登录状态，无需重复登录');
+        }
+    }
+
+    async changeLanguage() {
+        await this.page.goto('https://myaccount.google.com/personal-info', { waitUntil: 'networkidle' , timeout: 60000 });
+        await this.page.waitForTimeout(5000);
+        try {
+            // 检查元素是否包含"简体中文"文本
+            await this.page.locator('a:has(img[src*="language"])').filter({ hasText: '简体中文' }).waitFor({ timeout: 5000 });
+            console.log('已设置为简体中文');
+            return;  // 如果找到包含文本的元素就结束
+        } catch {
+            await this.page.locator('a:has(img[src*="language"])').click({ timeout: 5000 });
+            await this.page.waitForTimeout(2000);
+            await this.page.locator('button[jsname="Pr7Yme"][aria-haspopup="true"][autofocus]').click();
+            await this.page.waitForTimeout(2000);
+            await this.page.locator('input[jsname="YPqjbf"][role="combobox"][data-axe="mdc-autocomplete"]').fill("简体中文");
+            await this.page.waitForTimeout(500);
+            await this.page.getByText('简体中文').click({ timeout: 5000 });
+            await this.page.waitForTimeout(2000);
+            await this.page.locator('[data-mdc-dialog-action="x8hlje"]').click({ timeout: 5000 });
+            await this.page.waitForTimeout(2000);
+            console.log('已设置为简体中文');
+        }
+    }
+
+    async addOrChange2fa({ password, csvFile, matchField = 'email', matchValue, targetField = 'emailOtpSecretKey' }) {
+        await this.changeLanguage();
+        await this.page.goto('https://myaccount.google.com/security', { waitUntil: 'networkidle' , timeout: 60000 });
+        await this.page.waitForTimeout(2000);
+       
+        await this.page.locator('text=/(^两步验证$|^2-Step Verification$|^Xác minh 2 bước$|^২-ধাপে যাচাইকরণ$)/i').click();
+        await this.page.waitForTimeout(2000);
+        try { // 有时候需要先验证密码
+            await this.page.locator('input[autocomplete="current-password"]').fill(password, { timeout: 10000 });
+            await this.page.locator('div[id="passwordNext"]').click({ timeout: 10000 });
+        } catch (error) {
+            console.log('不需要验证密码');
+        }
+        await this.page.waitForTimeout(2000);
+        await this.page.locator('text=/(^身份验证器$|^Authenticator$)/i').click();
+        await this.page.waitForTimeout(5000);
+        // 添加或者更改身份验证器应用
+        await this.page.getByRole('button', { 
+            name: /^(设置身份验证器|Set up authenticator|更改身份验证器应用|Change authenticator app)$/i 
+        }).click({ timeout: 10000 });
+        await this.page.locator('div[jsname="Ptcard"]').click();
+        await this.page.waitForTimeout(2000);
+        const key = await this.page.locator('li div strong').filter({ hasText: /[a-z0-9]/ }).first().textContent();        
+        const otpSecretKey = key.replace(/\s+/g, '');
+        await this.page.getByRole('button', { name: /^(下一页|Next)$/i }).click();    
+        const otp = await getOTP(otpSecretKey);
+        await this.page.getByPlaceholder(/^(输入验证码|Enter code)$/i).fill(otp);
+        await this.page.getByRole('button', { name: /^(验证|Verify)$/i }).click();    
+        await this.page.waitForTimeout(10000);
+        // 保存验证器密钥到CSV文件
+        await updateCsvFieldValueByMatch({
+            csvFile,
+            matchField,
+            matchValue,
+            targetField,
+            targetValue: otpSecretKey
+        })
+    }
 }
