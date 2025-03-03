@@ -403,20 +403,23 @@ export function generateRandomString(length) {
 
 /**
  * 对敏感信息进行部分隐藏处理
- * @param {string|number} value - 需要处理的原始值（支持字符串和数字类型）
- * @param {number} [startKeep=6] - 开头保留的字符数（默认保留6位）
- * @param {number} [endKeep=6] - 结尾保留的字符数（默认保留6位）
- * @returns {string} 处理后的字符串，中间部分用***替代
+ * @param {Object} options - 配置对象
+ * @param {string|number} options.value - 需要处理的原始值（支持字符串和数字类型）
+ * @param {number} [options.startKeep=6] - 开头保留的字符数（默认保留6位）
+ * @param {number} [options.endKeep=6] - 结尾保留的字符数（默认保留6位）
+ * @param {string} [options.maskChar='...'] - 用于替换中间字符的掩码字符
+ * @returns {string} 处理后的字符串，中间部分用掩码字符替代
  * 
  * @example
- * maskValue('1234567890ABCDEF')       // "123456***ABCDEF"
- * maskValue('1234567890ABCDEF', 4)    // "1234***DEF"
- * maskValue('1234567890ABCDEF', 2, 4) // "12***DEF"
- * maskValue('1234', 3, 3)            // "1234"（总长度不足时返回原值）
- * maskValue(123456789)                // "123456***"（处理数字类型）
- * maskValue('')                       // ""（空值直接返回）
+ * maskValue({ value: '1234567890ABCDEF' })                    // "123456...ABCDEF"
+ * maskValue({ value: '1234567890ABCDEF', startKeep: 4 })     // "1234...ABCDEF"
+ * maskValue({ value: '1234567890ABCDEF', startKeep: 2, endKeep: 4 }) // "12...CDEF"
+ * maskValue({ value: '1234', startKeep: 3, endKeep: 3 })     // "1234"（总长度不足时返回原值）
+ * maskValue({ value: 123456789 })                            // "123456...789"
+ * maskValue({ value: '123456789', maskChar: '***' })         // "123456***789"
+ * maskValue({ value: '1234567890', maskChar: '.' })         // "123456.4567"
  */
-export function maskValue(value, startKeep = 6, endKeep = 6) {
+export function maskValue({ value, startKeep = 6, endKeep = 6, maskChar = '...' }) {
     if (typeof value !== 'string') {
         value = String(value);
     }
@@ -426,11 +429,10 @@ export function maskValue(value, startKeep = 6, endKeep = 6) {
         return value;
     }
 
-    // 分别保留前后指定位数，中间统一用3个*替代
+    // 分别保留前后指定位数，中间用传入的掩码替代
     const start = value.slice(0, startKeep); // 截取前N位
     const end = value.slice(-endKeep); // 截取前N位
-    const mask = '***'; // 固定3个*作为掩码
-    const result = `${start}${mask}${end}`;
+    const result = `${start}${maskChar}${end}`;
     // console.log(result)
     return result;
 }
@@ -515,13 +517,13 @@ export function formatNumber(input, digits = 3) {
     if (typeof digits !== 'number' || digits < 1) {
         throw new RangeError('位数必须是大于等于1的整数');
     }
-    
+
     // 转换输入为数字
     const num = Number(input);
     if (!Number.isInteger(num) || num < 0) {
         throw new TypeError('输入必须是正整数或可转换为正整数的字符串');
     }
-    
+
     // 格式化为指定位数
     return num.toString().padStart(digits, '0');
 }
