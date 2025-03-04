@@ -5,7 +5,7 @@ import { FingerprintGenerator } from 'fingerprint-generator';
 import { createCanvas, loadImage } from 'canvas';
 import { formatNumber } from '../../../utils-module/utils.js';
 import { BASE_CONFIG } from './config.js';
-import { getPathFromCurrentDir } from '../../../utils-module/path.js';
+import { getPathFromCurrentDir, makeSureDirExists } from '../../../utils-module/path.js';
 
 /**
  * Chrome自动化管理类
@@ -184,31 +184,44 @@ export async function generateFingerprint({
  */
 export async function generateNumberAvatar(chromeNumber, savePath = 'image/avatar') {
   try {
-    // 创建画布
-    const canvas = createCanvas(256, 256);
+    // 创建200x200的画布
+    const canvas = createCanvas(200, 200);
     const ctx = canvas.getContext('2d');
 
-    // 创建圆形裁剪路径
+    // 创建圆形裁剪路径(居中)
+    const centerX = 100;
+    const centerY = 100;
+    const radius = 100;
     ctx.beginPath();
-    ctx.arc(128, 128, 128, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
 
-    // 绘制橙色背景
-    ctx.fillStyle = '#FF7043';
-    ctx.fillRect(0, 0, 256, 256);
+    // 白色背景
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, 200, 200);
 
-    // 绘制白色数字，减小字重
-    ctx.font = '600 120px Arial';
+    // 根据数字位数自动调整字体大小
+    const numStr = chromeNumber.toString();
+    
+    // 保持大字号但调整字体
+    const fontSize = Math.min(300 / 2, 240);
+    
+    // 使用清秀的字体，减小字重
+    ctx.font = `400 ${fontSize}px "Helvetica Neue", Helvetica, Arial`; // 使用更优雅的字体，400字重
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = '#000000';
 
-    // 添加较细的白色描边
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 4;
-    ctx.strokeText(chromeNumber, 128, 128);
-    ctx.fillText(chromeNumber, 128, 128);
+    // 测量文本宽度
+    const textWidth = ctx.measureText(numStr).width;
+    const scale = Math.min(1, (170) / textWidth);
+    
+    if (scale < 1) {
+      ctx.font = `400 ${fontSize * scale}px "Helvetica Neue", Helvetica, Arial`;
+    }
+
+    ctx.fillText(numStr, centerX, centerY);
 
     // 返回图像buffer
     const buffer = canvas.toBuffer('image/png');
@@ -216,6 +229,7 @@ export async function generateNumberAvatar(chromeNumber, savePath = 'image/avata
     // // 保存到Chrome的images目录
     // const formatedNumber = formatNumber(chromeNumber);
     // const outputPath = getPathFromCurrentDir(import.meta.url, savePath, `Chrome${formatedNumber}.png`);
+    // await makeSureDirExists(outputPath);
     // // 写入文件
     // await fsp.writeFile(outputPath, buffer);
 
