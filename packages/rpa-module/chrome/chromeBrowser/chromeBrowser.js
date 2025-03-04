@@ -12,14 +12,13 @@ export class ChromeBrowserUtil {
    * @param {number} chromeNumber - 浏览器实例编号
    * @param {Object|null} proxy - 代理配置对象
    */
-  constructor(chromeNumber, proxy = null, screenWidth = 1680, screenHeight = 1050) {
+  constructor(chromeNumber, screenWidth = 1680, screenHeight = 1050) {
     this.chromeNumber = formatNumber(chromeNumber);
     this.debugPort = BASE_CONFIG.getDebugPort(chromeNumber);
     this.listenPort = BASE_CONFIG.getListenPort(chromeNumber);
     this.AUTOMATION_CHROME_EXECUTABLE = BASE_CONFIG.getChromeExecutable(this.chromeNumber);
     this.AUTOATION_CHROME_DATA_DIR = BASE_CONFIG.getProfileDataDir(this.chromeNumber);
     this.FINGERPRINT_PATH = BASE_CONFIG.getFingerprintPath(this.chromeNumber);
-    this.proxy = proxy;
     this.screenWidth = screenWidth;
     this.screenHeight = screenHeight;
     this.browser = null;
@@ -125,7 +124,7 @@ export class ChromeBrowserUtil {
         '--no-first-run',
         `--window-size=${this.screenWidth},${this.screenHeight}`,
         '--no-default-browser-check',
-        this.proxy ? `--proxy-server=127.0.0.1:${this.listenPort}` : ''
+        `--proxy-server=127.0.0.1:${this.listenPort}`
       ].filter(Boolean);
 
       // 打印完整启动命令
