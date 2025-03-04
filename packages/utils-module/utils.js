@@ -237,7 +237,7 @@ export async function updateCsvFieldValueByMatch({ csvFile, matchField, matchVal
             });
 
             await fsPromises.writeFile(csvFile, csvContent);
-            console.log(`匹配项: ${matchField} = ${matchValue} , 更新项: ${targetField} = ${maskValue(targetValue)}`);
+            console.log(`匹配项: ${matchField} = ${matchValue} , 更新项: ${targetField} = ${maskValue({ value: targetValue })}`);
             return true;
         } catch (error) {
             console.error('写入文件失败:', error);
