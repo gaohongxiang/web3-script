@@ -35,8 +35,8 @@ await chromeAutomation.createChromeProfile();
 ```js
 import { ChromeBrowserUtil } from './chromeBrowser.js';
 
-// 参数1：实例编号 参数2：代理配置，格式：socks5://host:post@username:password
-const chrome = new ChromeBrowserUtil(chromeId, proxy);          
+// 参数：实例编号
+const chrome = new ChromeBrowserUtil(1);          
 await chrome.start();
 ```
 
@@ -86,8 +86,8 @@ await chromeAutomation.replaceAvatar();
 ```js
 import { ChromeBrowserUtil } from './chromeBrowser.js';
 
-// 参数1：实例编号 参数2：代理配置，格式：socks5://host:post@username:password
-const chrome = new ChromeBrowserUtil(1, 'your-proxy');
+// 参数：实例编号
+const chrome = new ChromeBrowserUtil(1);
 await chrome.start();
 // 安装okx插件
 await chrome.installExtension('https://chromewebstore.google.com/detail/%E6%AC%A7%E6%98%93-web3-%E9%92%B1%E5%8C%85/mcohilncbfahbmgdjkbpemcciiolgcge');
@@ -103,7 +103,7 @@ mac版chrome手动关闭浏览器无法完全退出，比较麻烦。退出有3�
 ```js
 import { ChromeBrowserUtil } from './chromeBrowser.js';
 
-const chrome = new ChromeBrowserUtil(1, 'your-proxy');
+const chrome = new ChromeBrowserUtil(1);
 await chrome.shutdownChrome();
 ```
 
