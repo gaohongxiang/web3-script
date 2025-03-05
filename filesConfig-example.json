@@ -1,16 +1,16 @@
 {
     "dataFiles": [
-        "data/walletBtc.csv",
-        "data/walletEth.csv",
-        "data/walletSol.csv",
-        "data/walletSui.csv",    
+        "data/wallet/walletBtc.csv",
+        "data/wallet/walletEth.csv",
+        "data/wallet/walletSol.csv",
+        "data/wallet/walletSui.csv",    
 
         "data/exchange/addressBinance.csv",
         "data/exchange/addressOkx.csv",
 
-        "data/x.csv",
-        "data/discord.csv",
-        "data/email.csv",
+        "data/social/x.csv",
+        "data/social/discord.csv",
+        "data/social/email.csv",
 
         "data/ip.csv",
 
