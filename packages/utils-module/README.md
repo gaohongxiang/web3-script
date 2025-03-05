@@ -152,9 +152,9 @@ await check({winFilePath, ourCsvPath, columnName});
 import { getCsvData, getCsvDataByColumnName } from './utils.js';
 
 // 从指定的 CSV 文件中读取数据并返回解析后的结果
-await getCsvData('./data/wallet.csv');
+await getCsvData('./data/wallet/walletEth.csv');
 
 // 从指定的 CSV 文件中读取数据，并将指定列的数据转存到临时文件。
 // 参数；csvFile, columnName, tempFile='./data/temp.csv'
-await getCsvDataByColumnName('./data/wallet.csv', 'address');
+await getCsvDataByColumnName('./data/wallet/walletEth.csv', 'address');
 ```
