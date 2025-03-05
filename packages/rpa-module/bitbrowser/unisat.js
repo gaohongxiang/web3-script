@@ -9,12 +9,32 @@ import { parseToken } from '../../crypt-module/onepassword.js';
 const unisatID = 'hllcbhiiebohplnhonnmmhmbppoaegcn'
 
 export class UnisatUtil extends BitBrowserUtil {
-    
+    /**
+     * Unisat钱包工具构造函数
+     * @param {string} browserId - BitBrowser浏览器ID
+     */
     constructor(browserId) {
+        // 调用父类构造函数
         super(browserId);
-        this.homeUrl = `chrome-extension://${unisatID}/index.html#`
-        this.unlockUrl = `chrome-extension://${unisatID}/index.html#/account/unlock`
-        this.importUrl = `chrome-extension://${unisatID}/index.html#/welcome`
+        
+        // 初始化Unisat特有属性
+        this.homeUrl = `chrome-extension://${unisatID}/index.html#`;
+        this.unlockUrl = `chrome-extension://${unisatID}/index.html#/account/unlock`;
+        this.importUrl = `chrome-extension://${unisatID}/index.html#/welcome`;
+    }
+
+    /**
+     * 创建并初始化Unisat钱包工具实例
+     * @static
+     * @param {string} browserId - BitBrowser浏览器ID
+     * @returns {Promise<UnisatUtil>} 初始化完成的实例
+     * @throws {Error} 如果初始化失败
+     */
+    static async create({ browserId }) {
+        // 创建实例
+        const instance = await super.create({ browserId });
+
+        return instance;
     }
     
     async createNewWallet(indexId, walletfile = 'btcWallets.csv'){

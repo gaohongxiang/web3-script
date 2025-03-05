@@ -4,18 +4,40 @@ import { deCryptText } from '../../crypt-module/crypt.js';
 const metamaskID = 'nkbihfbeogaeaoehlefnkodbefgpgknn'
 
 export class MetaMaskUtil extends BitBrowserUtil {
-    
+    /**
+     * MetaMask钱包工具构造函数
+     * @param {string} browserId - BitBrowser浏览器ID
+     * @param {string} enPassword - 加密的钱包密码
+     */
     constructor(browserId, enPassword) {
+        // 调用父类构造函数
         super(browserId);
-        this.enPassword = enPassword
-        this.homeUrl = `chrome-extension://${metamaskID}/home.html#`
-        this.initializeUrl = `chrome-extension://${metamaskID}/home.html#onboarding/welcome`
-        this.unlockUrl = `chrome-extension://${metamaskID}/home.html#unlock`
-        this.newAccountUrl = `chrome-extension://${metamaskID}/home.html#new-account`
-        this.restoreUrl = `chrome-extension://${metamaskID}/home.html#restore-vault`
-        this.privatekeyImportUrl = `chrome-extension://${metamaskID}/home.html#new-account/import`
-        this.advancedSettingUrl = `chrome-extension://${metamaskID}/home.html#settings/advanced`
-        this.chainlistUrl = 'https://chainlist.org/'
+        
+        // 初始化MetaMask特有属性
+        this.enPassword = enPassword;
+        this.homeUrl = `chrome-extension://${metamaskID}/home.html#`;
+        this.initializeUrl = `chrome-extension://${metamaskID}/home.html#onboarding/welcome`;
+        this.unlockUrl = `chrome-extension://${metamaskID}/home.html#unlock`;
+        this.newAccountUrl = `chrome-extension://${metamaskID}/home.html#new-account`;
+        this.restoreUrl = `chrome-extension://${metamaskID}/home.html#restore-vault`;
+        this.privatekeyImportUrl = `chrome-extension://${metamaskID}/home.html#new-account/import`;
+        this.advancedSettingUrl = `chrome-extension://${metamaskID}/home.html#settings/advanced`;
+        this.chainlistUrl = 'https://chainlist.org/';
+    }
+
+    /**
+     * 创建并初始化MetaMask钱包工具实例
+     * @static
+     * @param {string} browserId - BitBrowser浏览器ID
+     * @param {string} enPassword - 加密的钱包密码
+     * @returns {Promise<MetaMaskUtil>} 初始化完成的实例
+     * @throws {Error} 如果初始化失败
+     */
+    static async create({ browserId, enPassword }) {
+        // 创建实例
+        const instance = await super.create({ browserId, enPassword });
+
+        return instance;
     }
 
     async firstImportByMnemonic() {
@@ -129,7 +151,7 @@ export class MetaMaskUtil extends BitBrowserUtil {
             }
             await chainButton.click();
             await this.page.waitForTimeout(1000)
-            // 打开‘显示测试网按钮’
+            // 打开'显示测试网按钮'
             try{
                 await this.page.waitForSelector('.toggle-button--off', {timeout:2000}).then(element => { element.click() });
             }catch(error){}

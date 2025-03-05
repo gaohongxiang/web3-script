@@ -3,25 +3,41 @@ import { BitBrowserUtil } from './bitbrowser.js';
 import { parseToken } from '../../crypt-module/onepassword.js';
 import { deCryptText } from '../../crypt-module/crypt.js';
 
-const okxWalletID = 'mcohilncbfahbmgdjkbpemcciiolgcge'
+const okxWalletID = 'dkaonkcpflfhalioalibgpdiamnjcpbn'
 
 export class OkxWalletUtil extends BitBrowserUtil {
-
+    /**
+     * OKX钱包工具构造函数
+     * @param {string} browserId - BitBrowser浏览器ID
+     */
     constructor(browserId) {
+        // 调用父类构造函数
         super(browserId);
-        this.okxPage = null;
-        this.unlockUrl = `chrome-extension://${okxWalletID}/popup.html#/unlock`
-        this.homeUrl = `chrome-extension://${okxWalletID}/popup.html#`
-        this.importUrl = `chrome-extension://${okxWalletID}/popup.html#/import-with-seed-phrase-and-private-key`
-        this.settingsUrl = `chrome-extension://${okxWalletID}/popup.html#/new-settings`
-        this.editAccountUrl = `chrome-extension://${okxWalletID}/popup.html#/wallet/management-edit-page`
         
+        // 初始化OKX特有属性
+        this.okxPage = null;
+        this.unlockUrl = `chrome-extension://${okxWalletID}/popup.html#/unlock`;
+        this.homeUrl = `chrome-extension://${okxWalletID}/popup.html#`;
+        this.importUrl = `chrome-extension://${okxWalletID}/popup.html#/import-with-seed-phrase-and-private-key`;
+        this.settingsUrl = `chrome-extension://${okxWalletID}/popup.html#/new-settings`;
+        this.editAccountUrl = `chrome-extension://${okxWalletID}/popup.html#/wallet/management-edit-page`;
     }
 
-    // 重写start方法，初始化okxPage
-    async start() {
-        await super.start();
-        this.okxPage = await this.context.newPage();
+    /**
+     * 创建并初始化OKX钱包工具实例
+     * @static
+     * @param {string} browserId - BitBrowser浏览器ID
+     * @returns {Promise<OkxWalletUtil>} 初始化完成的实例
+     * @throws {Error} 如果初始化失败
+     */
+    static async create({ browserId }) {
+        // 创建实例
+        const instance = await super.create({ browserId });
+        
+        // 初始化 okxPage
+        instance.okxPage = await instance.context.newPage();
+
+        return instance;
     }
 
     async importByPrivateKey(enPrivateKey) {

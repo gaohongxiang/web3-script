@@ -25,7 +25,7 @@ const extraQueryParameters = {
 };
 
 // 创建一个专门的函数来处理MSAL配置
-function createMsalConfig(proxy = null) {
+function createMsalConfig(proxy) {
     const config = {
         auth: {
             clientId: process.env.outlookClientId,        // 应用程序ID
@@ -34,39 +34,37 @@ function createMsalConfig(proxy = null) {
         }
     };
 
-    if (proxy) {
-        config.system = {
-            networkClient: {
-                sendGetRequestAsync: async (url, options) => {
-                    const proxyAgent = new SocksProxyAgent(proxy);
-                    const response = await fetch(url, {
-                        ...options,
-                        agent: proxyAgent,
-                        method: 'GET'
-                    });
-                    return {
-                        status: response.status,
-                        headers: Object.fromEntries(response.headers),
-                        body: await response.json() // 直接返回解析后的 JSON 对象
-                    };
-                },
-                sendPostRequestAsync: async (url, options) => {
-                    const proxyAgent = new SocksProxyAgent(proxy);
-                    const response = await fetch(url, {
-                        ...options,
-                        agent: proxyAgent,
-                        method: 'POST',
-                        body: options.body
-                    });
-                    return {
-                        status: response.status,
-                        headers: Object.fromEntries(response.headers),
-                        body: await response.json() // 直接返回解析后的 JSON 对象
-                    };
-                }
+    config.system = {
+        networkClient: {
+            sendGetRequestAsync: async (url, options) => {
+                const proxyAgent = new SocksProxyAgent(proxy);
+                const response = await fetch(url, {
+                    ...options,
+                    agent: proxyAgent,
+                    method: 'GET'
+                });
+                return {
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers),
+                    body: await response.json() // 直接返回解析后的 JSON 对象
+                };
+            },
+            sendPostRequestAsync: async (url, options) => {
+                const proxyAgent = new SocksProxyAgent(proxy);
+                const response = await fetch(url, {
+                    ...options,
+                    agent: proxyAgent,
+                    method: 'POST',
+                    body: options.body
+                });
+                return {
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers),
+                    body: await response.json() // 直接返回解析后的 JSON 对象
+                };
             }
-        };
-    }
+        }
+    };
 
     return config;
 }
@@ -75,12 +73,30 @@ function createMsalConfig(proxy = null) {
  * Outlook授权类
  * 继承自ChromeBrowserUtil，用于处理Outlook的OAuth2.0授权流程
  */
-export class OutlookAuth extends ChromeBrowserUtil {
-    constructor(chromeNumber, proxy = null) {
-        super(chromeNumber, proxy);
-        // 使用新的配置创建函数
-        this.msalClient = new ConfidentialClientApplication(createMsalConfig(proxy));
-        this.REDIRECT_URI = process.env.outlookRedirectUri;
+export class OutlookAuthenticator extends ChromeBrowserUtil {
+    /**
+     * 创建并初始化OutlookAuthenticator实例
+     * @static
+     * @param {Object} options - 初始化选项
+     * @param {number} options.chromeNumber - Chrome浏览器实例编号
+     * @param {string} options.proxy - 代理服务器地址
+     * @returns {Promise<OutlookAuthenticator>} 返回初始化完成的实例
+     * @throws {Error} 如果初始化失败则抛出错误
+     */
+    static async create({ chromeNumber, proxy }) {
+        // 验证必要的环境变量
+        if (!process.env.outlookClientId || !process.env.outlookClientSecret || !process.env.outlookRedirectUri) {
+            throw new Error('缺少必要的环境变量: outlookClientId, outlookClientSecret, outlookRedirectUri');
+        }
+
+        // 使用父类的create方法初始化浏览器
+        const instance = await ChromeBrowserUtil.create({ chromeNumber });
+
+        // 设置代理和MSAL客户端
+        instance.REDIRECT_URI = process.env.outlookRedirectUri;
+        instance.msalClient = new ConfidentialClientApplication(createMsalConfig(proxy));
+
+        return instance;
     }
 
     /**
@@ -90,7 +106,7 @@ export class OutlookAuth extends ChromeBrowserUtil {
     startServer() {
         return new Promise((resolve, reject) => {
             const app = express();
-            
+
             // 添加中间件来解析POST数据
             app.use(express.urlencoded({ extended: true }));
 
@@ -101,7 +117,7 @@ export class OutlookAuth extends ChromeBrowserUtil {
 
             this.server = app.listen(port, () => {
                 console.log(`回调服务器启动在端口 ${port}`);
-                
+
                 // 处理GET请求
                 app.get(path, async (req, res) => {
                     const code = req.query.code;
@@ -158,7 +174,7 @@ export class OutlookAuth extends ChromeBrowserUtil {
         };
 
         const response = await this.msalClient.acquireTokenByCode(tokenRequest);
-        
+
         // 获取refresh token
         const tokenCache = this.msalClient.getTokenCache();
         const cache = await tokenCache.serialize();
@@ -179,23 +195,21 @@ export class OutlookAuth extends ChromeBrowserUtil {
         };
     }
 
-     /**
-     * outlook自动授权，获取refresh token并保存到CSV文件。此函数需要打开浏览器授权，需要配合指纹浏览器使用。
-     * @param {Object} options - 授权配置选项
-     * @param {string} options.csvFile - CSV文件路径，用于保存refresh token
-     * @param {string} options.matchField - CSV文件中用于匹配的字段名（通常是'email'）
-     * @param {string} options.matchValue - CSV文件中用于匹配的值 （通常是email地址）
-     * @param {string} [options.targetField='outlookRefreshToken'] - CSV文件中保存refresh token的字段名
-     * @returns {Promise<boolean>} - 授权成功返回true，失败返回false
-     */
-    async autoAuth({ csvFile, matchField, matchValue, targetField = 'outlookRefreshToken' }) {
+    /**
+    * outlook自动授权，获取refresh token并保存到CSV文件。此函数需要打开浏览器授权，需要配合指纹浏览器使用。
+    * @param {Object} options - 授权配置选项
+    * @param {string} [options.csvFile='./data/social/email.csv'] - CSV文件路径，用于保存refresh token
+    * @param {string} [options.matchField='email'] - CSV文件中用于匹配的字段名（通常是'email'）
+    * @param {string} options.matchValue - CSV文件中用于匹配的值 （通常是email地址）
+    * @param {string} [options.targetField='outlookRefreshToken'] - CSV文件中保存refresh token的字段名
+    * @returns {Promise<boolean>} - 授权成功返回true，失败返回false
+    */
+    async authorizeAndSaveToken({ csvFile = './data/social/email.csv', matchField = 'email', matchValue, targetField = 'outlookRefreshToken' }) {
         try {
             if (!matchValue.endsWith('@outlook.com') && !matchValue.endsWith('@hotmail.com')) {
                 console.log(`跳过非 Outlook 邮箱: ${matchValue}`);
                 return false;
             }
-
-            await this.start();
 
             // 启动回调服务器
             const codePromise = this.startServer();
@@ -208,26 +222,26 @@ export class OutlookAuth extends ChromeBrowserUtil {
             await this.page.waitForTimeout(3000);
 
             try {
-                try{
-                // 等待并点击接受按钮
-                await this.page.waitForSelector('input[name="ucaccept"][value="接受"]', { timeout: 5000 });
-                await this.page.click('input[name="ucaccept"][value="接受"]');
-                }catch(e){
+                try {
+                    // 等待并点击接受按钮
+                    await this.page.waitForSelector('input[name="ucaccept"][value="接受"]', { timeout: 5000 });
+                    await this.page.click('input[name="ucaccept"][value="接受"]');
+                } catch (e) {
                     console.log('未找到接受按钮');
                 }
                 await this.page.waitForTimeout(3000);
                 // 检查是否需要点击继续按钮
-                try{
-                    const isElementExist1 = await this.isElementExist('input[name="appConfirmContinue"]', {waitTime: 5});
+                try {
+                    const isElementExist1 = await this.isElementExist('input[name="appConfirmContinue"]', { waitTime: 5 });
                     if (isElementExist1) {
                         await this.page.click('input[name="appConfirmContinue"]');
                     }
                     await this.page.waitForTimeout(3000);
-                    const isElementExist2 = await this.isElementExist('input[name="appConfirmContinue"]', {waitTime: 5});
+                    const isElementExist2 = await this.isElementExist('input[name="appConfirmContinue"]', { waitTime: 5 });
                     if (isElementExist2) {
                         await this.page.click('input[name="appConfirmContinue"]');
                     }
-                }catch(e){
+                } catch (e) {
                     console.log('未找到继续按钮');
                 }
 
@@ -281,23 +295,24 @@ export class OutlookAuth extends ChromeBrowserUtil {
 
 /**
  * 等待并获取指定邮件中的验证码
- * @param {string} refreshToken - Outlook的refreshToken
  * @param {Object} options - 查询选项
+ * @param {string} options.refreshToken - Outlook的refreshToken
+ * @param {string} options.proxy - SOCKS5 代理字符串
  * @param {string} options.from - 发件人邮箱
  * @param {string} options.subject - 邮件主题关键词
  * @param {number} [options.pollInterval=10] - 轮询间隔（秒）
  * @param {number} [options.timeout=300] - 总超时时间（秒）
  * @param {number} [options.recentMinutes=5] - 查询最近几分钟内的邮件
- * @param {string} [options.proxy] - SOCKS5 代理字符串（可选）
  * @returns {Promise<string|null>} 返回验证码或null
  */
-export async function waitForOutlookVerificationCode(refreshToken, {
+export async function waitForOutlookVerificationCode({
+    refreshToken,
+    proxy,
     from,
     subject,
     pollInterval = 10,
     timeout = 300,
     recentMinutes = 5,
-    proxy = null
 }) {
     try {
         // 检查 refreshToken 是否存在
@@ -340,7 +355,7 @@ export async function waitForOutlookVerificationCode(refreshToken, {
 
                 // 在代码中过滤发件人和主题
                 if (response.value && response.value.length > 0) {
-                    const targetEmails = response.value.filter(email => 
+                    const targetEmails = response.value.filter(email =>
                         email.from.emailAddress.address === from &&  // 匹配发件人
                         email.subject.includes(subject)              // 匹配主题
                     );

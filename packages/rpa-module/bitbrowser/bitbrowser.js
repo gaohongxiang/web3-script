@@ -4,7 +4,7 @@
 */
 import playwright from 'playwright';
 import axios from 'axios';
-import { sleep } from '../utils-module/utils.js';
+import { sleep } from '../../utils-module/utils.js';
 
 const bitbrowserUrl = 'http://127.0.0.1:54345'
 
@@ -79,34 +79,72 @@ export async function updateBitbrowserProxy(id, host, post, username, password) 
 }
 
 export class BitBrowserUtil {
-
+    /**
+     * BitBrowser浏览器管理工具
+     * @param {string} browserId - BitBrowser浏览器ID
+     * @param {number} [navigationWaitTime=30] - 页面导航等待时间(秒)
+     * @param {number} [allWaitTime=30] - 全局等待时间(秒)
+     * @param {number} [maxRetries=3] - 最大重试次数
+     */
     constructor(browserId) {
         this.browserId = browserId;
         this.browser = null;
         this.context = null;
-        this.page = null; 
-        this.isStarted = false; // 初始化后变为true，第二次就不会运行了
+        this.page = null;
+        this.isStarted = false;
     }
 
+    /**
+     * 创建并初始化BitBrowser实例
+     * @static
+     * @param {Object} params - 初始化参数
+     * @param {string} params.browserId - BitBrowser浏览器ID
+     * @param {number} [params.navigationWaitTime=30] - 页面导航等待时间(秒)
+     * @param {number} [params.allWaitTime=30] - 全局等待时间(秒)
+     * @param {number} [params.maxRetries=3] - 最大重试次数
+     * @returns {Promise<BitBrowserUtil>} 初始化完成的实例
+     * @throws {Error} 如果初始化失败
+     */
+    static async create({ browserId, navigationWaitTime = 30, allWaitTime = 30, maxRetries = 3 }) {
+        // 创建实例
+        const instance = new this(browserId);
+        
+        // 执行初始化
+        await instance.start(navigationWaitTime, allWaitTime, maxRetries);
+        return instance;
+    }
+
+    /**
+     * 打开BitBrowser浏览器并获取连接信息
+     * @private
+     * @returns {Promise<{ws: string, chromeDriverPath: string, http: string}>} 浏览器连接信息
+     * @throws {Error} 如果打开浏览器失败
+     */
     async open() { 
-        try{
+        try {
+
             const response = await axios.post(`${bitbrowserUrl}/browser/open`, {id: this.browserId});
-            if(response.data.success === true){
-                const ws = response.data.data.ws;
-                const chromeDriverPath = response.data.data.driver;
-                const http = response.data.data.http;
-                // console.log(response.data)
+            if(response.data.success === true) {
+                const { ws, driver: chromeDriverPath, http } = response.data.data;
                 return { ws, chromeDriverPath, http };  
             } else {
                 throw new Error('ws请求失败,请重试');
             }
-        }catch(error){
+        } catch(error) {
             console.error('打开浏览器失败:', error);
             throw error;
         }
     }
   
-    async start(navigationWaitTime=30, allWaitTime=30, maxRetries = 3) {
+    /**
+     * 启动并初始化浏览器实例
+     * @private
+     * @param {number} navigationWaitTime - 页面导航等待时间(秒)
+     * @param {number} allWaitTime - 全局等待时间(秒)
+     * @param {number} maxRetries - 最大重试次数
+     * @throws {Error} 如果初始化失败且达到最大重试次数
+     */
+    async start(navigationWaitTime = 30, allWaitTime = 30, maxRetries = 3) {
         let retries = 0;
         while (retries < maxRetries) {
             try {
@@ -232,6 +270,4 @@ export class BitBrowserUtil {
             } 
         });
     }
-
-
 }

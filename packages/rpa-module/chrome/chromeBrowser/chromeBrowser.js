@@ -10,9 +10,10 @@ export class ChromeBrowserUtil {
   /**
    * Chrome浏览器管理工具
    * @param {number} chromeNumber - 浏览器实例编号
-   * @param {Object|null} proxy - 代理配置对象
+   * @param {number} [screenWidth] - 屏幕宽度
+   * @param {number} [screenHeight] - 屏幕高度
    */
-  constructor(chromeNumber, screenWidth = 1680, screenHeight = 1050) {
+  constructor(chromeNumber, screenWidth, screenHeight) {
     this.chromeNumber = formatNumber(chromeNumber);
     this.debugPort = BASE_CONFIG.getDebugPort(chromeNumber);
     this.listenPort = BASE_CONFIG.getListenPort(chromeNumber);
@@ -27,31 +28,37 @@ export class ChromeBrowserUtil {
   }
 
   /**
-   * 启动或连接浏览器实例
-   * 根据当前浏览器运行状态决定启动新实例或复用现有实例
+   * 创建并初始化Chrome实例
+   * @param {Object} params - 初始化参数
+   * @param {number} params.chromeNumber - Chrome实例编号
+   * @param {number} [params.screenWidth=1680] - 屏幕宽度
+   * @param {number} [params.screenHeight=1050] - 屏幕高度
+   * @returns {Promise<ChromeBrowserUtil>} 初始化完成的实例
    */
-  async start() {
-    const { status } = await this.isChromeRunning();
+  static async create({ chromeNumber, screenWidth = 1680, screenHeight = 1050 }) {
+
+    // 创建实例
+    const instance = new this(chromeNumber, screenWidth, screenHeight);
+    
+    // 检查Chrome状态并初始化
+    const { status } = await instance.isChromeRunning();
 
     switch (status) {
       case 'disconnected':
-        // Chrome没有运行，启动新实例
-        // console.log('Chrome未运行,启动新实例');
-        await this.launchNewInstance();
-        await this.connectToInstance(true);
+        await instance.launchNewInstance();
+        await instance.connectToInstance(true);
         break;
 
       case 'connected_no_pages':
-        // console.log('Chrome在运行但没有页面,创建新页面');
-        await this.connectToInstance(false);
+        await instance.connectToInstance(false);
         break;
 
       case 'connected_with_pages':
-        // console.log('Chrome在运行且有页面,连接现有页面');
-        await this.connectToInstance(true);
-        // console.log(`成功复用已有实例 [用户${this.chromeNumber}]`);
+        await instance.connectToInstance(true);
         break;
     }
+
+    return instance;
   }
 
   /**
