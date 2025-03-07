@@ -39,7 +39,7 @@ export class ChromeBrowserUtil {
 
     // 创建实例
     const instance = new this(chromeNumber, screenWidth, screenHeight);
-    
+
     // 检查Chrome状态并初始化
     const { status } = await instance.isChromeRunning();
 
@@ -338,5 +338,33 @@ export class ChromeBrowserUtil {
     } catch (error) {
       // console.log(error);
     }
+  }
+}
+
+export function shutdownChrome(chromeNumber) {
+  const logger = {
+    info: (msg) => console.log(`[${new Date().toISOString()}] [进程管理] ${msg}`),
+    error: (msg) => console.error(`[${new Date().toISOString()}] [进程管理] ${msg}`)
+  };
+  try {
+    // 使用 pgrep 查找真实的 Chrome 进程
+    const cmd = `pgrep -f "${BASE_CONFIG.getDebugPort(chromeNumber)}"`;
+    let output;
+    try {
+      output = execSync(cmd, { encoding: 'utf8' });
+    } catch {
+      // pgrep 没找到进程时会抛出错误，这是正常的
+      logger.error(`无法找到第${chromeNumber}个Chrome进程`);
+      return false;
+    }
+
+    const pid = parseInt(output.trim());
+
+    process.kill(pid, 'SIGTERM');
+    logger.info(`已关闭第${chromeNumber}个Chrome进程: ${pid}`);
+    return true;
+  } catch (error) {
+    logger.error(`关闭第${chromeNumber}个Chrome失败: ${error.message}`);
+    return false;
   }
 }
