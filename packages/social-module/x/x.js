@@ -69,12 +69,12 @@ export class XAuthenticator extends ChromeBrowserUtil {
                 }
             );
 
-            await this.page.goto(url);
+            await this.page.goto(url, { timeout: 60000 });
             await this.page.waitForTimeout(2000);
-            await this.page.getByText('Authorize app').click();
+            await this.page.getByTestId('OAuth_Consent_Button').click();
             await this.page.waitForURL((url) => {
                 return url.toString().includes('code=');
-            }, { timeout: 10000 });
+            }, { timeout: 60000 });
             const code = await this.page.url().split('code=')[1];
 
             // 获取 token
@@ -244,9 +244,16 @@ export class XClient {
             throw new Error('缺少必要的环境变量: xClientId, xClientSecret');
         }
 
+        // 检查 refreshToken 是否存在
+        if (!refreshToken) {
+            console.log('未提供 refresh token, 请先完成授权');
+            return false;
+        }
+
         // 2. 创建实例
         const instance = new XClient();
-        instance.proxy = new SocksProxyAgent(proxy);
+        // 检查 proxy 是否已经是 SocksProxyAgent 实例
+        instance.proxy = proxy instanceof SocksProxyAgent ? proxy : new SocksProxyAgent(proxy);
 
         try {
             // 3. 初始化 X API 客户端
@@ -277,7 +284,7 @@ export class XClient {
             return instance;
         } catch (error) {
             console.error('初始化X客户端失败:', error);
-            throw error;
+            return false;
         }
     }
 
@@ -288,11 +295,11 @@ export class XClient {
     async getCurrentUserProfile(){
         try {
             const user = await this.client.v2.me();
-            // console.log('用户信息:', user);
-            const { id: userId, userName } = user.data;
+            const { id: userId, username: userName } = user.data;
             return { userId, userName };
         } catch (error) {
-            console.log('获取用户信息失败:', error);    
+            console.error('获取用户信息失败:', error);
+            throw error;  // 抛出错误以便上层捕获    
         }
     }
 
@@ -323,8 +330,10 @@ export class XClient {
             const { userId: targetUserId } = await this.findUserByUsername(username);
             await this.client.v2.follow(userId, targetUserId);
             console.log('关注成功');
+            return true;
         } catch (error) {
             console.log('关注失败:', error);
+            return false;
         }
     }
 
@@ -335,10 +344,13 @@ export class XClient {
      */
     async tweet(text) {
         try {
-            await this.client.v2.tweet(text);
+            const { data: createdTweet } = await this.client.v2.tweet(text);
+            const { id: tweetId } = createdTweet;
             console.log('发送推文成功');
-        } catch (error) {
+            return tweetId;
+        } catch (error) {   
             console.log('发送推文失败:', error);
+            return false;
         }
     }
 
