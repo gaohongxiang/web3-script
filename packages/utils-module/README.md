@@ -78,29 +78,39 @@ myFormatData(1, [2, 4], 6) // 1 2 3 4 6
 
 ## 过谷歌验证码 `captcha.js`
 
-目前使用了两个服务商
+目前使用了三个服务商
 - yescaptcha：https://yescaptcha.com
 - nocaptcha：https://www.nocaptcha.io
+- capSolver：https://www.capsolver.com
 
 ```js
-import { yesCaptchaClient, noCaptchaClient } from './captcha.js';
+import { captchaManager } from './captcha.js';
 
-// 参数：网站URL, 网站key, 验证码类型等，详细参数查看代码
-await yesCaptchaClient.verifyWebsite({
-  captchaType: 'recaptchaV2', // recaptchaV2|recaptchaV3|hcaptcha等
-  taskVariant: 'standard',    // standard|advanced|k1|m1|m1s7|m1s9等
+await captchaManager.verifyWebsite({
+  captchaService: 'yesCaptcha', // captcha服务商，yesCaptcha|noCatpcha|capsolver等
+  captchaType: 'recaptchaV2',   // 任务类型，recaptchaV2|recaptchaV3|hcaptcha等
+  taskVariant: 'standard',      // 类型变体，standard|advanced|k1|m1|m1s7|m1s9等
   websiteURL: '',
   websiteKey: ''
   });
 
-await noCaptchaClient.verifyWebsite({
-  captchaType: 'recaptcha', // recaptcha|hcaptcha等
-  taskVariant: 'universal', // universal等
+await captchaManager.verifyWebsite({
+  captchaService: 'noCaptcha', // captcha服务商，yesCaptcha|noCatpcha|capsolver等
+  captchaType: 'recaptcha',     // 任务类型，recaptcha|hcaptcha等
+  taskVariant: 'universal',     // 类型变体，universal等
   sitekey: '',
   referer: '',
   title: '',
   size: 'normal'
 });
+
+await captchaManager.verifyWebsite({
+  captchaService: 'capSolver', // captcha服务商，yesCaptcha|noCatpcha|capsolver等
+  captchaType: 'geeTestV4',   // 任务类型，recaptchaV2|recaptchaV3|hcaptcha|geeTestV3|geeTestV4等
+  taskVariant: 'standard',      // 类型变体，standard|advanced|k1|m1|m1s7|m1s9等
+  websiteURL: '',
+  captchaId: ''
+  });
 ```
 
 如何获取captcha类型以及需要的各个参数请查看文档
