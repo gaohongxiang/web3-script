@@ -36,8 +36,7 @@ await chromeAutomation.createChromeProfile();
 import { ChromeBrowserUtil } from './chromeBrowser.js';
 
 // 参数：实例编号
-const chrome = new ChromeBrowserUtil(1);          
-await chrome.start();
+const chrome = new ChromeBrowserUtil.create({ chromeNumber : 1 });          
 ```
 
 #### chrome应用图标
@@ -87,8 +86,7 @@ await chromeAutomation.replaceAvatar();
 import { ChromeBrowserUtil } from './chromeBrowser.js';
 
 // 参数：实例编号
-const chrome = new ChromeBrowserUtil(1);
-await chrome.start();
+const chrome = new ChromeBrowserUtil.create({ chromeNumber : 1 });
 // 安装okx插件
 await chrome.installExtension('https://chromewebstore.google.com/detail/%E6%AC%A7%E6%98%93-web3-%E9%92%B1%E5%8C%85/mcohilncbfahbmgdjkbpemcciiolgcge');
 ```
@@ -101,10 +99,9 @@ mac版chrome手动关闭浏览器无法完全退出，比较麻烦。退出有3�
 - 参考：如何停止谷歌Chrome在后台运行：https://www.chrome64.com/skill/729.html
 
 ```js
-import { ChromeBrowserUtil } from './chromeBrowser.js';
+import { shutdownChrome } from './chromeBrowser.js';
 
-const chrome = new ChromeBrowserUtil(1);
-await chrome.shutdownChrome();
+shutdownChrome(1);
 ```
 
 ### 指纹隔离
@@ -156,6 +153,11 @@ chmod +x packages/rpa-module/chrome/chromeBrowser/proxyManger.js
 proxy-manager start 1,10 # 开启10个代理服务
 proxy-manager start 1 2 3,5 # 开启5个代理服务，1、2、3、4、5
 ``` 
+
+启动信息
+```
+[2025-03-07_20:15:12] 代理服务器启动 [Chrome 1] [端口 20001] [ip xx.xx.xx.xx]
+```
 
 #### 停止代理服务
 

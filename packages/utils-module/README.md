@@ -154,6 +154,54 @@ import { check } from './check.js';
 await check({winFilePath, ourCsvPath, columnName});
 ```
 
+## 重试机制 `retry.js`
+
+通用的异步操作重试机制,支持指数退避延迟和自定义重试次数。
+
+```js
+import { withRetry } from './retry.js';
+
+const result = await withRetry(
+  async () => {
+    // 异步操作
+    // 处理业务错误，抛出异常会触发重试。
+    throw new Error('业务错误信息');
+    
+    // 成功则返回数据，返回给withRetry函数
+    return data;
+  },
+  {
+    maxRetries: 5,    // 最大重试次数,默认3次
+    delay: 2000,      // 重试延迟(ms),默认1000ms
+    taskName: '连接浏览器', // 任务名称,用于日志
+    logContext: {     // 日志上下文信息
+      // 根据自己的业务需求写
+      number: 1,
+      address: '0x...'
+    }
+  }
+);
+// 处理返回值
+return result;
+
+// 写法2
+return withRetry(
+  // 内容如上
+);
+
+// 日志输出示例:
+
+// 网络错误
+// 连接浏览器失败 [number 1] [address 0x...] [重试 准备第n次重试] [原因 连接被拒绝，目标服务未启动或端口未开启]
+// 连接浏览器失败 [number 1] [address 0x...] [重试 准备第n次重试] [原因 连接超时]
+
+// 业务错误
+// 连接浏览器失败 [number 1] [address 0x...] [重试 准备第n次重试] [原因 业务错误信息]
+
+// 达到最大失败次数
+// 连接浏览器失败 [number 1] [address 0x...] [达到最大重试次数 n] [原因 ...]
+```
+
 ## 工具库函数示例
 
 只列出部分函数，完整函数请看`utils.js`文件
