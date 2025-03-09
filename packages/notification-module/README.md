@@ -151,25 +151,74 @@ notificationManager.configure({
 
 ### 上下文管理
 
-上下文用于为消息添加额外的标识信息：
+上下文用于为消息添加额外的标识信息，支持三种级别的上下文：
 
+1. 全局上下文（通过setGlobalContext设置）
 ```javascript
-// 1. 临时上下文（仅对当前消息有效）
-notificationManager
-  .withContext({ module: 'proxy', id: 1 })
-  .info('服务启动');
+// 设置全局上下文，适用于整个应用生命周期
+notificationManager.setGlobalContext({
+  module: 'proxy',
+  version: '1.0'
+});
+```
 
-// 2. 持久化上下文（对后续所有消息有效）
+2. 持久上下文（通过withContext设置）
+```javascript
+// 设置持久上下文
 notificationManager.withContext({ module: 'proxy' });
-notificationManager.info('开始初始化');
-notificationManager.success('初始化完成');
-notificationManager.clearContext();  // 清除上下文
 
-// 3. 合并多个上下文
+// 后续所有消息都会带上这个上下文，直到被清除
+notificationManager.info('开始初始化');  // [module proxy] 开始初始化
+notificationManager.success('初始化完成');  // [module proxy] 初始化完成
+
+// 需要手动清除持久上下文
+notificationManager.clearContext();
+```
+
+3. 临时上下文（仅对当前消息有效）
+```javascript
+// 方式1：链式调用
 notificationManager
-  .withContext({ module: 'proxy' })
   .withContext({ id: 1 })
-  .info('服务启动');  // [module proxy] [id 1] 服务启动
+  .info('服务启动');  // 消息发送后自动清除上下文
+
+// 方式2：消息对象中指定
+notificationManager.info({
+  message: '服务启动',
+  context: { id: 1 }
+});
+
+// 两种方式效果完全相同，都是一次性的
+```
+
+上下文优先级：临时上下文 > 持久上下文 > 全局上下文
+
+示例：
+```javascript
+// 1. 设置全局上下文
+notificationManager.setGlobalContext({
+  module: 'proxy',
+  env: 'prod'
+});
+
+// 2. 设置持久上下文
+notificationManager.withContext({ status: 'running' });
+
+// 3. 使用临时上下文（会覆盖同名的持久上下文和全局上下文）
+notificationManager.info({
+  message: '配置更新',
+  context: {
+    env: 'test',    // 覆盖全局上下文中的 env
+    status: 'idle'  // 覆盖持久上下文中的 status
+  }
+});
+// 输出: 配置更新 [module proxy] [env test] [status idle]
+
+// 持久上下文仍然存在
+notificationManager.info('继续检查');  // [module proxy] [env prod] [status running]
+
+// 清除持久上下文
+notificationManager.clearContext();
 ```
 
 ### 日志文件
