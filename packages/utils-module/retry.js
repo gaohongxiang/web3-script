@@ -128,29 +128,29 @@ function getNetworkErrorMessage(error) {
  * @param {Object} [options] - 重试选项
  * @param {number} [options.maxRetries=3] - 最大重试次数
  * @param {number} [options.delay=1000] - 重试延迟(ms)
- * @param {string} [options.taskName='未命名任务'] - 任务名称，用于日志
- * @param {Object} [options.logContext={}] - 日志上下文信息
+ * @param {string} [options.message='未命名任务'] - 任务消息
+ * @param {Object} [options.context={}] - 上下文信息
  * @returns {Promise<*>} 任务结果
  * 
  * @example
  * // fetch 用法
  * await withRetry(
  *   () => fetch('http://example.com'),
- *   { taskName: '请求示例' }
+ *   { message: '请求示例' }
  * );
  * 
  * // axios 用法
  * await withRetry(
  *   () => axios.get('http://example.com'),
- *   { taskName: '请求示例' }
+ *   { message: '请求示例' }
  * );
  */
 export async function withRetry(task, options = {}) {
     const {
         maxRetries = 3,
         delay = 1000,
-        taskName = '未命名任务',
-        logContext = {}
+        message = '未命名任务',
+        context = {}
     } = options;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -174,9 +174,9 @@ export async function withRetry(task, options = {}) {
             // 最后一次重试失败，记录错误并抛出
             if (attempt === maxRetries) {
                 notificationManager.error({
-                    "message": `${taskName}失败`,
+                    "message": `${message}失败`,
                     "context": {
-                        ...logContext,
+                        ...context,
                         "达到最大重试次数": maxRetries,
                         "原因": errorMessage
                     }
@@ -186,9 +186,9 @@ export async function withRetry(task, options = {}) {
 
             // 记录警告并准备重试
             notificationManager.warning({
-                "message": `${taskName}失败`,
+                "message": `${message}失败`,
                 "context": {
-                    ...logContext,
+                    ...context,
                     "重试":`准备第${attempt + 1}次重试`,
                     "原因": errorMessage
                 }
