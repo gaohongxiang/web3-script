@@ -28,8 +28,8 @@ export class ChromeBrowserUtil {
     this.context = null;
     this.page = null;
 
-    // 添加默认日志上下文
-    this.logContext = { "Chrome": this.chromeNumber };
+    // 设置全局上下文
+    notificationManager.setGlobalContext({ "Chrome": this.chromeNumber });
   }
 
   /**
@@ -98,8 +98,7 @@ export class ChromeBrowserUtil {
         return true;
       },
       {
-        taskName: '浏览器连接',
-        logContext: this.logContext
+        message: '浏览器连接'
       }
     );
   }
@@ -170,9 +169,7 @@ export class ChromeBrowserUtil {
           return response;
         },
         {
-          taskName: '启动浏览器',
-          delay: 1000, // 增加重试间隔，给浏览器更多启动时间
-          logContext: this.logContext
+          message: '启动浏览器'
         }
       );
 
@@ -196,8 +193,7 @@ export class ChromeBrowserUtil {
       return fingerprint;
     } catch {
       notificationManager.warning({
-        "message": "指纹文件不存在",
-        "context": this.logContext
+        "message": "指纹文件不存在"
       });
       return;
     }
@@ -221,8 +217,8 @@ export class ChromeBrowserUtil {
           return pages;
         },
         {
-          taskName: '检查浏览器状态',
-          logContext: { ...this.logContext, PID: pid }
+          message: '检查浏览器状态',
+          context: { "PID": pid }
         }
       );
 
@@ -276,7 +272,6 @@ export class ChromeBrowserUtil {
       notificationManager.warning({
         "message": "清理进程失败",
         "context": {
-          ...this.logContext,
           "PID": pid,
           "原因": error.message
         }
@@ -341,7 +336,6 @@ export class ChromeBrowserUtil {
       notificationManager.error({
         "message": "安装扩展失败",
         "context": {
-          "Chrome": this.chromeNumber,
           "原因": error.message
         }
       });
@@ -362,7 +356,6 @@ export function shutdownChrome(chromeNumber) {
     try {
       output = execSync(cmd, { encoding: 'utf8' });
     } catch {
-      // pgrep 没找到进程时会抛出错误，这是正常的
       notificationManager.error({
         "message": "进程关闭失败",
         "context": {
@@ -387,8 +380,8 @@ export function shutdownChrome(chromeNumber) {
     notificationManager.error({
       "message": "进程关闭失败",
       "context": {
-        "Chrome": chromeNumber,
-        "原因": error.message
+          "Chrome": chromeNumber,
+          "原因": error.message
       }
     });
     return false;

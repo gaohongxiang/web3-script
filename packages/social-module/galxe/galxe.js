@@ -7,6 +7,8 @@ import { deCryptText } from '../../crypt-module/crypt.js';
 import { captchaManager } from '../../utils-module/captcha.js';
 import { notificationManager } from '../../notification-module/notification.js';
 import { withRetry } from '../../utils-module/retry.js';
+import { maskValue } from '../../utils-module/utils.js';
+
 
 export class GalxeClient {
   constructor(number, enPrivateKey, proxy, fingerprint) {
@@ -28,6 +30,12 @@ export class GalxeClient {
     const privateKey = await deCryptText(enPrivateKey);
     instance.wallet = new ethers.Wallet(privateKey, provider);
     instance.address = instance.wallet.address;
+
+    // 3. 设置全局上下文
+    notificationManager.setGlobalContext({
+      "账号": instance.number,
+      "地址": maskValue({ value: instance.address })
+    });
 
     return instance;
   }
@@ -97,22 +105,10 @@ export class GalxeClient {
     method = 'post',
     data,
     headers,
-    taskName = '未命名任务',
+    message = '未命名任务',
     context = {}
   }) {
     const requestHeaders = headers || await this.getMainHeaders();
-    
-    // 基础上下文信息，所有请求都会包含
-    const baseContext = {
-      "账号": this.number,
-      "地址": this.address
-    };
-    
-    // 合并用户提供的上下文和基础上下文，用户提供的上下文可以覆盖基础上下文
-    const logContext = {
-      ...baseContext,
-      ...context
-    };
     
     return withRetry(
       async () => {
@@ -134,8 +130,8 @@ export class GalxeClient {
       {
         maxRetries: 3,
         delay: 2000,
-        taskName,
-        logContext
+        message,
+        context // 直接传递额外的上下文
       }
     );
   }
@@ -184,7 +180,7 @@ export class GalxeClient {
       const result = await this.executeRequest({
         data: requestData,
         headers: await this.getMainHeaders(true), // 传入true表示是登录请求
-        taskName: 'Galxe登录'
+        message: 'Galxe登录'
       });
       
       if (result?.data?.signin) {
@@ -256,7 +252,7 @@ export class GalxeClient {
 
       const result = await this.executeRequest({
         data: requestData,
-        taskName: 'Galxe注册',
+        message: 'Galxe注册',
         context: { "用户名": username }
       });
 
@@ -298,7 +294,7 @@ export class GalxeClient {
 
       const result = await this.executeRequest({
         data: requestData,
-        taskName: '检查地址注册状态'
+        message: '检查地址注册状态'
       });
 
       const isRegistered = result?.data?.galxeIdExist;
@@ -343,7 +339,7 @@ export class GalxeClient {
 
       const result = await this.executeRequest({
         data: requestData,
-        taskName: '检查用户名',
+        message: '检查用户名',
         context: { "用户名": username }
       });
       
@@ -384,7 +380,7 @@ export class GalxeClient {
           },
           query
         },
-        taskName: '检查Galxe账户信息'
+        message: '检查Galxe账户信息'
       });
 
       const addressInfo = result?.data?.addressInfo;
@@ -438,7 +434,7 @@ export class GalxeClient {
 
       const result = await this.executeRequest({
         data: requestData,
-        taskName: '检查Twitter账号',
+        message: '检查Twitter账号',
         context: {
           "推特": userName
         }
@@ -508,7 +504,7 @@ export class GalxeClient {
 
       const result = await this.executeRequest({
         data: requestData,
-        taskName: '验证Twitter账号',
+        message: '验证Twitter账号',
         context: {
           "推特": userName
         }
@@ -663,7 +659,7 @@ export class GalxeClient {
 
       const result = await this.executeRequest({
         data: requestData,
-        taskName: '准备Galxe任务',
+        message: '准备Galxe任务',
         context: {
           "任务ID": credId,
           "活动ID": campaignId
@@ -822,7 +818,7 @@ export class GalxeClient {
           variables,
           query
         },
-        taskName: '确认Galxe任务',
+        message: '确认Galxe任务',
         context: {
           "任务ID": credId,
           "推特任务": isXTask

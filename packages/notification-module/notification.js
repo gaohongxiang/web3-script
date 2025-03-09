@@ -51,6 +51,9 @@ class NotificationManager {
 
     this.formatters = new Map();
 
+    // 全局上下文，直接使用一个对象
+    this.globalContext = {};
+    
     // 当前上下文
     this.currentContext = {};
   }
@@ -156,6 +159,15 @@ class NotificationManager {
   }
 
   /**
+   * 设置全局上下文
+   * @param {Object} context - 全局上下文对象
+   */
+  setGlobalContext(context) {
+    this.globalContext = context;
+    return this;
+  }
+
+  /**
    * 设置消息上下文
    * @param {Object} context - 上下文对象
    * @returns {NotificationManager} - 返回this以支持链式调用
@@ -184,6 +196,7 @@ class NotificationManager {
     }
 
     const contextStr = Object.entries(context)
+      .filter(([_, value]) => value !== undefined && value !== null) // 过滤掉undefined和null值
       .map(([key, value]) => `[${key} ${value}]`)
       .join(' ');
 
@@ -221,8 +234,12 @@ class NotificationManager {
       message = messageOrOptions || '';  // 允许直接传入空值
     }
 
-    // 合并上下文
-    const fullContext = { ...this.currentContext, ...context };
+    // 合并全局上下文和消息上下文
+    const fullContext = {
+      ...this.globalContext,  // 全局上下文
+      ...this.currentContext, // 当前上下文
+      ...context             // 消息特定的上下文
+    };
     
     // 调试日志
     // console.log('Debug - 合并后的上下文:', fullContext);
