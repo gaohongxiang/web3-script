@@ -1,4 +1,7 @@
 import 'dotenv/config';
+import axios from 'axios';
+import { withRetry } from './retry.js';
+import { notificationManager } from '../notification-module/notification.js';
 
 /**
  * YesCaptcha验证码服务客户端
@@ -170,153 +173,124 @@ class YesCaptchaClient {
 
   /**
    * 创建验证码任务
-   * @param {Object} options - 任务选项
-   * @param {string} [options.captchaType='recaptchaV2'] - 验证码类型，默认为recaptchaV2
-   * @param {string} [options.taskVariant] - 任务变体类型
-   * @returns {Promise<string>} 任务ID
    */
-  async createTask(options) {
-    const { captchaType = 'recaptchaV2', taskVariant, ...params } = options;
-
-    // 获取对应的策略
+  async createTask({ captchaType = 'recaptchaV2', taskVariant, ...params }) {
     const strategy = this.captchaStrategies[captchaType];
-    if (!strategy) {
-      throw new Error(`不支持的验证码类型: ${captchaType}`);
-    }
+    if (!strategy) return { error: `不支持的验证码类型 ${captchaType}` };
 
-    // 确定任务变体
-    let variant;
-    if (taskVariant && strategy.taskTypes[taskVariant]) {
-      variant = strategy.taskTypes[taskVariant];
-    } else if (strategy.defaultTaskType && strategy.taskTypes[strategy.defaultTaskType]) {
-      variant = strategy.taskTypes[strategy.defaultTaskType];
-    } else {
-      // 如果没有指定默认类型，使用第一个可用的类型
-      const firstType = Object.keys(strategy.taskTypes)[0];
-      variant = strategy.taskTypes[firstType];
-    }
+    const variant = strategy.taskTypes[taskVariant] ||
+      strategy.taskTypes[strategy.defaultTaskType] ||
+      strategy.taskTypes[Object.keys(strategy.taskTypes)[0]];
+    if (!variant) return { error: `不支持的任务变体 ${taskVariant}` };
 
-    if (!variant) {
-      throw new Error(`验证码类型 ${captchaType} 不支持任务变体 ${taskVariant}`);
-    }
-
-    // 准备任务数据
     const taskParams = variant.prepareTask(params);
-
-    // 添加任务类型
     const taskData = {
       ...taskParams,
       type: variant.type
     };
 
-    const data = {
-      clientKey: this.clientKey,
-      task: taskData
-    };
+    return withRetry(
+      async () => {
+        const result = await axios.post(`${this.baseUrl}/createTask`, {
+          clientKey: this.clientKey,
+          task: taskData
+        });
 
-    try {
-      const response = await fetch(`${this.baseUrl}/createTask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+        // 处理业务层面的错误
+        if (result.data.errorId > 0) {
+          throw new Error(result.data.errorDescription || '未知错误');
+        }
 
-      const result = await response.json();
+        if (!result.data.taskId) {
+          throw new Error('服务器返回的taskId为空');
+        }
 
-      if (result.errorId > 0) {
-        throw new Error(`创建任务失败: ${result.errorDescription || '未知错误'}`);
+        return result.data.taskId;
+      },
+      {
+        taskName: '创建验证任务',
+        logContext: {
+          "服务商": "YesCaptcha",
+          "任务类型": captchaType,
+          "任务变体": taskVariant || strategy.defaultTaskType
+        }
       }
-
-      // console.log(`${captchaType}${taskVariant ? ` (${taskVariant})` : ''} 任务创建成功:`, result.taskId);
-      return result.taskId;
-    } catch (error) {
-      console.error(`创建 ${captchaType} 任务失败:`, error);
-      throw error;
-    }
+    );
   }
 
   /**
    * 获取任务结果
-   * @param {string} taskId - 任务ID
-   * @param {string} captchaType - 验证码类型
-   * @param {number} [maxAttempts=40] - 最大尝试次数
-   * @param {number} [interval=3000] - 轮询间隔(毫秒)
-   * @returns {Promise<string>} 验证码结果
    */
-  async getTaskResult(taskId, captchaType, maxAttempts = 40, interval = 3000) {
-    // console.log(`正在识别 ${captchaType}...`);
-
-    // 获取对应的策略
-    const strategy = this.captchaStrategies[captchaType];
-    if (!strategy) {
-      throw new Error(`不支持的验证码类型: ${captchaType}`);
+  async getTaskResult(taskId, captchaType) {
+    if (!taskId) {
+      notificationManager.error({
+        "message": '获取结果失败',
+        "context": {
+          "服务商": "YesCaptcha",
+          "原因": "taskId不能为空"
+        }
+      });
+      return false;
     }
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const response = await fetch(`${this.baseUrl}/getTaskResult`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientKey: this.clientKey,
-            taskId
-          })
+    const strategy = this.captchaStrategies[captchaType];
+
+    return withRetry(
+      async () => {
+        const result = await axios.post(`${this.baseUrl}/getTaskResult`, {
+          clientKey: this.clientKey,
+          taskId
         });
 
-        const result = await response.json();
-
-        if (result.errorId > 0) {
-          throw new Error(`获取结果失败: ${result.errorDescription || '未知错误'}`);
+        if (result.data.errorId > 0) {
+          throw new Error(result.data.errorDescription || '未知错误');
         }
 
-        if (result.status === 'ready') {
-          // 使用策略提取结果
-          const captchaResponse = strategy.extractResult(result);
-          if (captchaResponse) {
-            // console.log(`${captchaType} 识别成功 (尝试 ${attempt}/${maxAttempts})`);
-            return captchaResponse;
+        // 如果任务还在处理中，则等待3秒后重试
+        if (result.data.status === 'processing') {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          throw new Error('验证码处理超时');
+        }
+
+        if (result.data.status === 'ready') {
+          const solution = strategy.extractResult(result.data);
+          if (!solution) {
+            throw new Error('无法从结果中提取验证码');
           }
+          return solution;
         }
-
-        // console.log(`等待 ${captchaType} 结果... (${attempt}/${maxAttempts})`);
-      } catch (error) {
-        console.error(`获取 ${captchaType} 结果失败 (尝试 ${attempt}/${maxAttempts}):`, error);
+      },
+      {
+        taskName: '验证网站验证码',
+        logContext: {
+          "服务商": "YesCaptcha",
+        }
       }
-
-      if (attempt < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, interval));
-      }
-    }
-
-    throw new Error(`${captchaType} 识别超时`);
+    );
   }
 
   /**
    * 验证网站验证码
-   * @param {Object} options - 验证选项
-   * @param {string} [options.captchaType='recaptchaV2'] - 验证码类型，默认为recaptchaV2
-   * @param {string} [options.taskVariant] - 任务变体类型
-   * @returns {Promise<string>} 验证码结果
    */
-  async verifyWebsite(options) {
-    const { captchaType = 'recaptchaV2', taskVariant, maxAttempts, interval, ...params } = options;
-
+  async verifyWebsite({ captchaType = 'recaptchaV2', taskVariant, ...params }) {
     try {
-      console.log(`[YesCaptcha] 开始${captchaType}验证${taskVariant ? ` (${taskVariant})` : ''}...`);
+      const taskId = await this.createTask({ captchaType, taskVariant, ...params });
 
-      const taskId = await this.createTask({
-        captchaType,
-        taskVariant,
-        ...params
-      });
-
-      const result = await this.getTaskResult(taskId, captchaType, maxAttempts, interval);
-      console.log(`[YesCaptcha] ${captchaType}验证完成${taskVariant ? ` (${taskVariant})` : ''}`);
+      const result = await this.getTaskResult(taskId, captchaType);
+      if (!result) return false;
 
       return result;
     } catch (error) {
-      console.error(`[YesCaptcha] ${captchaType}验证失败:`, error);
-      throw error;
+      notificationManager.error({
+        "message": '验证网站验证码',
+        "context": {
+          "服务商": "YesCaptcha",
+          "任务类型": captchaType,
+          "任务变体": taskVariant,
+          "原因": error.message
+        }
+      });
+      return false;
     }
   }
 }
@@ -405,70 +379,69 @@ class NoCaptchaClient {
 
   /**
    * 验证网站验证码
-   * @param {Object} options - 验证选项
-   * @param {string} [options.captchaType='recaptcha'] - 验证码类型，默认为recaptcha
-   * @param {string} [options.taskVariant] - 任务变体类型
-   * @returns {Promise<string>} 验证码结果
    */
-  async verifyWebsite(options) {
-    const { captchaType = 'recaptcha', taskVariant, ...params } = options;
-
+  async verifyWebsite({ captchaType = 'recaptcha', taskVariant, ...params }) {
     try {
-      console.log(`[NoCaptcha] 开始${captchaType}验证${taskVariant ? ` (${taskVariant})` : ''}...`);
-
       // 获取对应的策略
       const strategy = this.captchaStrategies[captchaType];
-      if (!strategy) {
-        throw new Error(`不支持的验证码类型: ${captchaType}`);
-      }
+      if (!strategy) return { error: `不支持的验证码类型 ${captchaType}` };
 
-      // 确定任务变体
-      let variant;
-      if (taskVariant && strategy.taskTypes[taskVariant]) {
-        variant = strategy.taskTypes[taskVariant];
-      } else if (strategy.defaultTaskType && strategy.taskTypes[strategy.defaultTaskType]) {
-        variant = strategy.taskTypes[strategy.defaultTaskType];
-      } else {
-        // 如果没有指定默认类型，使用第一个可用的类型
-        const firstType = Object.keys(strategy.taskTypes)[0];
-        variant = strategy.taskTypes[firstType];
-      }
+      const variant = strategy.taskTypes[taskVariant] ||
+        strategy.taskTypes[strategy.defaultTaskType] ||
+        strategy.taskTypes[Object.keys(strategy.taskTypes)[0]];
+      if (!variant) return { error: `不支持的任务变体 ${taskVariant}` };
 
-      if (!variant) {
-        throw new Error(`验证码类型 ${captchaType} 不支持任务变体 ${taskVariant}`);
-      }
+      // 从任务变体中获取API端点
+      const apiEndpoint = variant.apiEndpoint;
+      if (!apiEndpoint) return { error: `未定义API端点` };
 
       // 准备任务数据
       const taskData = variant.prepareTask(params);
 
-      // 从任务变体中获取API端点
-      const apiEndpoint = variant.apiEndpoint;
-      if (!apiEndpoint) {
-        throw new Error(`验证码类型 ${captchaType} 的任务变体 ${taskVariant || strategy.defaultTaskType} 未定义API端点`);
-      }
+      return withRetry(
+        async () => {
+          const result = await axios.post(`${this.baseUrl}${apiEndpoint}`, {
+            userToken: this.userToken,
+            data: taskData
+          });
 
-      const response = await fetch(`${this.baseUrl}${apiEndpoint}`, {
-        method: 'POST',
-        headers: {
-          'User-Token': this.userToken,
-          'Content-Type': 'application/json'
+          if (result.data.errorId > 0) {
+            throw new Error(result.data.errorDescription || '未知错误');
+          }
+
+          if (result.data.status === 0) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            throw new Error('验证码处理超时');
+          }
+
+          if (result.data.status === 1) {
+            const solution = strategy.extractResult(result.data);
+            if (!solution) {
+              throw new Error('无法从结果中提取验证码');
+            }
+            return solution;
+          }
         },
-        body: JSON.stringify(taskData)
-      });
-
-      const result = await response.json();
-
-      if (result.status !== 1) {
-        throw new Error(`验证失败: ${result.msg || '未知错误'}`);
-      }
-
-      console.log(`[NoCaptcha] ${captchaType}验证完成${taskVariant ? ` (${taskVariant})` : ''}`);
-
-      // 提取结果
-      return strategy.extractResult(result);
+        {
+          taskName: '验证网站验证码',
+          logContext: {
+            "服务商": "NoCaptcha",
+            "任务类型": captchaType,
+            "任务变体": taskVariant
+          }
+        }
+      );
     } catch (error) {
-      console.error(`[NoCaptcha] ${captchaType}验证失败:`, error);
-      throw error;
+      notificationManager.error({
+        "message": '验证网站验证码',
+        "context": {
+          "服务商": "NoCaptcha",
+          "任务类型": captchaType,
+          "任务变体": taskVariant,
+          "原因": error.message
+        }
+      });
+      return false;
     }
   }
 }
@@ -521,7 +494,7 @@ class CapSolverClient {
       },
 
       // Cloudflare Turnstile 策略
-      cloudflare: {
+      CloudflareTurnstile: {
         defaultTaskType: 'standard',
         taskTypes: {
           standard: {
@@ -572,12 +545,12 @@ class CapSolverClient {
           }
         },
         extractResult: (result) => ({
-          captcha_id: result.solution?.captcha_id,
-          captcha_output: result.solution?.captcha_output,
-          gen_time: result.solution?.gen_time,
-          lot_number: result.solution?.lot_number,
-          pass_token: result.solution?.pass_token,
-          risk_type: result.solution?.risk_type
+          captchaId: result.solution?.captcha_id,
+          captchaOutput: result.solution?.captcha_output,
+          genTime: result.solution?.gen_time,
+          lotNumber: result.solution?.lot_number,
+          passToken: result.solution?.pass_token,
+          riskType: result.solution?.risk_type
         })
       },
     };
@@ -586,25 +559,18 @@ class CapSolverClient {
   /**
    * 创建验证码任务
    */
-  async createTask(options) {
-    const { captchaType = 'recaptchaV2', taskVariant, ...params } = options;
+  async createTask({ captchaType = 'recaptchaV2', taskVariant, ...params }) {
 
     const strategy = this.captchaStrategies[captchaType];
-    if (!strategy) {
-      throw new Error(`不支持的验证码类型: ${captchaType}`);
-    }
+    if (!strategy) return { error: `不支持的验证码类型 ${captchaType}` };
 
     // 确定任务变体
-    let variant = strategy.taskTypes[taskVariant] ||
+    const variant = strategy.taskTypes[taskVariant] ||
       strategy.taskTypes[strategy.defaultTaskType] ||
       strategy.taskTypes[Object.keys(strategy.taskTypes)[0]];
-    
-      // console.log('variant', variant)
+    if (!variant) return { error: `不支持的任务变体 ${taskVariant}` };
+    // console.log('variant', variant)
 
-    if (!variant) {
-      throw new Error(`验证码类型 ${captchaType} 不支持任务变体 ${taskVariant}`);
-    }
-   
     // 准备任务数据
     const taskParams = variant.prepareTask(params);
     // 添加任务类型
@@ -613,93 +579,109 @@ class CapSolverClient {
       type: variant.type
     };
 
-    // console.log('taskData', taskData)
-
-    try {
-      const response = await fetch(`${this.baseUrl}/createTask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    return withRetry(
+      async () => {
+        const result = await axios.post(`${this.baseUrl}/createTask`, {
           clientKey: this.clientKey,
           task: taskData
-        })
-      });
+        });
 
-      const result = await response.json();
+        // 处理业务层面的错误
+        if (result.data.errorId > 0) {
+          throw new Error(result.data.errorDescription || '未知错误');
+        }
 
-      if (!result.taskId) {
-        throw new Error(`创建任务失败: ${result.errorDescription || '未知错误'}`);
+        if (!result.data.taskId) {
+          throw new Error('服务器返回的taskId为空');
+        }
+
+        return result.data.taskId;
+      },
+      {
+        taskName: '创建验证任务',
+        logContext: {
+          "服务商": "CapSolver",
+          "任务类型": captchaType,
+          "任务变体": taskVariant || strategy.defaultTaskType
+        }
       }
-
-      return result.taskId;
-    } catch (error) {
-      console.error(`创建 ${captchaType} 任务失败:`, error);
-      throw error;
-    }
+    );
   }
 
   /**
    * 获取任务结果
    */
-  async getTaskResult(taskId, captchaType, maxAttempts = 40, interval = 3000) {
-    const strategy = this.captchaStrategies[captchaType];
-    if (!strategy) {
-      throw new Error(`不支持的验证码类型: ${captchaType}`);
+  async getTaskResult(taskId, captchaType) {
+    if (!taskId) {
+      notificationManager.error({
+        "message": '获取结果失败',
+        "context": {
+          "服务商": "CapSolver",
+          "原因": "taskId不能为空"
+        }
+      });
+      return false;
     }
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const response = await fetch(`${this.baseUrl}/getTaskResult`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientKey: this.clientKey,
-            taskId
-          })
+    const strategy = this.captchaStrategies[captchaType];
+
+    return withRetry(
+      async () => {
+        const result = await axios.post(`${this.baseUrl}/getTaskResult`, {
+          clientKey: this.clientKey,
+          taskId
         });
 
-        const result = await response.json();
+        if (result.data.errorId > 0) {
+          throw new Error(result.data.errorDescription || '未知错误');
+        }
 
-        if (result.status === 'ready') {
-          const solution = strategy.extractResult(result);
-          if (solution) {
-            return solution;
+        // 如果任务还在处理中，则等待3秒后重试
+        if (result.data.status === 'processing') {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          throw new Error('验证码处理超时');
+        }
+
+        if (result.data.status === 'ready') {
+          const solution = strategy.extractResult(result.data);
+          if (!solution) {
+            throw new Error('无法从结果中提取验证码');
           }
+          return solution;
         }
-
-        if (attempt < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, interval));
+      },
+      {
+        taskName: '验证网站验证码',
+        logContext: {
+          "服务商": "CapSolver",
         }
-      } catch (error) {
-        console.error(`获取 ${captchaType} 结果失败 (尝试 ${attempt}/${maxAttempts}):`, error);
       }
-    }
-
-    throw new Error(`${captchaType} 识别超时`);
+    );
   }
 
   /**
-   * 验证网站验证码
-   */
-  async verifyWebsite(options) {
-    const { captchaType = 'recaptchaV2', taskVariant, maxAttempts, interval, ...params } = options;
+  * 验证网站验证码
+  */
+  async verifyWebsite({ captchaType = 'recaptchaV2', taskVariant, ...params }) {
 
     try {
-      console.log(`[CapSolver] 开始${captchaType}验证${taskVariant ? ` (${taskVariant})` : ''}...`);
+      const taskId = await this.createTask({ captchaType, taskVariant, ...params });
 
-      const taskId = await this.createTask({
-        captchaType,
-        taskVariant,
-        ...params
-      });
-
-      const result = await this.getTaskResult(taskId, captchaType, maxAttempts, interval);
-      console.log(`[CapSolver] ${captchaType}验证完成${taskVariant ? ` (${taskVariant})` : ''}`);
+      const result = await this.getTaskResult(taskId, captchaType);
+      if (!result) return false;
 
       return result;
     } catch (error) {
-      console.error(`[CapSolver] ${captchaType}验证失败:`, error);
-      throw error;
+      notificationManager.error({
+        "message": '验证网站验证码',
+        "context": {
+          "服务商": "CapSolver",
+          "任务类型": captchaType,
+          "任务变体": taskVariant,
+          "原因": error.message
+        }
+      });
+      return false;
     }
   }
 }
@@ -714,45 +696,6 @@ class CaptchaManager {
       yesCaptcha: new YesCaptchaClient(),
       noCaptcha: new NoCaptchaClient(),
       capSolver: new CapSolverClient()
-    };
-
-    // 定义统一的结果格式转换器
-    this.resultFormatters = {
-      // reCAPTCHA V2 结果格式化
-      recaptchaV2: (result) => ({
-        token: result.gRecaptchaResponse || result // 兼容不同服务商返回格式
-      }),
-
-      // reCAPTCHA V3 结果格式化
-      recaptchaV3: (result) => ({
-        token: result.gRecaptchaResponse || result
-      }),
-
-      // hCaptcha 结果格式化
-      hcaptcha: (result) => ({
-        token: result.gRecaptchaResponse || result.generated_pass_UUID || result
-      }),
-
-      // Cloudflare Turnstile 结果格式化
-      CloudflareTurnstile: (result) => ({
-        token: result.token || result
-      }),
-
-      // GeeTest V3 结果格式化
-      geeTestV3: (result) => ({
-        challenge: result.challenge,
-        validate: result.validate
-      }),
-
-      // GeeTest V4 结果格式化
-      geeTestV4: (result) => ({
-        captchaId: result.captcha_id,
-        captchaOutput: result.captcha_output,
-        genTime: result.gen_time,
-        lotNumber: result.lot_number,
-        passToken: result.pass_token,
-        riskType: result.risk_type
-      })
     };
   }
 
@@ -784,44 +727,40 @@ class CaptchaManager {
 
     if (providers.length > 0) {
       providers.sort((a, b) => a.price - b.price);
-      console.log(`[CaptchaManager] ${captchaType}${taskVariant ? ` (${taskVariant})` : ''} 验证码价格排序:`);
+      notificationManager.info(`价格排序 [任务类型 ${captchaType}${taskVariant ? ` (${taskVariant})` : ''}]`);
       providers.forEach(({ provider, variant, price }, index) => {
-        console.log(`${index + 1}. ${provider} (${variant}): ¥${price.toFixed(4)}/次`);
+        notificationManager.info(`[排名 ${index + 1}] [服务商 ${provider}] [变体 ${variant}] [价格 ¥${price.toFixed(4)}/次]`);
       });
     }
   }
 
-  /**
-   * 格式化验证码结果
-   */
-  formatResult(captchaType, result) {
-    const formatter = this.resultFormatters[captchaType];
-    if (!formatter) {
-      throw new Error(`未知的验证码类型: ${captchaType}`);
-    }
-    return formatter(result);
-  }
-
-  async verifyWebsite(options) {
-    const { 
-      captchaService,
-      captchaType,
-      taskVariant,
-      ...params
-    } = options;
-
+  async verifyWebsite({ captchaService, captchaType, taskVariant, ...params }) {
     // 验证服务商
     if (!captchaService || !this.services[captchaService]) {
       const supportedServices = Object.keys(this.services).join(', ');
-      throw new Error(`无效的验证码服务商 "${captchaService}"，支持的服务商: ${supportedServices}`);
+      notificationManager.error({
+        "message": '验证失败',
+        "context": {
+          "服务商": captchaService,
+          "原因": `不支持的服务商，支持: ${supportedServices}`
+        }
+      });
+      return false;
     }
 
     const service = this.services[captchaService];
-    
+
     // 验证验证码类型
     if (!service.captchaStrategies[captchaType]) {
       const supportedTypes = Object.keys(service.captchaStrategies).join(', ');
-      throw new Error(`服务商 ${captchaService} 不支持验证码类型 "${captchaType}"，支持的类型: ${supportedTypes}`);
+      notificationManager.error({
+        "message": '验证失败',
+        "context": {
+          "服务商": captchaService,
+          "原因": `不支持的验证码类型 ${captchaType}，支持: ${supportedTypes}`
+        }
+      });
+      return false;
     }
 
     const strategy = service.captchaStrategies[captchaType];
@@ -829,30 +768,46 @@ class CaptchaManager {
     // 验证任务变体
     if (taskVariant && !strategy.taskTypes[taskVariant]) {
       const supportedVariants = Object.keys(strategy.taskTypes).join(', ');
-      throw new Error(`验证码类型 ${captchaType} 不支持任务变体 "${taskVariant}"，支持的变体: ${supportedVariants}`);
+      notificationManager.error({
+        "message": '验证失败',
+        "context": {
+          "服务商": captchaService,
+          "原因": `不支持的任务变体 ${taskVariant}，支持: ${supportedVariants}`
+        }
+      });
+      return false;
     }
-
-    // 显示价格排序作为参考
-    this.showPriceSorting(captchaType, taskVariant);
 
     // 使用指定的服务商
     const variant = strategy && (taskVariant ? strategy.taskTypes[taskVariant] : strategy.taskTypes[strategy.defaultTaskType]);
-    const price = variant ? `¥${variant.price.toFixed(4)}/次` : '未知价格';
-    console.log(`\n[CaptchaManager] 使用服务商 ${captchaService} 处理 ${captchaType} 验证码 (${price})`);
-    
-    try {
-      const result = await service.verifyWebsite({
-        captchaType,
-        taskVariant,
-        ...params
-      });
+    const price = variant ? variant.price : 0;
 
-      // 统一格式化结果
-      return this.formatResult(captchaType, result);
-    } catch (error) {
-      console.error(`[CaptchaManager] ${captchaService} 验证失败:`, error);
-      throw error;
-    }
+    // 显示价格排序
+    // this.showPriceSorting(captchaType, taskVariant);
+
+    // 开始验证
+    notificationManager.info({
+      "message": '开始验证网站验证码',
+      "context": {
+        "服务商": captchaService,
+        "任务类型": captchaType,
+        "任务变体": taskVariant,
+        "价格": `¥${price.toFixed(4)}/次`
+      }
+    });
+
+    const result = await service.verifyWebsite({ captchaType, taskVariant, ...params });
+    // console.log('验证码结果', result)
+    notificationManager.info({
+      "message": '网站验证码验证完成',
+      "context": {
+        "服务商": captchaService,
+        "任务类型": captchaType,
+        "任务变体": taskVariant,
+        // "结果": result
+      }
+    });
+    return result;
   }
 }
 

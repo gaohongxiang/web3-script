@@ -5,6 +5,8 @@ import { faker } from '@faker-js/faker';
 import { XClient } from '../x/x.js';
 import { deCryptText } from '../../crypt-module/crypt.js';
 import { captchaManager } from '../../utils-module/captcha.js';
+import { notificationManager } from '../../notification-module/notification.js';
+import { withRetry } from '../../utils-module/retry.js';
 
 export class GalxeClient {
   constructor(number, enPrivateKey, proxy, fingerprint) {
@@ -51,16 +53,16 @@ export class GalxeClient {
     return crypto.randomUUID();
   }
 
-  async getMainHeaders() {
-    // 如果token无效，则重新登录
-    if (!this.authToken) {
+  // 获取请求头
+  async getMainHeaders(isLogin = false) {
+    // 如果不是登录请求且token无效，则重新登录
+    if (!isLogin && !this.authToken) {
       await this.login();
     }
-    return {
+
+    const headers = {
       'accept': '*/*',
-      'authority': 'graphigo.prd.galaxy.eco',
       'accept-language': 'en-US,en;q=0.9',
-      'authorization': this.authToken,
       'content-type': 'application/json',
       'origin': 'https://app.galxe.com',
       'request-id': this.getRandomRequestId(),
@@ -70,82 +72,136 @@ export class GalxeClient {
       'sec-fetch-dest': 'empty',
       'sec-fetch-mode': 'cors',
       'sec-fetch-site': 'cross-site',
-      'user-agent': this.fingerprint.userAgent,
+      'user-agent': this.fingerprint.userAgent
+    };
+
+    // 登录请求需要platform字段
+    if (isLogin) {
+      headers['platform'] = 'web';
+    } else {
+      // 非登录请求需要authority和authorization字段
+      headers['authority'] = 'graphigo.prd.galaxy.eco';
+      headers['authorization'] = this.authToken;
     }
+
+    return headers;
+  }
+
+  /**
+   * 执行Galxe API请求
+   * @param {Object} options - 请求选项
+   * @returns {Promise<Object>} 响应数据
+   */
+  async executeRequest({ 
+    url = 'https://graphigo.prd.galaxy.eco/query',
+    method = 'post',
+    data,
+    headers,
+    taskName = '未命名任务',
+    context = {}
+  }) {
+    const requestHeaders = headers || await this.getMainHeaders();
+    
+    // 基础上下文信息，所有请求都会包含
+    const baseContext = {
+      "账号": this.number,
+      "地址": this.address
+    };
+    
+    // 合并用户提供的上下文和基础上下文，用户提供的上下文可以覆盖基础上下文
+    const logContext = {
+      ...baseContext,
+      ...context
+    };
+    
+    return withRetry(
+      async () => {
+        const response = await axios({
+          method,
+          url,
+          data,
+          headers: requestHeaders,
+          httpsAgent: this.proxy
+        });
+        
+        // 检查错误
+        if (response.data?.errors?.length > 0) {
+          throw new Error(response.data.errors[0].message);
+        }
+        
+        return response.data;
+      },
+      {
+        maxRetries: 3,
+        delay: 2000,
+        taskName,
+        logContext
+      }
+    );
   }
 
   async login() {
-    try {
-      console.log(`[${this.number}] | ${this.address} | Galxe开始登录`);
-      const { issuedAt, expirationTime } = this.getActivityTimeLogin();
-      const nonce = this.getRandomNonce();
+    notificationManager.info({
+      "message": "Galxe开始登录",
+      "config": { "logToConsole": false }
+    });
 
-      // 构造签名消息
-      const message = [
-        'app.galxe.com wants you to sign in with your Ethereum account:',
-        this.address,
-        '\nSign in with Ethereum to the app.\n',
-        'URI: https://app.galxe.com',
-        'Version: 1',
-        'Chain ID: 1',
-        `Nonce: ${nonce}`,
-        `Issued At: ${issuedAt}`,
-        `Expiration Time: ${expirationTime}`
-      ].join('\n');
+    const { issuedAt, expirationTime } = this.getActivityTimeLogin();
+    const nonce = this.getRandomNonce();
 
-      // 签名消息
-      const signature = await this.wallet.signMessage(message);
+    // 构造签名消息
+    const message = [
+      'app.galxe.com wants you to sign in with your Ethereum account:',
+      this.address,
+      '\nSign in with Ethereum to the app.\n',
+      'URI: https://app.galxe.com',
+      'Version: 1',
+      'Chain ID: 1',
+      `Nonce: ${nonce}`,
+      `Issued At: ${issuedAt}`,
+      `Expiration Time: ${expirationTime}`
+    ].join('\n');
 
-      // 构造请求头
-      const headers = {
-        'accept': '*/*',
-        'accept-language': 'en-US,en;q=0.9',
-        'content-type': 'application/json',
-        'origin': 'https://app.galxe.com',
-        'platform': 'web',
-        'request-id': this.getRandomRequestId(),
-        'sec-ch-ua': this.fingerprint.headers['sec-ch-ua'],
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': 'macOS',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'cross-site',
-        'user-agent': this.fingerprint.userAgent
-      };
+    // 签名消息
+    const signature = await this.wallet.signMessage(message);
 
-      // 构造请求数据
-      const requestData = {
-        operationName: 'SignIn',
-        variables: {
-          input: {
-            address: this.address,
-            message,
-            signature,
-            addressType: 'EVM',
-            publicKey: '1'
-          }
-        },
-        query: 'mutation SignIn($input: Auth) {\n  signin(input: $input)\n}'
-      };
-
-      // 发送请求
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        requestData,
-        {
-          headers,
-          httpsAgent: this.proxy
+    // 构造请求数据
+    const requestData = {
+      operationName: 'SignIn',
+      variables: {
+        input: {
+          address: this.address,
+          message,
+          signature,
+          addressType: 'EVM',
+          publicKey: '1'
         }
-      );
+      },
+      query: 'mutation SignIn($input: Auth) {\n  signin(input: $input)\n}'
+    };
 
-      if (response.status === 200 && response.data?.data?.signin) {
-        this.authToken = response.data.data.signin;
-        console.log(`[${this.number}] | ${this.address} | Galxe登录成功`);
-      } else {
-        console.warn(`[${this.number}] | ${this.address} | Galxe登录失败. 服务器响应:`, response.data);
+    try {
+      const result = await this.executeRequest({
+        data: requestData,
+        headers: await this.getMainHeaders(true), // 传入true表示是登录请求
+        taskName: 'Galxe登录'
+      });
+      
+      if (result?.data?.signin) {
+        this.authToken = result.data.signin;
+        notificationManager.success({
+          "message": "Galxe登录成功",
+          "config": { "logToConsole": false }
+        });
       }
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | Galxe登录错误:`, error);
+      notificationManager.error({
+        "message": "Galxe登录失败",
+        "context": {
+          "原因": error.message
+        }
+      });
+      throw error;
     }
   }
 
@@ -155,14 +211,21 @@ export class GalxeClient {
       // 检查地址是否已注册
       const { success, isRegistered } = await this.checkIfAddressRegistered();
       if (success && isRegistered) {
-        console.log(`[${this.number}] | ${this.address} | 地址已注册`);
+        notificationManager.info({
+          "message": "地址已注册"
+        });
         return;
       }
-      console.log(`[${this.number}] | ${this.address} | Galxe开始注册`);
+
+      notificationManager.info({
+        "message": "Galxe开始注册"
+      });
+
       // 生成并验证用户名
       let username = faker.internet.username();
       let attempts = 0;
       const retryTimes = 10;
+      
       while (attempts < retryTimes) {
         const usernameExists = await this.checkIfUsernameExist(username);
         if (!usernameExists) {
@@ -172,9 +235,12 @@ export class GalxeClient {
         attempts++;
 
         if (attempts === retryTimes) {
-          return { message: '无法找到可用的用户名' };
+          notificationManager.error({
+            "message": "无法找到可用的用户名"
+          });
+          return false;
         }
-      };
+      }
 
       const requestData = {
         operationName: 'CreateNewAccount',
@@ -188,30 +254,40 @@ export class GalxeClient {
         query: 'mutation CreateNewAccount($input: CreateNewAccount!) {\n  createNewAccount(input: $input)\n}\n',
       };
 
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        requestData,
-        {
-          headers: await this.getMainHeaders(),
-          httpsAgent: this.proxy
-        }
-      );
+      const result = await this.executeRequest({
+        data: requestData,
+        taskName: 'Galxe注册',
+        context: { "用户名": username }
+      });
 
-      if (response.status === 200 && response.data?.data?.createNewAccount) {
-        console.log(`[${this.number}] | ${this.address} | 注册成功`);
+      if (result?.data?.createNewAccount) {
+        notificationManager.success({
+          "message": "注册成功",
+          "context": {
+            "用户名": username
+          }
+        });
         return true;
-      } else {
-        console.warn(`[${this.number}] | ${this.address} | 注册失败. 服务器响应:`, response.data);
-        return false;
       }
+      
+      return false;
     } catch (error) {
-      console.error(`[${this.number}] | 注册错误:`, error);
+      notificationManager.error({
+        "message": "注册错误",
+        "context": {
+          "原因": error.message
+        }
+      });
+      throw error;
     }
   }
 
   async checkIfAddressRegistered() {
     try {
-      console.log(`[${this.number}] | ${this.address} | 检查地址是否已注册`);
+      notificationManager.info({
+        "message": "检查地址是否已注册"
+      });
+
       const requestData = {
         operationName: 'GalxeIDExist',
         variables: {
@@ -220,50 +296,33 @@ export class GalxeClient {
         query: 'query GalxeIDExist($schema: String!) {\n  galxeIdExist(schema: $schema)\n}'
       };
 
-      const headers = {
-        'accept': '*/*',
-        'authority': 'graphigo.prd.galaxy.eco',
-        'accept-language': 'en-US,en;q=0.9',
-        'content-type': 'application/json',
-        'origin': 'https://app.galxe.com',
-        'request-id': this.getRandomRequestId(),
-        'sec-ch-ua': this.fingerprint.headers['sec-ch-ua'],
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': 'macOS',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'cross-site',
-        'user-agent': this.fingerprint.userAgent
-      };
+      const result = await this.executeRequest({
+        data: requestData,
+        taskName: '检查地址注册状态'
+      });
 
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        requestData,
-        {
-          headers,
-          httpsAgent: this.proxy
-        }
-      );
-      // console.log('response', response.data)
-      if (response.status === 200) {
-        const isRegistered = response.data?.data?.galxeIdExist;
-        if (typeof isRegistered === 'boolean') {
-          console.log(`[${this.number}] | ${this.address} | 账户注册状态检查: ${isRegistered ? '已注册' : '未注册'}`);
-          return {
-            success: true,
-            isRegistered
-          };
-        }
+      const isRegistered = result?.data?.galxeIdExist;
+      if (typeof isRegistered === 'boolean') {
+        notificationManager.info({
+          "message": isRegistered ? "账户已注册" : "账户未注册"
+        });
+        return {
+          success: true,
+          isRegistered
+        };
       }
-
-      console.warn(`[${this.number}] | ${this.address} | 检查账户注册状态失败. 响应:`, response.data);
+      
       return {
         success: false,
         error: '无法获取注册状态'
       };
-
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | 检查账户注册状态出错:`, error.message);
+      notificationManager.error({
+        "message": "检查地址注册状态出错",
+        "context": {
+          "原因": error.message
+        }
+      });
       return {
         success: false,
         error: error.message
@@ -282,21 +341,16 @@ export class GalxeClient {
         query: 'query IsUsernameExisting($username: String!) {\n  usernameExist(username: $username)\n}\n',
       };
 
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        requestData,
-        {
-          headers: await this.getMainHeaders(),
-          httpsAgent: this.proxy
-        }
-      );
-      if (response.status === 200) {
-        return response.data?.data?.usernameExist ?? true;
-      } else {
-        return false;
-      }
+      const result = await this.executeRequest({
+        data: requestData,
+        taskName: '检查用户名',
+        context: { "用户名": username }
+      });
+      
+      return result?.data?.usernameExist ?? true;
     } catch (error) {
       console.error(`[${this.number}] | ${this.address} | 检查用户名出错:`, error);
+      return true; // 出错时默认用户名存在，以避免冲突
     }
   }
 
@@ -322,42 +376,32 @@ export class GalxeClient {
         }
       }`;
 
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        {
+      const result = await this.executeRequest({
+        data: {
           operationName: 'BasicUserInfo',
           variables: {
             address: this.address
           },
-          query: query
+          query
         },
-        {
-          headers: await this.getMainHeaders(),
-          httpsAgent: this.proxy
-        }
-      );
-      // console.log('response', response.data)
-      if (response.status === 200) {
-        const addressInfo = response.data?.data?.addressInfo;
-        // console.log('addressInfo', addressInfo)
-        if (!addressInfo) {
-          console.warn(`[${this.number}] | ${this.address} | 无法获取账户信息`);
-          return { success: false };
-        }
-        // 检查需要绑定的社交账号
-        return {
-          success: true,
-          userId: addressInfo.id || null,
-          needEmail: !addressInfo.hasEmail,
-          needTwitter: !addressInfo.hasTwitter,
-          needDiscord: !addressInfo.hasDiscord,
-          info: addressInfo // 返回完整信息以供使用
-        };
+        taskName: '检查Galxe账户信息'
+      });
+
+      const addressInfo = result?.data?.addressInfo;
+      if (!addressInfo) {
+        console.warn(`[${this.number}] | ${this.address} | 无法获取账户信息`);
+        return { success: false };
       }
-
-      console.warn(`[${this.number}] | ${this.address} | 获取账户信息失败. 响应:`, response.data);
-      return { success: false };
-
+      
+      // 检查需要绑定的社交账号
+      return {
+        success: true,
+        userId: addressInfo.id || null,
+        needEmail: !addressInfo.hasEmail,
+        needTwitter: !addressInfo.hasTwitter,
+        needDiscord: !addressInfo.hasDiscord,
+        info: addressInfo // 返回完整信息以供使用
+      };
     } catch (error) {
       console.error(`[${this.number}] | ${this.address} | 检查账户信息出错:`, error.message);
       return { success: false };
@@ -367,7 +411,13 @@ export class GalxeClient {
   // 传入的推特用户是否与galxe绑定的twitter一致
   async galxeTwitterCheckAccount(tweetUrl, userName) {
     try {
-      console.log(`[${this.number}] | ${this.address} | 检查Twitter账号`);
+      notificationManager.info({
+        "message": "检查Twitter账号",
+        "context": {
+          "推文": tweetUrl
+        }
+      });
+
       const requestData = {
         operationName: 'checkTwitterAccount',
         variables: {
@@ -386,28 +436,44 @@ export class GalxeClient {
         }`
       };
 
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        requestData,
-        {
-          headers: await this.getMainHeaders(),
-          httpsAgent: this.proxy
+      const result = await this.executeRequest({
+        data: requestData,
+        taskName: '检查Twitter账号',
+        context: {
+          "推特": userName
         }
-      );
-      if (response.status === 200) {
-        // galxe的api返回的错了，twitterUserName返回了ID，twitterUserID返回了用户名。以防他们改回来，所以判断两个
-        const twitterUserName = response.data?.data?.checkTwitterAccount?.twitterUserName;
-        const twitterUserID = response.data?.data?.checkTwitterAccount?.twitterUserID;
-        if (twitterUserName === userName || twitterUserID === twitterUserID) {
-          console.log(`[${this.number}] | ${this.address} | Twitter账号检查通过`);
-          return true;
-        }
-      }
+      });
 
-      console.warn(`[${this.number}] | ${this.address} | Twitter账号检查失败. 响应:`, response.data);
+      // galxe的api返回的错了，twitterUserName返回了ID，twitterUserID返回了用户名。以防他们改回来，所以判断两个
+      const twitterUserName = result?.data?.checkTwitterAccount?.twitterUserName;
+      const twitterUserID = result?.data?.checkTwitterAccount?.twitterUserID;
+      
+      if (twitterUserName === userName || twitterUserID === userName) {
+        notificationManager.success({
+          "message": "Twitter账号检查通过",
+          "context": {
+            "推特": userName
+          }
+        });
+        return true;
+      }
+      
+      notificationManager.warning({
+        "message": "Twitter账号不匹配",
+        "context": {
+          "期望": userName,
+          "实际": twitterUserName || twitterUserID
+        }
+      });
       return false;
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | Twitter账号检查出错:`, error);
+      notificationManager.error({
+        "message": "Twitter账号检查出错",
+        "context": {
+          "推特": userName,
+          "原因": error.message
+        }
+      });
       return false;
     }
   }
@@ -415,7 +481,13 @@ export class GalxeClient {
   // 3. 验证 Twitter 账号
   async galxeTwitterVerifyAccount(tweetUrl, userName) {
     try {
-      console.log(`[${this.number}] | ${this.address} | 验证Twitter账号`);
+      notificationManager.info({
+        "message": "验证Twitter账号",
+        "context": {
+          "推文": tweetUrl
+        }
+      });
+
       const requestData = {
         operationName: 'VerifyTwitterAccount',
         variables: {
@@ -425,36 +497,52 @@ export class GalxeClient {
           }
         },
         query: `mutation VerifyTwitterAccount($input: VerifyTwitterAccountInput!) {
-            verifyTwitterAccount(input: $input) {
-              address
-              twitterUserID
-              twitterUserName
-              __typename
-            }
-          }`
+          verifyTwitterAccount(input: $input) {
+            address
+            twitterUserID
+            twitterUserName
+            __typename
+          }
+        }`
       };
 
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        requestData,
-        {
-          headers: await this.getMainHeaders(),
-          httpsAgent: this.proxy
+      const result = await this.executeRequest({
+        data: requestData,
+        taskName: '验证Twitter账号',
+        context: {
+          "推特": userName
         }
-      );
-      if (response.status === 200) {
-        const twitterUserName = response.data?.data?.verifyTwitterAccount?.twitterUserName;
-        const twitterUserID = response.data?.data?.verifyTwitterAccount?.twitterUserID;
-        if (twitterUserName === userName || twitterUserID === userName) {
-          console.log(`[${this.number}] | ${this.address} | Twitter账号验证成功`);
-          return true;
-        }
-      }
+      });
 
-      console.warn(`[${this.number}] | ${this.address} | Twitter账号验证失败. 响应:`, response.data);
+      const twitterUserName = result?.data?.verifyTwitterAccount?.twitterUserName;
+      const twitterUserID = result?.data?.verifyTwitterAccount?.twitterUserID;
+      
+      if (twitterUserName === userName || twitterUserID === userName) {
+        notificationManager.success({
+          "message": "Twitter账号验证成功",
+          "context": {
+            "推特": userName
+          }
+        });
+        return true;
+      }
+      
+      notificationManager.warning({
+        "message": "Twitter账号验证不匹配",
+        "context": {
+          "期望": userName,
+          "实际": twitterUserName || twitterUserID
+        }
+      });
       return false;
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | Twitter账号验证出错:`, error);
+      notificationManager.error({
+        "message": "Twitter账号验证出错",
+        "context": {
+          "推特": userName,
+          "原因": error.message
+        }
+      });
       return false;
     }
   }
@@ -462,7 +550,10 @@ export class GalxeClient {
   // 4. 添加 Twitter 到 Galxe 的主流程
   async addTwitterToGalxe({ refreshToken, proxy, csvFile = './data/social/x.csv', matchField = 'xUsername', matchValue, targetField = 'xRefreshToken' }) {
     try {
-      console.log(`[${this.number}] | ${this.address} | 添加Twitter到Galxe`);
+      notificationManager.info({
+        "message": "添加Twitter到Galxe"
+      });
+
       // 1. 获取 Galxe 用户 ID
       let accountInfo = await this.checkGalxeAccountInfo();
       if (!accountInfo.success || !accountInfo.userId) {
@@ -470,44 +561,55 @@ export class GalxeClient {
         accountInfo = await this.checkGalxeAccountInfo();
       }
       if (!accountInfo.needTwitter) {
-        console.log(`[${this.number}] | ${this.address} | 已绑定Twitter`);
+        notificationManager.info({
+          "message": "已绑定Twitter"
+        });
         return true;
       }
-      // 2. 初始化 Twitter 客户端
-      const xClient = await XClient.create({ refreshToken, proxy, csvFile, matchField, matchValue, targetField });
-      if (!xClient) {
-        console.error(`[${this.number}] | ${this.address} | 无法初始化Twitter客户端`);
-        return false;
-      }
-      // 3. 发布推文
-      const tweetId = await xClient.tweet(`Verifying my Twitter account for my #GalxeID\ngid:${accountInfo.userId} @Galxe\n\n`);
-      if (!tweetId) { return false; };
 
-      const { userName } = await xClient.getCurrentUserProfile();
+      // 2. 创建 Twitter 客户端
+      const xClient = await XClient.create({
+        refreshToken,
+        proxy
+      });
 
-      // 4. 构建推文URL并验证
-      const tweetUrl = `https://x.com/${userName}/status/${tweetId}`;
-
-      // 5. 检查Twitter账号
-      const checkStatus = await this.galxeTwitterCheckAccount(tweetUrl, userName);
-      if (!checkStatus) {
-        return false;
+      // 3. 发送推文
+      const tweetText = `Verifying my Twitter account for my #GalxeID ${accountInfo.userId} @Galxe\n\nhttps://galxe.com/galxeid`;
+      const tweetResult = await xClient.tweet(tweetText);
+      if (!tweetResult.success) {
+        throw new Error(`发送推文失败: ${tweetResult.error}`);
       }
 
-      console.log(`[${this.number}] | ${this.address} | 等待5秒`);
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // 6. 验证Twitter账号
-      const verifyStatus = await this.galxeTwitterVerifyAccount(tweetUrl, userName);
-      if (!verifyStatus) {
-        return false;
+      // 4. 检查推文
+      const tweetUrl = tweetResult.tweetUrl;
+      const userName = xClient.username;
+      
+      // 5. 验证 Twitter 账号
+      const checkResult = await this.galxeTwitterCheckAccount(tweetUrl, userName);
+      if (!checkResult) {
+        throw new Error('Twitter账号检查失败');
       }
 
-      console.log(`[${this.number}] | ${this.address} | Twitter账号绑定成功`);
+      // 6. 确认验证
+      const verifyResult = await this.galxeTwitterVerifyAccount(tweetUrl, userName);
+      if (!verifyResult) {
+        throw new Error('Twitter账号验证失败');
+      }
+
+      notificationManager.success({
+        "message": "成功添加Twitter到Galxe",
+        "context": {
+          "推特": userName
+        }
+      });
       return true;
-
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | Twitter绑定过程出错:`, error);
+      notificationManager.error({
+        "message": "添加Twitter到Galxe失败",
+        "context": {
+          "原因": error.message
+        }
+      });
       return false;
     }
   }
@@ -515,6 +617,16 @@ export class GalxeClient {
   // 准备 Galxe 任务
   async prepareGalxeTask({ credId, campaignId, captchaService, captchaType, taskVariant, websiteURL, captchaId }) {
     try {
+      notificationManager.info({
+        "message": "准备Galxe任务",
+        "context": {
+          "任务ID": credId
+        },
+        "config": {
+          "logToConsole": false,
+        }
+      });
+
       const query = `mutation AddTypedCredentialItems($input: MutateTypedCredItemInput!) {
         typedCredentialItems(input: $input) {
           id
@@ -529,8 +641,6 @@ export class GalxeClient {
         websiteURL,
         captchaId,
       });
-
-      // console.log('solution', solution);
 
       const requestData = {
         operationName: 'AddTypedCredentialItems',
@@ -551,37 +661,57 @@ export class GalxeClient {
         query
       };
 
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        requestData,
-        {
-          headers: await this.getMainHeaders(),
-          httpsAgent: this.proxy
+      const result = await this.executeRequest({
+        data: requestData,
+        taskName: '准备Galxe任务',
+        context: {
+          "任务ID": credId,
+          "活动ID": campaignId
         }
-      );
+      });
 
-      if (response.status === 200) {
-        const answer = response.data;
-
-        // 检查验证码错误
-        if (JSON.stringify(answer).includes('failed to verify recaptcha token')) {
-          console.warn(`[${this.number}] | ${this.address} | 验证码确认问题！请检查`);
-          return [false, null];
-        }
-
-        const itemId = answer?.data?.typedCredentialItems?.id;
-        if (itemId) {
-          console.log(`[${this.number}] | ${this.address} | 任务准备成功`);
-          return [true, itemId];
-        }
-
-        console.warn(`[${this.number}] | ${this.address} | 错误，服务器响应:`, answer);
+      // 检查验证码错误
+      if (JSON.stringify(result).includes('failed to verify recaptcha token')) {
+        notificationManager.warning({
+          "message": "验证码确认问题",
+          "context": {
+            "任务ID": credId
+          }
+        });
         return [false, null];
       }
 
-      return [false, 'notId'];
+      const itemId = result?.data?.typedCredentialItems?.id;
+      if (itemId) {
+        notificationManager.success({
+          "message": "任务准备成功",
+          "context": {
+            "任务ID": credId,
+            "项目ID": itemId
+          },
+          "config": {
+            "logToConsole": false,
+          }
+        });
+        return [true, itemId];
+      }
+
+      notificationManager.warning({
+        "message": "任务准备失败",
+        "context": {
+          "任务ID": credId,
+          "响应": JSON.stringify(result)
+        }
+      });
+      return [false, null];
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | 准备任务出错:`, error);
+      notificationManager.error({
+        "message": "准备任务出错",
+        "context": {
+          "任务ID": credId,
+          "原因": error.message
+        }
+      });
       return [false, null];
     }
   }
@@ -601,6 +731,15 @@ export class GalxeClient {
    */
   async confirmGalxeTask({ credId, isXTask = false, ...xTaskParams }) {
     try {
+      notificationManager.info({
+        "message": "确认Galxe任务",
+        "context": {
+          "任务ID": credId,
+          "推特任务": isXTask
+        },
+        "config": { "logToConsole": false }
+      });
+
       const query = `mutation SyncCredentialValue($input: SyncCredentialValueInput!) {
         syncCredentialValue(input: $input) {
           value {
@@ -677,64 +816,122 @@ export class GalxeClient {
         };
       }
 
-      const response = await axios.post(
-        'https://graphigo.prd.galaxy.eco/query',
-        {
+      const result = await this.executeRequest({
+        data: {
           operationName: 'SyncCredentialValue',
           variables,
           query
         },
-        {
-          headers: await this.getMainHeaders(),
-          httpsAgent: this.proxy
+        taskName: '确认Galxe任务',
+        context: {
+          "任务ID": credId,
+          "推特任务": isXTask
         }
-      );
+      });
 
-      if (response.status === 200) {
-        const answer = response.data;
-        const isAllowed = answer?.data?.syncCredentialValue?.value?.allow || false;
-        
-        if (isAllowed) {
-          console.log(`[${this.number}] | ${this.address} | 任务 ${credId} 确认成功!`);
-          return true;
-        } else {
-          console.log(`[${this.number}] | ${this.address} | 任务 ${credId} 确认失败`);
-          return false;
-        }
+      const isAllowed = result?.data?.syncCredentialValue?.value?.allow || false;
+      
+      if (isAllowed) {
+        notificationManager.success({
+          "message": "任务确认成功",
+          "context": {
+            "任务ID": credId
+          },
+          "config": { "logToConsole": false }
+        });
+        return true;
+      } else {
+        notificationManager.warning({
+          "message": "任务确认失败",
+          "context": {
+            "任务ID": credId
+          }
+        });
+        return false;
       }
-
-      console.error(`[${this.number}] | ${this.address} | 确认任务失败: HTTP ${response.status}`);
-      return false;
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | 确认任务出错:`, error);
+      notificationManager.error({
+        "message": "确认任务出错",
+        "context": {
+          "任务ID": credId,
+          "原因": error.message
+        }
+      });
       return false;
     }
   }
 
   async prepareAndConfirmGalxeTask({ credId, campaignId, captchaService, captchaType, taskVariant, websiteURL, captchaId, isXTask = false }) {
-    // 1. 准备任务阶段
-    await this.prepareGalxeTask({ 
-      credId, 
-      campaignId, 
-      captchaService, 
-      captchaType, 
-      taskVariant, 
-      websiteURL, 
-      captchaId 
-    });
+    try {
+      notificationManager.info({
+        "message": "开始执行Galxe任务",
+        "context": {
+          "任务ID": credId,
+          "推特任务": isXTask
+        }
+      });
 
-    // 2. 确认任务阶段
-    await this.confirmGalxeTask({
-      credId,
-      isXTask,
-      ...(isXTask ? {  // 只有X任务才传入这些参数
-        campaignId,
-        captchaService,
-        captchaType,
-        taskVariant,
-        websiteURL,
-        captchaId
-      } : {})
-    });
+      // 1. 准备任务阶段
+      const [prepareSuccess, itemId] = await this.prepareGalxeTask({ 
+        credId, 
+        campaignId, 
+        captchaService, 
+        captchaType, 
+        taskVariant, 
+        websiteURL, 
+        captchaId 
+      });
+
+      if (!prepareSuccess) {
+        notificationManager.warning({
+          "message": "任务准备阶段失败，无法继续",
+          "context": {
+            "任务ID": credId
+          }
+        });
+        return false;
+      }
+
+      // 2. 确认任务阶段
+      const confirmSuccess = await this.confirmGalxeTask({
+        credId,
+        isXTask,
+        ...(isXTask ? {  // 只有X任务才传入这些参数
+          campaignId,
+          captchaService,
+          captchaType,
+          taskVariant,
+          websiteURL,
+          captchaId
+        } : {})
+      });
+
+      if (confirmSuccess) {
+        notificationManager.success({
+          "message": "Galxe任务完成",
+          "context": {
+            "任务ID": credId
+          }
+        });
+        return true;
+      } else {
+        notificationManager.warning({
+          "message": "Galxe任务确认阶段失败",
+          "context": {
+            "任务ID": credId
+          }
+        });
+        return false;
+      }
+    } catch (error) {
+      notificationManager.error({
+        "message": "执行Galxe任务出错",
+        "context": {
+          "任务ID": credId,
+          "原因": error.message
+        }
+      });
+      return false;
+    }
   }
 }

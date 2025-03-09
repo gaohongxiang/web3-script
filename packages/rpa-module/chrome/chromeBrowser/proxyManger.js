@@ -4,6 +4,7 @@ import { ProxyServer } from './proxyServer.js';
 import { myFormatData } from '../../../utils-module/formatdata.js';
 import { BASE_CONFIG } from './config.js';
 import minimist from 'minimist';
+import { notificationManager } from '../../../notification-module/notification.js';
 
 // 启动代理
 const startProxy = async (...inputs) => {
@@ -11,12 +12,11 @@ const startProxy = async (...inputs) => {
         const data = await myFormatData(...inputs);
         for (const d of data) {
             const listenPort = BASE_CONFIG.getListenPort(d['indexId']);
-            const proxyServer = new ProxyServer({ listenPort, proxy: d['proxy'] });
+            const proxyServer = new ProxyServer({ listenPort, proxy: d['proxy'], chromeNumber: d['indexId'] });
             await proxyServer.start();
-            console.log(`实例 ${d['indexId']} 的代理已启动`);
         }
     } catch (error) {
-        console.error(`代理运行失败:`, error);
+        notificationManager.error(`代理运行失败: ${error.message}`);
     }
 };
 
@@ -26,12 +26,11 @@ const stopProxy = async (...inputs) => {
         const data = await myFormatData(...inputs);
         for (const d of data) {
             const listenPort = BASE_CONFIG.getListenPort(d['indexId']);
-            const proxyServer = new ProxyServer({ listenPort, proxy: 'dummy' });
+            const proxyServer = new ProxyServer({ listenPort, proxy: d['proxy'], chromeNumber: d['indexId'] });
             await proxyServer.shutdown();
-            console.log(`实例 ${d['indexId']} 的代理已停止`);
         }
     } catch (error) {
-        console.error(`停止代理失败:`, error);
+        notificationManager.error(`停止代理失败: ${error.message}`);
     }
 };
 
@@ -63,6 +62,6 @@ const main = async () => {
 
 // 运行主函数
 main().catch(error => {
-    console.error('运行错误:', error);
+    notificationManager.error(`代理管理器运行错误: ${error.message}`);
     process.exit(1);
 });

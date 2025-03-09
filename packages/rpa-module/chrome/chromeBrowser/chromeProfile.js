@@ -6,6 +6,7 @@ import { createCanvas, loadImage } from 'canvas';
 import { formatNumber } from '../../../utils-module/utils.js';
 import { BASE_CONFIG } from './config.js';
 import { getPathFromCurrentDir, makeSureDirExists } from '../../../utils-module/path.js';
+import { notificationManager } from '../../../notification-module/notification.js';
 
 /**
  * Chrome自动化管理类
@@ -48,16 +49,16 @@ export class ChromeAutomation {
       // 检查自动化Chrome是否已存在
       try {
         await fsp.access(this.AUTOMATION_CHROME_PATH);
-        console.log(`Chrome${this.formatChromeNumber} app已存在`);
+        notificationManager.warning(`Chrome${this.formatChromeNumber} app已存在`);
         return;
       } catch {
-        console.log(`正在创建Chrome${this.formatChromeNumber} app...`);
+        notificationManager.info(`正在创建Chrome${this.formatChromeNumber} app...`);
       }
       // 复制Chrome应用
       execSync(`ditto "${this.CHROME_PATH}" "${this.AUTOMATION_CHROME_PATH}"`);
-      console.log(`Chrome${this.formatChromeNumber} app创建成功`);
+      notificationManager.success(`Chrome${this.formatChromeNumber} app创建成功`);
     } catch (error) {
-      console.error(`Chrome${this.formatChromeNumber} app创建失败:`, error);
+      notificationManager.error(`Chrome${this.formatChromeNumber} app创建失败: ${error.message}`);
       throw error;
     }
   }
@@ -77,9 +78,9 @@ export class ChromeAutomation {
       const fingerprintData = await generateFingerprint();
       await fsp.writeFile(this.FINGERPRINT_PATH, JSON.stringify(fingerprintData, null, 2));
 
-      console.log(`Chrome${this.formatChromeNumber} 指纹创建成功`);
+      notificationManager.success(`Chrome${this.formatChromeNumber}指纹创建成功`);
     } catch (error) {
-      console.error('创建指纹失败:', error);
+      notificationManager.error(`创建指纹失败: ${error.message}`);
       throw error;
     }
   }
@@ -102,14 +103,14 @@ export class ChromeAutomation {
       // 3. 写入新头像
       await fsp.writeFile(avatarPath, imageBuffer);
 
-      console.log(`成功更新Chrome${this.formatChromeNumber}头像`);
+      notificationManager.success(`Chrome ${this.formatChromeNumber}头像更新成功`);
       return true;
 
     } catch (error) {
       if (error.code === 'ENOENT') {
-        console.error(`错误: Google Profile Picture.png 不存在,请先登录Chrome账户`);
+        notificationManager.error(`Chrome ${this.formatChromeNumber}头像更新失败: Google Profile Picture.png 不存在,请先登录Chrome账户]`);
       } else {
-        console.error(`更新头像失败:`, error.message);
+        notificationManager.error(`Chrome ${this.formatChromeNumber}头像更新失败: ${error.message}`);
       }
       return false;
     }
@@ -170,7 +171,7 @@ export async function generateFingerprint({
     // console.log(fingerprintWithHeaders)
     return fingerprintWithHeaders;
   } catch (error) {
-    console.error('指纹生成失败:', error);
+    notificationManager.error(`指纹生成失败: ${error.message}`);
     throw error;
   }
 }
@@ -236,7 +237,7 @@ export async function generateNumberAvatar(chromeNumber, savePath = 'image/avata
     return buffer;
 
   } catch (error) {
-    console.error('生成头像失败:', error);
+    notificationManager.error(`生成头像失败: ${error.message}`);
     throw error;
   }
 }
@@ -336,7 +337,7 @@ export async function generateNumberedChromeIcon(chromeNumber = 1, savePath = 'i
     // 写入文件
     await fsp.writeFile(outputPath, buffer);
   } catch (error) {
-    console.error('生成Chrome图标失败:', error);
+    notificationManager.error(`生成Chrome图标失败: ${error.message}`);
     throw error;
   }
 }

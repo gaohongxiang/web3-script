@@ -2,6 +2,7 @@ import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import xlsx from 'xlsx';
 import { getCsvDataByColumnName } from './utils.js';
+import { notificationManager } from '../notification-module/notification.js';
 
 /**
  * 检查地址中奖情况
@@ -174,30 +175,27 @@ export async function check({
         }
 
         // 打印统计信息
-        console.log('\n=== 中奖统计 ===');
-        console.log(`总地址数: ${ourAddresses.length}`);
-        console.log(`中奖地址数: ${totalWinners}`);
+        notificationManager.info(`中奖统计 [总地址数 ${ourAddresses.length}] [中奖数 ${totalWinners}] [中奖率 ${((totalWinners / ourAddresses.length) * 100).toFixed(2)}%]`);
         if (hasAmounts) {
-            console.log(`总中奖金额: ${totalAmount}`);
+            notificationManager.info(`[总中奖金额 ${totalAmount}]`);
         }
-        console.log(`中奖率: ${((totalWinners / ourAddresses.length) * 100).toFixed(2)}%`);
         
         // 打印详细信息
-        console.log('\n=== 详细地址情况 ===');
+        notificationManager.info(`\n=== 详细地址情况 ===`);
         allResults.forEach((result, index) => {
-            console.log(`${index + 1}. ${result.address}`);
-            console.log(`   状态: ${result.won ? '🎉 中奖' : '❌ 未中奖'}`);
-            if (result.won && hasAmounts && result.amount !== undefined) {
-                console.log(`   金额: ${result.amount}`);
+            notificationManager.info(`[序号 ${index + 1}] [地址 ${result.address}]`);
+            if (result.won) {
+                notificationManager.success(`[状态 🎉 中奖]${hasAmounts && result.amount !== undefined ? ` [金额 ${result.amount}]` : ''}`);
+            } else {
+                notificationManager.error(`[状态 ❌ 未中奖]`);
             }
-            console.log(''); // 空行分隔
         });
 
         // 只返回中奖结果
         return results;
 
     } catch (error) {
-        console.error('检查中奖情况时发生错误:', error.message);
+        notificationManager.error(`检查中奖失败 [原因 ${error.message}]`);
         return;
     }
 }

@@ -3,6 +3,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import { ChromeBrowserUtil } from "../../rpa-module/chrome/chromeBrowser/chromeBrowser.js";
 import { getOTP } from "../../utils-module/otp.js";
 import { generateRandomString, updateCsvFieldValueByMatch } from "../../utils-module/utils.js";
+import { notificationManager } from '../../notification-module/notification.js';
 
 /**
  *  X OAuth2认证工具类
@@ -296,10 +297,11 @@ export class XClient {
         try {
             const user = await this.client.v2.me();
             const { id: userId, username: userName } = user.data;
+            // notificationManager.success(`获取用户信息成功 [用户 ${userName}]`);
             return { userId, userName };
         } catch (error) {
-            console.error('获取用户信息失败:', error);
-            throw error;  // 抛出错误以便上层捕获    
+            notificationManager.error(`获取用户信息失败 [原因 ${error.message}]`);
+            return false;
         }
     }
 
@@ -313,9 +315,11 @@ export class XClient {
             const user = await this.client.v2.userByUsername(username);
             // console.log('用户信息:', user);
             const { id: userId } = user.data;
+            // notificationManager.success(`获取用户信息成功 [用户 ${username}]`);
             return { userId };
         } catch (error) {
-            console.log('获取用户信息失败:', error);
+            notificationManager.error(`获取用户信息失败 [原因 ${error.message}]`);
+            return false;
         }
     }
 
@@ -329,10 +333,10 @@ export class XClient {
             const { userId } = await this.getCurrentUserProfile();
             const { userId: targetUserId } = await this.findUserByUsername(username);
             await this.client.v2.follow(userId, targetUserId);
-            console.log('关注成功');
+            // notificationManager.success(`关注成功 [用户 ${username}]`);
             return true;
         } catch (error) {
-            console.log('关注失败:', error);
+            notificationManager.error(`关注失败 [原因 ${error.message}]`);
             return false;
         }
     }
@@ -346,15 +350,13 @@ export class XClient {
         try {
             const { data: createdTweet } = await this.client.v2.tweet(text);
             const { id: tweetId } = createdTweet;
-            console.log('发送推文成功');
+            // notificationManager.success(`发送推文成功 [推文ID ${tweetId}]`);
             return tweetId;
         } catch (error) {   
-            console.log('发送推文失败:', error);
+            notificationManager.error(`发送推文失败 [原因 ${error.message}]`);
             return false;
         }
     }
 
     // async like(){}
-
-
 }

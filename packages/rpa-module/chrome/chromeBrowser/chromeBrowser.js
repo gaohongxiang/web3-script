@@ -5,6 +5,8 @@ import robot from 'robotjs';
 import { spawn, execSync } from 'child_process';
 import { BASE_CONFIG } from './config.js';
 import { formatNumber } from '../../../utils-module/utils.js';
+import { withRetry } from '../../../utils-module/retry.js';
+import { notificationManager } from '../../../notification-module/notification.js';
 
 export class ChromeBrowserUtil {
   /**
@@ -18,13 +20,16 @@ export class ChromeBrowserUtil {
     this.debugPort = BASE_CONFIG.getDebugPort(chromeNumber);
     this.listenPort = BASE_CONFIG.getListenPort(chromeNumber);
     this.AUTOMATION_CHROME_EXECUTABLE = BASE_CONFIG.getChromeExecutable(this.chromeNumber);
-    this.AUTOATION_CHROME_DATA_DIR = BASE_CONFIG.getProfileDataDir(this.chromeNumber);
+    this.AUTOMATION_CHROME_DATA_DIR = BASE_CONFIG.getProfileDataDir(this.chromeNumber);
     this.FINGERPRINT_PATH = BASE_CONFIG.getFingerprintPath(this.chromeNumber);
     this.screenWidth = screenWidth;
     this.screenHeight = screenHeight;
     this.browser = null;
     this.context = null;
     this.page = null;
+
+    // 添加默认日志上下文
+    this.logContext = { "Chrome": this.chromeNumber };
   }
 
   /**
@@ -36,7 +41,6 @@ export class ChromeBrowserUtil {
    * @returns {Promise<ChromeBrowserUtil>} 初始化完成的实例
    */
   static async create({ chromeNumber, screenWidth = 1680, screenHeight = 1050 }) {
-
     // 创建实例
     const instance = new this(chromeNumber, screenWidth, screenHeight);
 
@@ -67,38 +71,37 @@ export class ChromeBrowserUtil {
    * @throws {Error} 连接失败时抛出错误
    */
   async connectToInstance(hasPage = true) {
-    try {
-      let retries = 0;
-      const maxRetries = 5;
-      const fingerprint = await this.getFingerprint();
-      while (retries < maxRetries) {
-        try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          this.browser = await chromium.connectOverCDP(`http://localhost:${this.debugPort}`);
-          this.context = this.browser.contexts()[0];
-          const injector = new FingerprintInjector();
-          await injector.attachFingerprintToPlaywright(this.context, fingerprint);
-          if (!hasPage) {
-            // 创建新页面
-            this.page = await this.context.newPage();
-          } else {
-            // 获取已有页面
-            this.page = this.context.pages()[0];
-          }
-          // 将浏览器窗口带到前台
-          await this.bringBrowserToFront();
-          // 关闭其他页面
-          await this.closeOtherWindows();
-          break;
-        } catch (err) {
-          retries++;
-          if (retries === maxRetries) {
-            throw new Error(`无法连接到 Chrome: ${err.message}`);
-          }
-          console.log(`连接失败，重试 ${retries}/${maxRetries},错误信息:${err.message}`);
+    const fingerprint = await this.getFingerprint();
+
+    await withRetry(
+      async () => {
+        this.browser = await chromium.connectOverCDP(`http://localhost:${this.debugPort}`);
+        this.context = this.browser.contexts()[0];
+
+        const injector = new FingerprintInjector();
+        await injector.attachFingerprintToPlaywright(this.context, fingerprint);
+
+        if (!hasPage) {
+          this.page = await this.context.newPage();
+        } else {
+          this.page = this.context.pages()[0];
         }
+
+        await this.bringBrowserToFront();
+        await this.closeOtherWindows();
+
+        // notificationManager.success({
+        //   "message": "浏览器连接成功",
+        //   "context": this.logContext
+        // });
+
+        return true;
+      },
+      {
+        taskName: '浏览器连接',
+        logContext: this.logContext
       }
-    } catch (error) { console.log(error) }
+    );
   }
 
   /**
@@ -124,10 +127,13 @@ export class ChromeBrowserUtil {
    */
   async launchNewInstance() {
     try {
+      // 1. 启动前先清理可能存在的旧进程
+      await this.killExistingProcesses();
+
       // Chrome 启动参数
       const chromeArgs = [
         `--remote-debugging-port=${this.debugPort}`,
-        `--user-data-dir=${this.AUTOATION_CHROME_DATA_DIR}`,
+        `--user-data-dir=${this.AUTOMATION_CHROME_DATA_DIR}`,
         '--no-first-run',
         `--window-size=${this.screenWidth},${this.screenHeight}`,
         '--no-default-browser-check',
@@ -147,38 +153,32 @@ export class ChromeBrowserUtil {
         '&'                    // 后台运行
       ].join(' ');
 
-      const chromeProcess = spawn('sh', ['-c', cmd], {
-        detached: true,
-        stdio: 'ignore',
-        shell: false
-      });
-      chromeProcess.unref();
+      await withRetry(
+        async () => {
+          const chromeProcess = spawn('sh', ['-c', cmd], {
+            detached: true,
+            stdio: 'ignore',
+            shell: false
+          });
+          chromeProcess.unref();
 
+          // 等待浏览器启动
+          await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // 等待浏览器启动// 新增启动等待机制
-      let isReady = false;
-      let retries = 0;
-      const maxRetries = 5; // 5次重试 * 2000ms = 10秒超时
-
-      while (retries < maxRetries && !isReady) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        try {
+          // 检查浏览器是否就绪
           const response = await fetch(`http://localhost:${this.debugPort}/json/version`);
-          if (response.ok) {
-            isReady = true;
-            // console.log(`Chrome实例${this.chromeNumber}启动成功`);
-          }
-        } catch (error) {
-          retries++;
-          if (retries === maxRetries) {
-            throw new Error(`浏览器启动超时，调试端口${this.debugPort}未响应`);
-          }
+          return response;
+        },
+        {
+          taskName: '启动浏览器',
+          delay: 1000, // 增加重试间隔，给浏览器更多启动时间
+          logContext: this.logContext
         }
-      }
+      );
 
     } catch (error) {
-      console.error(`Chrome启动失败 (实例${this.chromeNumber}):`, error);
-      await this.cleanupFailedStart(); // 清理残留进程
+      // 5. 失败时也清理
+      await this.killExistingProcesses();
       throw error;
     }
   }
@@ -195,54 +195,52 @@ export class ChromeBrowserUtil {
       // console.log(fingerprint);
       return fingerprint;
     } catch {
-      console.log('指纹不存在');
+      notificationManager.warning({
+        "message": "指纹文件不存在",
+        "context": this.logContext
+      });
       return;
     }
   }
 
   /**
    * 检查Chrome运行状态
-   * @returns {Promise<{status: string, pageLength: number}>} 状态对象包含：
-   *   status: 'disconnected' - 未连接
-   *           'connected_no_pages' - 已连接但无主页面
-   *           'connected_with_pages' - 已连接且有主页面
-   *   pageLength: 主页面数量
    */
   async isChromeRunning() {
-
-    // 先通过PID检查进程是否存在
-    const pid = await this.getProcessPid();
-    if (!pid) {
-      return { status: 'disconnected', pageLength: 0 };
-    }
     try {
-      // 获取页面列表
-      const response = await fetch(`http://localhost:${this.debugPort}/json/list`);
-      if (!response.ok) {
-        // console.log('Chrome连接不通');
-        return { status: 'disconnected', pageLength: 0 };
+      // 先通过PID检查进程是否存在
+      const pid = await this.getProcessPid();
+      if (!pid) {
+        return { "status": 'disconnected', "pageLength": 0 };
       }
 
-      const pages = await response.json();
+      const pages = await withRetry(
+        async () => {
+          const response = await fetch(`http://localhost:${this.debugPort}/json/list`);
+          const pages = await response.json();
+          return pages;
+        },
+        {
+          taskName: '检查浏览器状态',
+          logContext: { ...this.logContext, PID: pid }
+        }
+      );
+
       // 过滤掉Service Worker等非主页面
       const mainPages = pages.filter(page =>
         page.type === 'page' &&
         !page.url.startsWith('chrome-extension://') &&
         !page.url.startsWith('devtools://')
       );
-      // console.log(mainPages)
-      const pageLength = Array.isArray(mainPages) ? mainPages.length : 0;
 
-      if (pageLength === 0) {
-        // console.log('Chrome连接正常，但没有页面');
-        return { status: 'connected_no_pages', pageLength: 0 };
-      } else {
-        // console.log(`Chrome连接正常，有 ${pageLength} 个页面`);
-        return { status: 'connected_with_pages', pageLength };
-      }
+      const pageLength = Array.isArray(mainPages) ? mainPages.length : 0;
+      return {
+        "status": pageLength === 0 ? 'connected_no_pages' : 'connected_with_pages',
+        "pageLength": pageLength
+      };
+
     } catch (error) {
-      // console.log('Chrome连接失败:', error.message);
-      return { status: 'disconnected', pageLength: 0 };
+      return { "status": 'disconnected', "pageLength": 0 };
     }
   }
 
@@ -251,15 +249,38 @@ export class ChromeBrowserUtil {
    * @param {number} port - 调试端口号
    * @returns {Promise<number|null>} 进程PID或null
    */
-  async getProcessPid(port = this.debugPort) {
+  async getProcessPid() {
     try {
-      // 使用 pgrep 查找真实的 Chrome 进程
-      const cmd = `pgrep -f "${port}"`;
-      const pid = parseInt(execSync(cmd, { encoding: 'utf8' }).trim());
+      // pgrep 和 lsof 方式
+      // const cmd = `pgrep -f "${this.debugPort}"`;
+      // const pid = parseInt(execSync(cmd, { encoding: 'utf8' }).trim());
+      const cmd = `lsof -i :${this.debugPort} -t`;
+      const pid = (await execSync(cmd, { encoding: 'utf8' })).split('\n').filter(Boolean);
       return pid || null;
     } catch (error) {
       // console.error('获取Chrome PID失败:', error);
       return null;
+    }
+  }
+
+  /**
+  * 清理Chrome进程
+  */
+  async killExistingProcesses() {
+    const pid = await this.getProcessPid();
+    if (!pid) return;
+
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch (error) {
+      notificationManager.warning({
+        "message": "清理进程失败",
+        "context": {
+          ...this.logContext,
+          "PID": pid,
+          "原因": error.message
+        }
+      });
     }
   }
 
@@ -298,24 +319,6 @@ export class ChromeBrowserUtil {
   }
 
   /**
-   * 安全关闭Chrome进程
-   */
-  async shutdownChrome() {
-    const logger = {
-      info: (msg) => console.log(`[${new Date().toISOString()}] [进程管理] ${msg}`),
-      error: (msg) => console.error(`[${new Date().toISOString()}] [进程管理] ${msg}`)
-    };
-    const chromeProcessesId = await this.getProcessPid();
-
-    if (!chromeProcessesId) {
-      logger.error('无法找到Chrome进程');
-      return;
-    }
-    process.kill(chromeProcessesId, 'SIGTERM');
-    logger.info(`已关闭Chrome进程: ${chromeProcessesId}`);
-  }
-
-  /**
    * 安装Chrome扩展程序
    * @param {string} url - 扩展程序商店URL
    * @param {Object} options - 安装选项
@@ -328,43 +331,66 @@ export class ChromeBrowserUtil {
       await this.page.waitForTimeout(1000);
       await this.page.locator('text=/(^添加至 Chrome$|^Add to Chrome$)/i').click();
       await this.page.waitForTimeout(1000);
-      // 设置较长的延迟确保移动平滑
       robot.setMouseDelay(100);
-      // 移动到目标位置（使用传入的坐标或默认值）
       robot.moveMouse(x, y);
       await this.page.waitForTimeout(3000);
       robot.mouseClick();
       await this.page.waitForTimeout(2000);
+      return true;
     } catch (error) {
-      // console.log(error);
+      notificationManager.error({
+        "message": "安装扩展失败",
+        "context": {
+          "Chrome": this.chromeNumber,
+          "原因": error.message
+        }
+      });
+      return false;
     }
   }
 }
 
+/**
+ * 关闭指定编号的Chrome进程
+ * @param {number} chromeNumber - Chrome实例编号
+ * @returns {Promise<boolean>} 是否成功关闭
+ */
 export function shutdownChrome(chromeNumber) {
-  const logger = {
-    info: (msg) => console.log(`[${new Date().toISOString()}] [进程管理] ${msg}`),
-    error: (msg) => console.error(`[${new Date().toISOString()}] [进程管理] ${msg}`)
-  };
   try {
-    // 使用 pgrep 查找真实的 Chrome 进程
-    const cmd = `pgrep -f "${BASE_CONFIG.getDebugPort(chromeNumber)}"`;
+    const cmd = `lsof -i :${BASE_CONFIG.getDebugPort(chromeNumber)} -t`;
     let output;
     try {
       output = execSync(cmd, { encoding: 'utf8' });
     } catch {
       // pgrep 没找到进程时会抛出错误，这是正常的
-      logger.error(`无法找到第${chromeNumber}个Chrome进程`);
+      notificationManager.error({
+        "message": "进程关闭失败",
+        "context": {
+          "Chrome": chromeNumber,
+          "原因": "无法找到进程"
+        }
+      });
       return false;
     }
 
     const pid = parseInt(output.trim());
-
     process.kill(pid, 'SIGTERM');
-    logger.info(`已关闭第${chromeNumber}个Chrome进程: ${pid}`);
+    notificationManager.success({
+      "message": "进程关闭成功",
+      "context": {
+        "Chrome": chromeNumber,
+        "PID": pid
+      }
+    });
     return true;
   } catch (error) {
-    logger.error(`关闭第${chromeNumber}个Chrome失败: ${error.message}`);
+    notificationManager.error({
+      "message": "进程关闭失败",
+      "context": {
+        "Chrome": chromeNumber,
+        "原因": error.message
+      }
+    });
     return false;
   }
 }

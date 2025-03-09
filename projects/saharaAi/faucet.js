@@ -1,48 +1,70 @@
 import axios from 'axios';
-import { yesCaptchaClient } from '../../packages/utils-module/captcha.js';
-import { SocksProxyAgent } from 'socks-proxy-agent';
-
-async function getCaptchaToken(serviceName) {
-    try {
-        const websiteURL = 'https://faucet.saharalabs.ai/';
-        const websiteKey = '0x4AAAAAAA8hNPuIp1dAT_d9';
-        switch (serviceName.toLowerCase()) {
-            case 'yescaptcha':
-                return await yesCaptchaClient.verifyWebsite({
-                    captchaType: 'CloudflareTurnstile',
-                    taskVariant: 'standard',
-                    websiteKey,
-                    websiteURL,
-                });
-            default:
-                throw new Error(`不支持的验证码服务: ${serviceName}`);
-        }
-    } catch (error) {
-        console.error(`${serviceName} 验证失败:`, error.message);
-        throw error;
-    }
-}
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import { withRetry } from '../../packages/utils-module/retry.js';
+import { captchaManager } from '../../packages/utils-module/captcha.js';
+import { notificationManager } from '../../packages/notification-module/notification.js';
 
 // 注意eth主网余额 >=0.01eth 才能领到水
-export async function faucet({ number, address, serviceName, proxy }) {
+export async function faucet({ chromeNumber, address, proxy, fingerprint, captchaService, captchaType, taskVariant, websiteURL, websiteKey }) {
     try {
-        console.log(`第${number}个账号，地址 ${address} 开始领水`)
+        console.log(`第${chromeNumber}个账号，地址 ${address} 开始领水`);
+        // 格式化代理地址
+        const proxyUrl = proxy.replace('socks5://', 'http://');
+        // 创建 HTTP 代理实例
+        const agent = new HttpsProxyAgent(proxyUrl);
 
-        // 创建代理配置
-        const agent = proxy ? new SocksProxyAgent(proxy) : null;
+        const recaptchaToken = await captchaManager.verifyWebsite({
+            captchaService,
+            captchaType,
+            taskVariant,
+            websiteURL,
+            websiteKey
+        });;
+        if (!recaptchaToken) { console.log('验证码获取失败'); return false; }
 
-        const recaptchaToken = await getCaptchaToken(serviceName);
-        await axios.post('https://faucet-api.saharaa.info/api/claim2', {
-            address,
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'cf-turnstile-response': recaptchaToken
+        await withRetry(
+            async () => {
+                const response = await axios.post('https://faucet-api.saharaa.info/api/claim2',
+                    { address },
+                    {
+                        headers: {
+                            'accept': '*/*',
+                            'accept-language': 'en-US,en;q=0.9',
+                            'content-type': 'application/json',
+                            'cf-turnstile-response': recaptchaToken,
+                            'origin': 'https://faucet.saharalabs.ai',
+                            'priority': 'u=1, i',
+                            'referer': 'https://faucet.saharalabs.ai/',
+                            'sec-ch-ua': fingerprint.headers['sec-ch-ua'],
+                            'sec-ch-ua-mobile': '?0',
+                            'sec-ch-ua-platform': 'macOS',
+                            'sec-fetch-dest': 'empty',
+                            'sec-fetch-mode': 'cors',
+                            'sec-fetch-site': 'cross-site',
+                            'user-agent': fingerprint.userAgent
+                        },
+                        httpsAgent: agent,
+                        timeout: 30000
+                    }
+                );
+
+                if (response.status === 200) {
+                    console.log(`第${chromeNumber}个账号，地址 ${address} 领水成功`);
+                    return true;
+                }
             },
-            httpsAgent: agent, // HTTPS代理
-        });
-        console.log(`第${number}个账号，地址 ${address} 领水成功`)
+            {
+                maxRetries: 5,
+                delay: 2000,
+                taskName: 'saharaAi领水',
+            }
+        );
     } catch (error) {
-        console.error('领水错误:', error.response?.data || error.message);
+        notificationManager.error({
+            "message": `第${chromeNumber}个账号，地址 ${address} 领水失败`,
+            "context": {
+                "错误": error.message
+            }
+        });
     }
 }
