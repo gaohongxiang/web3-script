@@ -11,8 +11,8 @@ import { maskValue } from '../../utils-module/utils.js';
 
 
 export class GalxeClient {
-  constructor(number, enPrivateKey, proxy, fingerprint) {
-    this.number = number;
+  constructor(chromeNumber, enPrivateKey, proxy, fingerprint) {
+    this.chromeNumber = chromeNumber;
     this.proxy = new SocksProxyAgent(proxy);
     this.fingerprint = fingerprint;
     this.authToken = null;
@@ -21,9 +21,9 @@ export class GalxeClient {
     this.address = null;
   }
 
-  static async create({ number, enPrivateKey, proxy, fingerprint }) {
+  static async create({ chromeNumber, enPrivateKey, proxy, fingerprint }) {
     // 1. 创建基础实例
-    const instance = new this(number, enPrivateKey, proxy, fingerprint);
+    const instance = new this(chromeNumber, enPrivateKey, proxy, fingerprint);
 
     // 2. 初始化钱包
     const provider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
@@ -33,7 +33,7 @@ export class GalxeClient {
 
     // 3. 设置全局上下文
     notificationManager.setGlobalContext({
-      "账号": instance.number,
+      "账号": instance.chromeNumber,
       "地址": maskValue({ value: instance.address })
     });
 
@@ -345,7 +345,12 @@ export class GalxeClient {
       
       return result?.data?.usernameExist ?? true;
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | 检查用户名出错:`, error);
+      notificationManager.error({
+        "message": "检查用户名出错",
+        "context": {
+          "原因": error.message
+        }
+      });
       return true; // 出错时默认用户名存在，以避免冲突
     }
   }
@@ -385,7 +390,12 @@ export class GalxeClient {
 
       const addressInfo = result?.data?.addressInfo;
       if (!addressInfo) {
-        console.warn(`[${this.number}] | ${this.address} | 无法获取账户信息`);
+        notificationManager.warning({
+          "message": "无法获取账户信息",
+          "context": {
+            "地址": this.address
+          }
+        });
         return { success: false };
       }
       
@@ -399,7 +409,12 @@ export class GalxeClient {
         info: addressInfo // 返回完整信息以供使用
       };
     } catch (error) {
-      console.error(`[${this.number}] | ${this.address} | 检查账户信息出错:`, error.message);
+      notificationManager.error({
+        "message": "检查账户信息出错",
+        "context": {
+          "原因": error.message
+        }
+      });
       return { success: false };
     }
   }
@@ -566,7 +581,11 @@ export class GalxeClient {
       // 2. 创建 Twitter 客户端
       const xClient = await XClient.create({
         refreshToken,
-        proxy
+        proxy,
+        csvFile, 
+        matchField, 
+        matchValue, 
+        targetField 
       });
 
       // 3. 发送推文
