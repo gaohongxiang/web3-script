@@ -242,6 +242,8 @@ class YesCaptchaClient {
           taskId
         });
 
+        // console.log('接收响应数据:', result.data);
+
         if (result.data.errorId > 0) {
           throw new Error(result.data.errorDescription || '未知错误');
         }
@@ -375,12 +377,39 @@ class NoCaptchaClient {
         }
       },
 
-      // TLS 策略
-      tls: {
-        defaultTaskType: 'v1',
+      // Vercel 策略
+      vercel: {
+        defaultTaskType: 'universal',
         taskTypes: {
           // 通用版本
-          v1: {
+          universal: {
+            price: CNY_PER_POINT * 1000, // 1000点/次
+            apiEndpoint: '/api/wanda/vercel/universal',
+            prepareTask: ({
+              href,
+              proxy = '',
+              user_agent = '',
+              timeout = 30
+            }) => ({
+              href,
+              ...(proxy ? { proxy } : {}),
+              ...(user_agent ? { user_agent } : {}),
+              ...(timeout ? { timeout } : {})
+            })
+          }
+        },
+        extractResult: (result) => ({
+          _vcrcs: result.data?._vcrcs,
+          extra: result.extra
+        })
+      },
+
+      // TLS 策略
+      tls: {
+        defaultTaskType: 'universal',
+        taskTypes: {
+          // 通用版本
+          universal: {
             price: CNY_PER_POINT * 100,
             apiEndpoint: '/api/wanda/tls/v1',
             prepareTask: ({
@@ -443,18 +472,23 @@ class NoCaptchaClient {
 
       return withRetry(
         async () => {
-          const result = await axios.post(`${this.baseUrl}${apiEndpoint}`, {
-            userToken: this.userToken,
-            data: taskData
-          });
 
-          if (result.data.errorId > 0) {
-            throw new Error(result.data.errorDescription || '未知错误');
+          const headers = {
+            "User-Token": this.userToken,
+            "Content-Type": "application/json"
           }
 
-          if (result.data.status === 0) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            throw new Error('验证码处理超时');
+          const result = await axios.post(`${this.baseUrl}${apiEndpoint}`, {
+            data: taskData
+          }, {
+            headers
+          });
+
+          // console.log('接收响应数据:', result.data);
+
+          // status不为1表示失败
+          if (result.data.status != 1) {
+            throw new Error(result.data.msg);
           }
 
           if (result.data.status === 1) {
@@ -674,6 +708,8 @@ class CapSolverClient {
           clientKey: this.clientKey,
           taskId
         });
+
+        // console.log('接收响应数据:', result.data);
 
         if (result.data.errorId > 0) {
           throw new Error(result.data.errorDescription || '未知错误');
