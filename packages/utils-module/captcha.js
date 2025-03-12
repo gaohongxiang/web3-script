@@ -373,6 +373,49 @@ class NoCaptchaClient {
           // hCaptcha 返回的是 generated_pass_UUID
           return result.data?.generated_pass_UUID;
         }
+      },
+
+      // TLS 策略
+      tls: {
+        defaultTaskType: 'v1',
+        taskTypes: {
+          // 通用版本
+          v1: {
+            price: CNY_PER_POINT * 100,
+            apiEndpoint: '/api/wanda/tls/v1',
+            prepareTask: ({
+              url,
+              method = 'get',
+              headers = {},
+              cookies = {},
+              proxy = '',
+              data = '',
+              json = '',
+              timeout = 15,
+              http2 = false,
+              redirect = true,
+              ja3 = ''
+            }) => ({
+              url,
+              ...(method ? { method } : {}),
+              ...(Object.keys(headers).length ? { headers } : {}),
+              ...(Object.keys(cookies).length ? { cookies } : {}),
+              ...(proxy ? { proxy } : {}),
+              ...(data ? { data } : {}),
+              ...(json ? { json } : {}),
+              ...(timeout ? { timeout } : {}),
+              ...(http2 ? { http2 } : {}),
+              ...(redirect ? { redirect } : {}),
+              ...(ja3 ? { ja3 } : {})
+            })
+          }
+        },
+        extractResult: (result) => ({
+          status: result.data?.response?.status,
+          text: result.data?.response?.text,
+          cookies: result.data?.response?.cookies,
+          tls: result.data?.response?.tls
+        })
       }
     };
   }
