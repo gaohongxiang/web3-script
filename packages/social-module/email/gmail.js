@@ -17,11 +17,11 @@ export class GmailAuthenticator extends ChromeBrowserUtil {
      * 创建并初始化GmailAuthenticator实例
      * @param {Object} params - 初始化参数
      * @param {number} params.chromeNumber - Chrome实例编号
-     * @param {string} params.proxy - 代理服务器地址
+     * @param {string} params.socksProxyUrl - 代理服务器地址
      * @returns {Promise<GmailAuthenticator>} 初始化完成的实例
      * @throws {Error} 缺少必要的环境变量配置时抛出错误
      */
-    static async create({ chromeNumber, proxy }) {
+    static async create({ chromeNumber, socksProxyUrl }) {
         // 1. 检查必要的环境变量
         if (!process.env.gmailClientId || !process.env.gmailClientSecret || !process.env.gmailRedirectUri) {
             throw new Error('缺少必要的环境变量配置');
@@ -35,7 +35,7 @@ export class GmailAuthenticator extends ChromeBrowserUtil {
             clientId: process.env.gmailClientId,
             clientSecret: process.env.gmailClientSecret,
             redirectUri: process.env.gmailRedirectUri,
-            httpAgent: new SocksProxyAgent(proxy)
+            httpAgent: new SocksProxyAgent(socksProxyUrl)
         };
         instance.oauth2Client = new OAuth2Client(options);
 
@@ -144,15 +144,15 @@ export class GmailAuthenticator extends ChromeBrowserUtil {
 
 /**
  * 创建 Google OAuth2 客户端
- * @param {string} proxy - SOCKS5 代理字符串
+ * @param {string} socksProxyUrl - SOCKS5 代理字符串
  * @returns {OAuth2Client} Google OAuth2 客户端实例
  */
-function createOAuth2Client(proxy) {
+function createOAuth2Client(socksProxyUrl) {
     const options = {
         clientId: process.env.gmailClientId,
         clientSecret: process.env.gmailClientSecret,
         redirectUri: process.env.gmailRedirectUri,
-        httpAgent: new SocksProxyAgent(proxy)
+        httpAgent: new SocksProxyAgent(socksProxyUrl)
     };
 
     return new google.auth.OAuth2(options);
@@ -162,7 +162,7 @@ function createOAuth2Client(proxy) {
  * 等待并获取指定邮件中的验证码
  * @param {Object} options - 查询选项
  * @param {string} options.refreshToken - Gmail的refreshToken
- * @param {string} options.proxy - SOCKS5 代理字符串
+ * @param {string} options.socksProxyUrl - SOCKS5 代理字符串
  * @param {string} options.from - 发件人邮箱
  * @param {string} options.subject - 邮件主题关键词
  * @param {number} [options.pollInterval=10] - 轮询间隔（秒）
@@ -172,7 +172,7 @@ function createOAuth2Client(proxy) {
  */
 export async function waitForGmailVerificationCode({
     refreshToken,
-    proxy,
+    socksProxyUrl,
     from,
     subject,
     pollInterval = 10,
@@ -192,7 +192,7 @@ export async function waitForGmailVerificationCode({
         while (Date.now() - startTime < timeoutMs) {
             console.log('正在查找验证码邮件...');
 
-            const oauth2Client = createOAuth2Client(proxy);
+            const oauth2Client = createOAuth2Client(socksProxyUrl);
             oauth2Client.setCredentials({ refresh_token: refreshToken });
             const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
@@ -222,11 +222,14 @@ export async function waitForGmailVerificationCode({
                     content = Buffer.from(email.data.payload.body.data, 'base64').toString();
                 }
 
-                // 查找6位验证码
-                const codeMatch = content.match(/\b\d{6}\b/);
+                // console.log('邮件内容:', content);
+                // 找到任何6位连续数字（一般发送验证码的邮件内容只有一个连续的6位数字）
+                const codeMatch = content.match(/\d{6}/);
                 if (codeMatch) {
-                    console.log('找到验证码！');
+                    // console.log('找到验证码:', codeMatch[0]);
                     return codeMatch[0];
+                } else {
+                    console.log('未在内容中找到6位数字:', content);
                 }
             }
 

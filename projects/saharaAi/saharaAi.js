@@ -55,16 +55,16 @@ export async function sendToken(options) {
 }
 
 export class SaharaAi {
-    constructor(chromeNumber, proxy, fingerprint) {
+    constructor(chromeNumber, socksProxyUrl, fingerprint) {
         this.chromeNumber = chromeNumber;
-        this.proxy = new SocksProxyAgent(proxy);
+        this.proxy = new SocksProxyAgent(socksProxyUrl);
         this.fingerprint = fingerprint;
         this.authToken = null;
     }
 
-    static async create({ chromeNumber, enPrivateKey, proxy, fingerprint }) {
+    static async create({ chromeNumber, enPrivateKey, socksProxyUrl, fingerprint }) {
         // 1. 创建基础实例
-        const instance = new this(chromeNumber, proxy, fingerprint);
+        const instance = new this(chromeNumber, socksProxyUrl, fingerprint);
 
         // 2. 初始化钱包
         instance.wallet = await getWallet(enPrivateKey);
@@ -79,9 +79,9 @@ export class SaharaAi {
 
         // 4. 初始化 GalxeClient
         instance.galxeClient = await GalxeClient.create({
-            number: chromeNumber,
+            chromeNumber,
             enPrivateKey,
-            proxy,
+            socksProxyUrl,
             fingerprint
         });
 

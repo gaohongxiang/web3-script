@@ -47,7 +47,10 @@ myFormatData(1, [2, 4], 6) // 1 2 3 4 6
     okxBtcAddress: '地址1',
     okxSolAddress: '地址1',
     okxStarknetAddress: '地址1',
-    proxy: 'socks5://xxx:xxx@xxx:xxx',
+    baseProxy: 'wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
+    socksProxyUrl: 'socks5://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
+    httpProxyUrl: 'http://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
+    httpsProxyUrl: 'https://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
     ......
   },
   {
@@ -69,11 +72,50 @@ myFormatData(1, [2, 4], 6) // 1 2 3 4 6
     okxBtcAddress: '地址2',
     okxSolAddress: '地址2',
     okxStarknetAddress: '地址2',
-    proxy: 'socks5://xxx:xxx@xxx:xxx',
+    baseProxy: 'wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
+    socksProxyUrl: 'socks5://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
+    httpProxyUrl: 'http://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
+    httpsProxyUrl: 'https://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
     ......
   },
     ......
 ]
+```
+
+## 生成一次性密码 `otp.js`
+
+```js
+import { getOTP } from './otp.js';
+
+// 参数：otp私钥, 剩余过期时间（秒）
+await getOTP(otpSecretKey, minRemainingTime);
+```
+
+## 获取路径 `path.js`
+
+路径问题挺烦的，有时候改变项目目录，路径就变了。
+
+```js
+import { getPathFromRoot, getPathFromCurrentDir, pathExists, makeSureDirExists } from './path.js';
+
+// 获取项目根目录路径
+const rootPath = getPathFromRoot();
+
+// 获取当前文件目录路径
+const currentDirPath = getPathFromCurrentDir(import.meta.url);
+
+// 获取相对于当前文件目录的路径
+const currentDirPath = getPathFromCurrentDir(import.meta.url, 'data');
+
+```
+
+## 检查地址中奖情况 `check.js`
+
+```js
+import { check } from './check.js';
+
+// 参数：中奖文件路径（接受json、txt、xlsx格式）, 我们的地址CSV文件路径, 我们CSV文件中的地址列名
+await check({winFilePath, ourCsvPath, columnName});
 ```
 
 ## 过谷歌验证码 `captcha.js`
@@ -117,42 +159,6 @@ await captchaManager.verifyWebsite({
 - yescatpcha开发文档:https://yescaptcha.atlassian.net/wiki/spaces/YESCAPTCHA/overview
 - nocaptcha开发文档:https://chrisyp.github.io/
 - capsolver开发文档:https://docs.capsolver.com/zh/
-
-## 生成一次性密码 `otp.js`
-
-```js
-import { getOTP } from './otp.js';
-
-// 参数：otp私钥, 剩余过期时间（秒）
-await getOTP(otpSecretKey, minRemainingTime);
-```
-
-## 获取路径 `path.js`
-
-路径问题挺烦的，有时候改变项目目录，路径就变了。
-
-```js
-import { getPathFromRoot, getPathFromCurrentDir, pathExists, makeSureDirExists } from './path.js';
-
-// 获取项目根目录路径
-const rootPath = getPathFromRoot();
-
-// 获取当前文件目录路径
-const currentDirPath = getPathFromCurrentDir(import.meta.url);
-
-// 获取相对于当前文件目录的路径
-const currentDirPath = getPathFromCurrentDir(import.meta.url, 'data');
-
-```
-
-## 检查地址中奖情况 `check.js`
-
-```js
-import { check } from './check.js';
-
-// 参数：中奖文件路径（接受json、txt、xlsx格式）, 我们的地址CSV文件路径, 我们CSV文件中的地址列名
-await check({winFilePath, ourCsvPath, columnName});
-```
 
 ## 重试机制 `retry.js`
 

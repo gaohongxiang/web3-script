@@ -5,20 +5,18 @@ import { captchaManager } from '../../packages/utils-module/captcha.js';
 import { notificationManager } from '../../packages/notification-module/notification.js';
 
 // 注意eth主网余额 >=0.01eth 才能领到水
-export async function faucet({ chromeNumber, address, proxy, fingerprint, captchaService, captchaType, taskVariant, websiteURL, websiteKey }) {
+export async function faucet({ chromeNumber, address, httpProxyUrl, fingerprint }) {
     try {
         console.log(`第${chromeNumber}个账号，地址 ${address} 开始领水`);
-        // 格式化代理地址
-        const proxyUrl = proxy.replace('socks5://', 'http://');
         // 创建 HTTP 代理实例
-        const agent = new HttpsProxyAgent(proxyUrl);
+        const agent = new HttpsProxyAgent(httpProxyUrl);
 
         const recaptchaToken = await captchaManager.verifyWebsite({
-            captchaService,
-            captchaType,
-            taskVariant,
-            websiteURL,
-            websiteKey
+            captchaService: 'capSolver',
+            captchaType: 'CloudflareTurnstile',
+            taskVariant: 'standard',
+            websiteURL: 'https://faucet.saharalabs.ai/',
+            websiteKey: '0x4AAAAAAA8hNPuIp1dAT_d9'
         });;
         if (!recaptchaToken) { console.log('验证码获取失败'); return false; }
 

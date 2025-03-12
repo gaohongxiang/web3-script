@@ -11,9 +11,9 @@ import { maskValue } from '../../utils-module/utils.js';
 
 
 export class GalxeClient {
-  constructor(chromeNumber, enPrivateKey, proxy, fingerprint) {
+  constructor(chromeNumber, enPrivateKey, socksProxyUrl, fingerprint) {
     this.chromeNumber = chromeNumber;
-    this.proxy = new SocksProxyAgent(proxy);
+    this.proxy = new SocksProxyAgent(socksProxyUrl);
     this.fingerprint = fingerprint;
     this.authToken = null;
     this.enPrivateKey = enPrivateKey;
@@ -21,9 +21,9 @@ export class GalxeClient {
     this.address = null;
   }
 
-  static async create({ chromeNumber, enPrivateKey, proxy, fingerprint }) {
+  static async create({ chromeNumber, enPrivateKey, socksProxyUrl, fingerprint }) {
     // 1. 创建基础实例
-    const instance = new this(chromeNumber, enPrivateKey, proxy, fingerprint);
+    const instance = new this(chromeNumber, enPrivateKey, socksProxyUrl, fingerprint);
 
     // 2. 初始化钱包
     const provider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
@@ -559,7 +559,7 @@ export class GalxeClient {
   }
 
   // 4. 添加 Twitter 到 Galxe 的主流程
-  async addTwitterToGalxe({ refreshToken, proxy, csvFile = './data/social/x.csv', matchField = 'xUsername', matchValue, targetField = 'xRefreshToken' }) {
+  async addTwitterToGalxe({ refreshToken, socksProxyUrl, csvFile = './data/social/x.csv', matchField = 'xUsername', matchValue, targetField = 'xRefreshToken' }) {
     try {
       notificationManager.info({
         "message": "添加Twitter到Galxe"
@@ -581,7 +581,7 @@ export class GalxeClient {
       // 2. 创建 Twitter 客户端
       const xClient = await XClient.create({
         refreshToken,
-        proxy,
+        socksProxyUrl,
         csvFile, 
         matchField, 
         matchValue, 

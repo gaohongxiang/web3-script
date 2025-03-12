@@ -6,11 +6,11 @@ import minimist from 'minimist';
 import { notificationManager } from '../../../notification-module/notification.js';
 
 export class ProxyServer {
-    constructor({ listenPort, proxy, chromeNumber }) {
+    constructor({ listenPort, socksProxyUrl, chromeNumber }) {
         this.options = {
             listenHost: "127.0.0.1",
             listenPort: parseInt(listenPort),
-            proxy,
+            socksProxyUrl,
             timeout: 60000,
         };
 
@@ -22,8 +22,8 @@ export class ProxyServer {
         // 安全地解析代理URL
         this.proxyHost = "未知";
         try {
-            if (this.options.proxy) {
-                const proxyUrl = new URL(this.options.proxy);
+            if (this.options.socksProxyUrl) {
+                const proxyUrl = new URL(this.options.socksProxyUrl);
                 this.proxyHost = proxyUrl.hostname;
             }
         } catch (error) {
@@ -83,7 +83,7 @@ export class ProxyServer {
             // 安全地创建代理
             let socksAgent;
             try {
-                socksAgent = new SocksProxyAgent(this.options.proxy);
+                socksAgent = new SocksProxyAgent(this.options.socksProxyUrl);
             } catch (error) {
                 throw new Error(`创建代理失败: ${error.message}`);
             }
@@ -164,7 +164,7 @@ export class ProxyServer {
             // 安全地解析代理配置
             let proxy;
             try {
-                proxy = new URL(this.options.proxy);
+                proxy = new URL(this.options.socksProxyUrl);
             } catch (error) {
                 throw new Error(`无效的代理配置: ${error.message}`);
             }
@@ -357,7 +357,7 @@ const parseArgs = () => {
     const argv = minimist(process.argv.slice(2));
     return {
         listenPort: argv.port || 20001, // 默认端口
-        proxy: argv.proxy, // 新增代理配置参数
+        socksProxyUrl: argv.proxy, // 代理配置参数
         chromeNumber: argv.chromeNumber || 1 // 默认为1号Chrome
     };
 };

@@ -12,7 +12,7 @@ const startProxy = async (...inputs) => {
         const data = await myFormatData(...inputs);
         for (const d of data) {
             const listenPort = BASE_CONFIG.getListenPort(d['indexId']);
-            const proxyServer = new ProxyServer({ listenPort, proxy: d['proxy'], chromeNumber: d['indexId'] });
+            const proxyServer = new ProxyServer({ listenPort, socksProxyUrl: d['socksProxyUrl'], chromeNumber: d['indexId'] });
             await proxyServer.start();
         }
     } catch (error) {
@@ -26,7 +26,7 @@ const stopProxy = async (...inputs) => {
         const data = await myFormatData(...inputs);
         for (const d of data) {
             const listenPort = BASE_CONFIG.getListenPort(d['indexId']);
-            const proxyServer = new ProxyServer({ listenPort, proxy: d['proxy'], chromeNumber: d['indexId'] });
+            const proxyServer = new ProxyServer({ listenPort, socksProxyUrl: d['socksProxyUrl'], chromeNumber: d['indexId'] });
             await proxyServer.shutdown();
         }
     } catch (error) {

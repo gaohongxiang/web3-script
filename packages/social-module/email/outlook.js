@@ -25,7 +25,7 @@ const extraQueryParameters = {
 };
 
 // 创建一个专门的函数来处理MSAL配置
-function createMsalConfig(proxy) {
+function createMsalConfig(socksProxyUrl) {
     const config = {
         auth: {
             clientId: process.env.outlookClientId,        // 应用程序ID
@@ -37,7 +37,7 @@ function createMsalConfig(proxy) {
     config.system = {
         networkClient: {
             sendGetRequestAsync: async (url, options) => {
-                const proxyAgent = new SocksProxyAgent(proxy);
+                const proxyAgent = new SocksProxyAgent(socksProxyUrl);
                 const response = await fetch(url, {
                     ...options,
                     agent: proxyAgent,
@@ -50,7 +50,7 @@ function createMsalConfig(proxy) {
                 };
             },
             sendPostRequestAsync: async (url, options) => {
-                const proxyAgent = new SocksProxyAgent(proxy);
+                const proxyAgent = new SocksProxyAgent(socksProxyUrl);
                 const response = await fetch(url, {
                     ...options,
                     agent: proxyAgent,
@@ -79,11 +79,11 @@ export class OutlookAuthenticator extends ChromeBrowserUtil {
      * @static
      * @param {Object} options - 初始化选项
      * @param {number} options.chromeNumber - Chrome浏览器实例编号
-     * @param {string} options.proxy - 代理服务器地址
+     * @param {string} options.socksProxyUrl - 代理服务器地址
      * @returns {Promise<OutlookAuthenticator>} 返回初始化完成的实例
      * @throws {Error} 如果初始化失败则抛出错误
      */
-    static async create({ chromeNumber, proxy }) {
+    static async create({ chromeNumber, socksProxyUrl }) {
         // 验证必要的环境变量
         if (!process.env.outlookClientId || !process.env.outlookClientSecret || !process.env.outlookRedirectUri) {
             throw new Error('缺少必要的环境变量: outlookClientId, outlookClientSecret, outlookRedirectUri');
@@ -94,7 +94,7 @@ export class OutlookAuthenticator extends ChromeBrowserUtil {
 
         // 设置代理和MSAL客户端
         instance.REDIRECT_URI = process.env.outlookRedirectUri;
-        instance.msalClient = new ConfidentialClientApplication(createMsalConfig(proxy));
+        instance.msalClient = new ConfidentialClientApplication(createMsalConfig(socksProxyUrl));
 
         return instance;
     }
@@ -297,7 +297,7 @@ export class OutlookAuthenticator extends ChromeBrowserUtil {
  * 等待并获取指定邮件中的验证码
  * @param {Object} options - 查询选项
  * @param {string} options.refreshToken - Outlook的refreshToken
- * @param {string} options.proxy - SOCKS5 代理字符串
+ * @param {string} options.socksProxyUrl - SOCKS5 代理字符串
  * @param {string} options.from - 发件人邮箱
  * @param {string} options.subject - 邮件主题关键词
  * @param {number} [options.pollInterval=10] - 轮询间隔（秒）
@@ -307,7 +307,7 @@ export class OutlookAuthenticator extends ChromeBrowserUtil {
  */
 export async function waitForOutlookVerificationCode({
     refreshToken,
-    proxy,
+    socksProxyUrl,
     from,
     subject,
     pollInterval = 10,
@@ -325,7 +325,7 @@ export async function waitForOutlookVerificationCode({
         const timeoutMs = timeout * 1000;
 
         // 创建MSAL客户端实例,使用相同的配置创建函数
-        const msalClient = new ConfidentialClientApplication(createMsalConfig(proxy));
+        const msalClient = new ConfidentialClientApplication(createMsalConfig(socksProxyUrl));
 
         while (Date.now() - startTime < timeoutMs) {
             console.log('正在查找验证码邮件...');

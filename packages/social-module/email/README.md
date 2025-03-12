@@ -172,24 +172,54 @@ outlookRedirectUri = 'http://localhost:3000/auth/redirect'
 ## 使用示例
 
 ```js
-import { GmailAuth, waitForGmailVerificationCode } from './gmail.js';
-import { OutlookAuth, waitForOutlookVerificationCode } from './outlook.js';
+import { GmailAuthenticator, waitForGmailVerificationCode } from './gmail.js';
+import { OutlookAuthenticator, waitForOutlookVerificationCode } from './outlook.js';
 
-// 获取gmail refresh token（需要指纹浏览器配合）
-const gmailAuth = new GmailAuth('你的指纹浏览器Id', '你的proxy');
-await gmailAuth.autoAuth({ csvFile: './data/social/email.csv', matchField: 'email', matchValue: 'xxx@gmail.com', targetField: 'gmailRefreshToken' });
+// Gmail授权示例（需要指纹浏览器配合）
+const gmailAuth = await GmailAuthenticator.create({ 
+    chromeNumber: 1,  // 指纹浏览器编号
+    socksProxyUrl: 'socks5://username:password@ip:port'  // 代理地址
+});
+await gmailAuth.authorizeAndSaveToken({ 
+    csvFile: './data/social/email.csv', 
+    matchField: 'email', 
+    matchValue: 'xxx@gmail.com', 
+    targetField: 'gmailRefreshToken' 
+});
 
-// 获取gmail验证码
-const gmailVerifyCode = await waitForGmailVerificationCode({ refreshToken: 'gmail刷新令牌', proxy:'你的proxy', from:'发送方邮箱', subject:'验证码', recentMinutes:5 });
+// 获取Gmail验证码
+const gmailVerifyCode = await waitForGmailVerificationCode({ 
+    refreshToken: 'gmail刷新令牌',
+    socksProxyUrl: 'socks5://username:password@ip:port',
+    from: '发送方邮箱',
+    subject: '验证码',
+    pollInterval: 10,  // 可选，轮询间隔（秒）
+    timeout: 300,      // 可选，总超时时间（秒）
+    recentMinutes: 5   // 可选，查询最近几分钟内的邮件
+});
 console.log(gmailVerifyCode);
 
+// Outlook授权示例（需要指纹浏览器配合）
+const outlookAuth = await OutlookAuthenticator.create({ 
+    chromeNumber: 1,  // 指纹浏览器编号
+    socksProxyUrl: 'socks5://username:password@ip:port'  // 代理地址
+});
+await outlookAuth.authorizeAndSaveToken({ 
+    csvFile: './data/social/email.csv', 
+    matchField: 'email', 
+    matchValue: 'xxx@outlook.com', 
+    targetField: 'outlookRefreshToken' 
+});
 
-
-// 获取outlook refresh token（需要指纹浏览器配合）
-const outlookAuth = new OutlookAuth('你的指纹浏览器Id', '你的proxy');
-await outlookAuth.autoAuth({ csvFile: './data/social/email.csv', matchField: 'email', matchValue: 'xxx@outlook.com', targetField: 'outlookRefreshToken' });
-
-// 获取outlook验证码
-const outlookVerifyCode = await waitForOutlookVerificationCode({ refreshToken: 'outlook刷新令牌', proxy:'你的proxy', from:'发送方邮箱', subject:'验证码', recentMinutes:5 });
+// 获取Outlook验证码
+const outlookVerifyCode = await waitForOutlookVerificationCode({ 
+    refreshToken: 'outlook刷新令牌',
+    socksProxyUrl: 'socks5://username:password@ip:port',
+    from: '发送方邮箱',
+    subject: '验证码',
+    pollInterval: 10,  // 可选，轮询间隔（秒）
+    timeout: 300,      // 可选，总超时时间（秒）
+    recentMinutes: 5   // 可选，查询最近几分钟内的邮件
+});
 console.log(outlookVerifyCode);
 ```

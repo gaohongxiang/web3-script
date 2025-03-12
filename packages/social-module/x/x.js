@@ -16,11 +16,11 @@ export class XAuthenticator extends ChromeBrowserUtil {
      * @static
      * @param {Object} params - 初始化参数
      * @param {number} params.chromeNumber - Chrome实例编号
-     * @param {string} params.proxy - 代理服务器地址
+     * @param {string} params.socksProxyUrl - 代理服务器地址
      * @returns {Promise<XAuthenticator>} 初始化完成的实例
      * @throws {Error} 缺少必要的环境变量配置时抛出错误
      */
-    static async create({ chromeNumber, proxy }) {
+    static async create({ chromeNumber, socksProxyUrl }) {
         // 1. 检查必要的环境变量
         if (!process.env.xClientId || !process.env.xClientSecret || !process.env.xRedirectUri) {
             throw new Error('缺少必要的环境变量配置');
@@ -30,7 +30,7 @@ export class XAuthenticator extends ChromeBrowserUtil {
         const instance = await super.create({ chromeNumber });
 
         // 3. 初始化API客户端
-        instance.proxy = new SocksProxyAgent(proxy);
+        instance.proxy = new SocksProxyAgent(socksProxyUrl);
         instance.client = new TwitterApi({
             clientId: process.env.xClientId,
             clientSecret: process.env.xClientSecret,
@@ -224,7 +224,7 @@ export class XClient {
      * @static
      * @param {Object} params - 初始化参数
      * @param {string} params.refreshToken - 刷新令牌
-     * @param {string} params.proxy - 代理服务器地址
+     * @param {string} params.socksProxyUrl - 代理服务器地址
      * @param {string} [params.csvFile='./data/social/x.csv'] - CSV文件路径
      * @param {string} [params.matchField='xUsername'] - CSV匹配字段
      * @param {string} params.matchValue - 匹配值
@@ -234,7 +234,7 @@ export class XClient {
      */
     static async create({ 
         refreshToken, 
-        proxy, 
+        socksProxyUrl, 
         csvFile = './data/social/x.csv', 
         matchField = 'xUsername', 
         matchValue, 
@@ -254,7 +254,7 @@ export class XClient {
         // 2. 创建实例
         const instance = new XClient();
         // 检查 proxy 是否已经是 SocksProxyAgent 实例
-        instance.proxy = proxy instanceof SocksProxyAgent ? proxy : new SocksProxyAgent(proxy);
+        instance.proxy = socksProxyUrl instanceof SocksProxyAgent ? socksProxyUrl : new SocksProxyAgent(socksProxyUrl);
 
         try {
             // 3. 初始化 X API 客户端

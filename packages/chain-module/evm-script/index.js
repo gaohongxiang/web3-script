@@ -12,12 +12,12 @@ let network, rpc;
  * 获取指定网络的 JSON-RPC 提供者。
  * 
  * @param {string} chain - 代币所在链。
- * @param {string} [proxy=null] - 代理，默认不走代理
+ * @param {string} [socksProxyUrl=null] - 代理，默认不走代理
  * 
  * 根据配置的网络名称，返回相应的网络和 JSON-RPC 提供者实例。
  * @returns {Object|null} - 返回一个包含网络名称和提供者实例的对象；如果网络不存在，则返回 null。
  */
-export function getNetworkProvider(chain, proxy = null) {
+export function getNetworkProvider(chain, socksProxyUrl = null) {
 	chain = chain.toLowerCase();
 	const infuraKey = process.env.infuraKey;
 	if (['eth', 'ethereum', 'erc20'].includes(chain)) {
@@ -62,9 +62,9 @@ export function getNetworkProvider(chain, proxy = null) {
 	}
 
 	let provider;
-	if (proxy) {
+	if (socksProxyUrl) {
 		// 创建 SOCKS 代理
-		const agent = new SocksProxyAgent(proxy);
+		const agent = new SocksProxyAgent(socksProxyUrl);
 
 		// 注册全局的 getUrl 函数，所有的 FetchRequest 实例都会使用这个函数来处理网络请求
 		ethers.FetchRequest.registerGetUrl(ethers.FetchRequest.createGetUrlFunc({ agent }));
@@ -126,14 +126,14 @@ export async function getWallet(enPrivateKey, provider) {
  * @param {string} address - 要查询余额的地址。
  * @param {string} token - 代币名称（大小写不敏感）。
  * @param {string} chain - 代币所在链。
- * @param {string} [proxy=null] - 代理，默认不走代理
+ * @param {string} [socksProxyUrl=null] - 代理，默认不走代理
  * @param {string} [tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @returns {Promise<string|null>} - 返回代币余额（以字符串形式），如果出错则返回 null。
  */
-export async function getBalance({ address, token, chain, proxy = null, tokenFile = './data/token.json' }) {
+export async function getBalance({ address, token, chain, socksProxyUrl = null, tokenFile = './data/token.json' }) {
 	token = token.toUpperCase();
 	let tokenBalance;
-	const { network, provider } = getNetworkProvider(chain, proxy);
+	const { network, provider } = getNetworkProvider(chain, socksProxyUrl);
 	if (mainTokens.includes(token)) {
 		const tokenBalanceWei = await provider.getBalance(address).catch(err => { console.log(err); return null; });
 		tokenBalance = ethers.formatEther(tokenBalanceWei);
@@ -159,14 +159,14 @@ export async function getBalance({ address, token, chain, proxy = null, tokenFil
  * @param {string} params.token - 代币名称（大小写不敏感）。
  * @param {string|number} params.value - 转账金额，可以是字符串或数字。
  * @param {string} params.chain - 代币所在链。
- * @param {string} [proxy=null] - 代理，默认不走代理
+ * @param {string} [socksProxyUrl=null] - 代理，默认不走代理
  * @param {string} [tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @returns {Promise<void>} - 无返回值，处理转账过程中的错误。
  */
-export async function transfer({ enPrivateKey, toAddress, token, value, chain, proxy = null, tokenFile = './data/token.json' }) {
+export async function transfer({ enPrivateKey, toAddress, token, value, chain, socksProxyUrl = null, tokenFile = './data/token.json' }) {
 	try {
 		token = token.toUpperCase();
-		const { network, provider } = getNetworkProvider(chain, proxy);
+		const { network, provider } = getNetworkProvider(chain, socksProxyUrl);
 		const wallet = await getWallet(enPrivateKey, provider);
 		const fromAddress = await wallet.getAddress();
 		if (mainTokens.includes(token)) {
@@ -213,12 +213,12 @@ export async function transfer({ enPrivateKey, toAddress, token, value, chain, p
  * @param {string} params.listenAddress - 要监听的地址。
  * @param {string} params.listenToken - 要监听的代币名称。
  * @param {string} params.chain - 要监听的代币所在链。
- * @param {string} [proxy=null] - 代理，默认不走代理
+ * @param {string} [socksProxyUrl=null] - 代理，默认不走代理
  * @param {string} [params.tokenFile='./data/token.json'] - 包含代币信息的 JSON 文件路径，默认为 './data/token.json'。
  * @param {string} [params.direction='in'] - 监听的方向，可以是 'in'（流入）或 'out'（流出），默认为 'in'。
  */
-export async function listenContract({ listenAddress, listenToken, chain, proxy = null, tokenFile = './data/token.json', direction = 'in' }) {
-	const { network, provider } = getNetworkProvider(chain, proxy);
+export async function listenContract({ listenAddress, listenToken, chain, socksProxyUrl = null, tokenFile = './data/token.json', direction = 'in' }) {
+	const { network, provider } = getNetworkProvider(chain, socksProxyUrl);
 	const tokenInfo = getTokenInfo({ token: listenToken, chain: network, tokenFile });
 	if (!tokenInfo) { console.log('没有此代币信息，请先添加'); return };
 	const { address: tokenAddr, abi: tokenAbi, decimals: tokenDecimals } = tokenInfo;
