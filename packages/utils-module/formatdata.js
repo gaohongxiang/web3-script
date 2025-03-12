@@ -1,7 +1,7 @@
 import fs from 'fs';
-import { getCsvData, getExcelData, parseInstanceNumbers, formatNumber } from './utils.js';
-import { getPathFromRoot } from './path.js';
 import path from 'path';
+import { getPathFromRoot } from './path.js';
+import { getCsvData, getExcelData, parseInstanceNumbers, formatNumber } from './utils.js';
 
 // 整合多个 CSV 文件为一个 JSON 对象
 export async function myFormatData(...inputs) {
@@ -37,8 +37,10 @@ export async function myFormatData(...inputs) {
                 // 只处理在 instanceNumbers 数组中的 ID
                 if (instanceNumbers.includes(id)) {
                     if (filePath.includes('ip.csv')) {
-                        const proxy = `socks5://${record.proxyUsername}:${record.proxyPassword}@${record.proxyIp}:${record.proxyPort}`;
-                        record.proxy = proxy; // 将拼接后的代理字符串添加到记录中
+                        record.baseProxy = `${record.proxyUsername}:${record.proxyPassword}@${record.proxyIp}:${record.proxyPort}`;
+                        record.socksProxyUrl = `socks5://${record.baseProxy}`;
+                        record.httpProxyUrl = `http://${record.baseProxy}`;
+                        record.httpsProxyUrl = `https://${record.baseProxy}`;
                     }
 
                     // 查找是否已经存在该 indexId 的记录
