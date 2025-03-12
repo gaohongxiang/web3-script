@@ -7,7 +7,14 @@ import { notificationManager } from '../../packages/notification-module/notifica
 // 注意eth主网余额 >=0.01eth 才能领到水
 export async function faucet({ chromeNumber, address, httpProxyUrl, fingerprint }) {
     try {
-        console.log(`第${chromeNumber}个账号，地址 ${address} 开始领水`);
+
+        notificationManager.info({
+            message: `saharaAi开始领水`,
+            context: {
+                "账号": chromeNumber,
+                "地址": address,
+            }
+        });
         // 创建 HTTP 代理实例
         const agent = new HttpsProxyAgent(httpProxyUrl);
 
@@ -47,7 +54,13 @@ export async function faucet({ chromeNumber, address, httpProxyUrl, fingerprint 
                 );
 
                 if (response.status === 200) {
-                    console.log(`第${chromeNumber}个账号，地址 ${address} 领水成功`);
+                    notificationManager.success({
+                        "message": `saharaAi领水成功`,
+                        "context": {
+                            "账号": chromeNumber,
+                            "地址": address,
+                        }
+                    });
                     return true;
                 }
             },
@@ -59,8 +72,10 @@ export async function faucet({ chromeNumber, address, httpProxyUrl, fingerprint 
         );
     } catch (error) {
         notificationManager.error({
-            "message": `第${chromeNumber}个账号，地址 ${address} 领水失败`,
+            "message": `saharaAi领水失败`,
             "context": {
+                "账号": chromeNumber,
+                "地址": address,
                 "错误": error.message
             }
         });
