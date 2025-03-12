@@ -4,6 +4,7 @@ import { createReadStream } from 'fs';  // 流操作
 import XLSX from 'xlsx';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify/sync';
+import crypto from 'crypto';
 
 /**
  * 获取指定代币的信息，包括地址、ABI 和小数位数。
@@ -526,4 +527,16 @@ export function formatNumber(input, digits = 3) {
 
     // 格式化为指定位数
     return num.toString().padStart(digits, '0');
+}
+
+/**
+ * 生成UUID
+ * 使用UUID v4生成唯一标识符
+ * @param {Object} options - 配置选项
+ * @param {boolean} [options.keepHyphens=true] - 是否保留连字符
+ * @returns {string} UUID字符串，根据参数决定是否保留连字符(32位无连字符或36位有连字符)
+ */
+export function generateUUID(keepHyphens = true) {
+  const uuid = crypto.randomUUID();
+  return keepHyphens ? uuid : uuid.replace(/-/g, '');
 }
