@@ -7,7 +7,7 @@ import { deCryptText } from '../../crypt-module/crypt.js';
 import { captchaManager } from '../../utils-module/captcha.js';
 import { notificationManager } from '../../notification-module/notification.js';
 import { withRetry } from '../../utils-module/retry.js';
-import { maskValue } from '../../utils-module/utils.js';
+import { maskValue, generateUUID } from '../../utils-module/utils.js';
 
 
 export class GalxeClient {
@@ -56,11 +56,6 @@ export class GalxeClient {
     return Math.random().toString(36).substring(2, 15);
   }
 
-  // 生成随机请求ID
-  getRandomRequestId() {
-    return crypto.randomUUID();
-  }
-
   // 获取请求头
   async getMainHeaders(isLogin = false) {
     // 如果不是登录请求且token无效，则重新登录
@@ -73,7 +68,7 @@ export class GalxeClient {
       'accept-language': 'en-US,en;q=0.9',
       'content-type': 'application/json',
       'origin': 'https://app.galxe.com',
-      'request-id': this.getRandomRequestId(),
+      'request-id': generateUUID(),
       'sec-ch-ua': this.fingerprint.headers['sec-ch-ua'],
       'sec-ch-ua-mobile': '?0',
       'sec-ch-ua-platform': 'macOS',

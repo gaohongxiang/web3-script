@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import axios from 'axios';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { deCryptText } from '../../packages/crypt-module/crypt.js';
-import { maskValue } from '../../packages/utils-module/utils.js';
+import { maskValue, generateUUID } from '../../packages/utils-module/utils.js';
 import { withRetry } from '../../packages/utils-module/retry.js';
 import { notificationManager } from '../../packages/notification-module/notification.js';
 import { GalxeClient } from '../../packages/social-module/galxe/galxe.js';
@@ -86,11 +86,6 @@ export class SaharaAi {
         });
 
         return instance;
-    }
-
-    // 生成随机请求ID
-    getRandomRequestId() {
-        return crypto.randomUUID();
     }
 
     // 获取请求头
@@ -204,7 +199,7 @@ export class SaharaAi {
             "sig": signature,
             "timestamp": Date.now(),
             "walletName": "OKX Wallet",
-            "walletUUID": this.getRandomRequestId()
+            "walletUUID": generateUUID()
         }
         const result = await this.executeRequest({
             url: '/api/v1/login/wallet',
@@ -335,7 +330,8 @@ export class SaharaAi {
                     context: { taskID: currentTaskId, name: taskInfo.name }
                 });
 
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                // 等待交易确认，多等一会
+                await new Promise(resolve => setTimeout(resolve, 30000));
                 await this.flush(currentTaskId);
                 // 更新任务状态
                 status = await this.getTaskStatusById(currentTaskId);
