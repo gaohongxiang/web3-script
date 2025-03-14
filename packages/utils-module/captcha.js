@@ -3,624 +3,311 @@ import axios from 'axios';
 import { withRetry } from './retry.js';
 import { notificationManager } from '../notification-module/notification.js';
 
-/**
- * YesCaptcha验证码服务客户端
- * 参考文档: https://yescaptcha.atlassian.net/wiki/spaces/YESCAPTCHA/pages/164286
- */
-class YesCaptchaClient {
-  constructor(clientKey = process.env.yesCaptchaClientKey) {
-    this.clientKey = clientKey;
-    this.baseUrl = "https://api.yescaptcha.com";
+// 点数转人民币汇率
+const USDTOCNY = 7.3;
+const YESCAPTCHA_CNY_PER_POINT = 1 / 1000;
+const NOCAPTCHA_CNY_PER_POINT = USDTOCNY / 66000;
 
-    const CNY_PER_POINT = 1 / 1000;
-
-    // YesCaptcha 验证码任务处理策略
-    this.captchaStrategies = {
-      // reCAPTCHA V2 策略
-      recaptchaV2: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          // 标准版
-          standard: {
-            type: 'NoCaptchaTaskProxyless',
-            price: CNY_PER_POINT * 15,
-            prepareTask: ({ websiteURL, websiteKey, isInvisible = false }) => ({
-              websiteURL,
-              websiteKey,
-              isInvisible
-            })
-          },
-          // 高级版
-          advanced: {
-            type: 'RecaptchaV2TaskProxyless',
-            price: CNY_PER_POINT * 20,
-            prepareTask: ({ websiteURL, websiteKey, isInvisible = false }) => ({
-              websiteURL,
-              websiteKey,
-              isInvisible
-            })
-          },
-          // K1定制版
-          k1: {
-            type: 'RecaptchaV2TaskProxylessK1',
-            price: CNY_PER_POINT * 20,
-            prepareTask: ({ websiteURL, websiteKey, isInvisible = false }) => ({
-              websiteURL,
-              websiteKey,
-              isInvisible
-            })
-          }
-        },
+// 服务商任务类型定义
+const serviceTaskTypes = {
+  yesCaptcha: {
+    requestType: 'taskId',
+    reCaptchaV2: {
+      standard: {
+        type: 'NoCaptchaTaskProxyless',
+        price: YESCAPTCHA_CNY_PER_POINT * 15,
+        prepareTask: ({ websiteURL, websiteKey, isInvisible = false }) => ({
+          websiteURL,
+          websiteKey,
+          ...(isInvisible ? { isInvisible } : {})
+        }),
         extractResult: (result) => result.solution?.gRecaptchaResponse
       },
-
-      // reCAPTCHA V3 策略
-      recaptchaV3: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          // 标准版
-          standard: {
-            type: 'RecaptchaV3TaskProxyless',
-            price: CNY_PER_POINT * 20,
-            prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
-              websiteURL,
-              websiteKey,
-              ...(pageAction ? { pageAction } : {})
-            })
-          },
-          // M1版本
-          m1: {
-            type: 'RecaptchaV3TaskProxylessM1',
-            price: CNY_PER_POINT * 25,
-            prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
-              websiteURL,
-              websiteKey,
-              ...(pageAction ? { pageAction } : {})
-            })
-          },
-          // K1定制版
-          k1: {
-            type: 'RecaptchaV3TaskProxylessK1',
-            price: CNY_PER_POINT * 25,
-            prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
-              websiteURL,
-              websiteKey,
-              ...(pageAction ? { pageAction } : {})
-            })
-          },
-          // 强制分值0.7版本
-          m1s7: {
-            type: 'RecaptchaV3TaskProxylessM1S7',
-            price: CNY_PER_POINT * 30,
-            prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
-              websiteURL,
-              websiteKey,
-              ...(pageAction ? { pageAction } : {})
-            })
-          },
-          // 强制分值0.9版本
-          m1s9: {
-            type: 'RecaptchaV3TaskProxylessM1S9',
-            price: CNY_PER_POINT * 35,
-            prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
-              websiteURL,
-              websiteKey,
-              ...(pageAction ? { pageAction } : {})
-            })
-          }
-        },
+      advanced: {
+        type: 'RecaptchaV2TaskProxyless',
+        price: YESCAPTCHA_CNY_PER_POINT * 20,
+        prepareTask: ({ websiteURL, websiteKey, isInvisible = false }) => ({
+          websiteURL,
+          websiteKey,
+          ...(isInvisible ? { isInvisible } : {})
+        }),
         extractResult: (result) => result.solution?.gRecaptchaResponse
       },
-
-      // hCaptcha 策略
-      hcaptcha: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          standard: {
-            type: 'HCaptchaTaskProxyless',
-            price: CNY_PER_POINT * 30,
-            prepareTask: ({ websiteURL, websiteKey }) => ({
-              websiteURL,
-              websiteKey
-            })
-          }
-        },
+      k1: {
+        type: 'RecaptchaV2TaskProxylessK1',
+        price: YESCAPTCHA_CNY_PER_POINT * 20,
+        prepareTask: ({ websiteURL, websiteKey, isInvisible = false }) => ({
+          websiteURL,
+          websiteKey,
+          ...(isInvisible ? { isInvisible } : {})
+        }),
+        extractResult: (result) => result.solution?.gRecaptchaResponse
+      }
+    },
+    reCaptchaV3: {
+      standard: {
+        type: 'RecaptchaV3TaskProxyless',
+        price: YESCAPTCHA_CNY_PER_POINT * 20,
+        prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
+          websiteURL,
+          websiteKey,
+          ...(pageAction ? { pageAction } : {})
+        }),
         extractResult: (result) => result.solution?.gRecaptchaResponse
       },
-      // CloudflareTurnstile 策略
-      CloudflareTurnstile: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          standard: {
-            type: 'TurnstileTaskProxyless',
-            price: CNY_PER_POINT * 25,
-            prepareTask: ({ websiteURL, websiteKey }) => ({
-              websiteURL,
-              websiteKey
-            })
-          },
-          m1: {
-            type: 'TurnstileTaskProxylessM1',
-            price: CNY_PER_POINT * 30,
-            prepareTask: ({ websiteURL, websiteKey }) => ({
-              websiteURL,
-              websiteKey
-            })
-          }
-        },
-        extractResult: (result) => result.solution?.token
+      m1: {
+        type: 'RecaptchaV3TaskProxylessM1',
+        price: YESCAPTCHA_CNY_PER_POINT * 25,
+        prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
+          websiteURL,
+          websiteKey,
+          ...(pageAction ? { pageAction } : {})
+        }),
+        extractResult: (result) => result.solution?.gRecaptchaResponse
       },
-
-      // CloudFlare5秒盾策略
-      cloudflare: {
-        defaultTaskType: 's2',
-        taskTypes: {
-          s2: {
-            type: 'CloudFlareTaskS2',
-            price: CNY_PER_POINT * 25,
-            // 注意：代理不支持带密码的socks5代理
-            prepareTask: ({ websiteURL, proxy }) => ({
-              websiteURL,
-              type: 'CloudFlareTaskS2',
-              ...proxy
-            })
-          }
-        },
-        extractResult: (result) => result.solution?.cookies
+      k1: {
+        type: 'RecaptchaV3TaskProxylessK1',
+        price: YESCAPTCHA_CNY_PER_POINT * 25,
+        prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
+          websiteURL,
+          websiteKey,
+          ...(pageAction ? { pageAction } : {})
+        }),
+        extractResult: (result) => result.solution?.gRecaptchaResponse
+      },
+      m1s7: {
+        type: 'RecaptchaV3TaskProxylessM1S7',
+        price: YESCAPTCHA_CNY_PER_POINT * 30,
+        prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
+          websiteURL,
+          websiteKey,
+          ...(pageAction ? { pageAction } : {})
+        }),
+        extractResult: (result) => result.solution?.gRecaptchaResponse
+      },
+      m1s9: {
+        type: 'RecaptchaV3TaskProxylessM1S9',
+        price: YESCAPTCHA_CNY_PER_POINT * 35,
+        prepareTask: ({ websiteURL, websiteKey, pageAction = '' }) => ({
+          websiteURL,
+          websiteKey,
+          ...(pageAction ? { pageAction } : {})
+        }),
+        extractResult: (result) => result.solution?.gRecaptchaResponse
       }
-    };
-  }
-
-  /**
-   * 创建验证码任务
-   */
-  async createTask({ captchaType = 'recaptchaV2', taskVariant, ...params }) {
-    const strategy = this.captchaStrategies[captchaType];
-    if (!strategy) return { error: `不支持的验证码类型 ${captchaType}` };
-
-    const variant = strategy.taskTypes[taskVariant] ||
-      strategy.taskTypes[strategy.defaultTaskType] ||
-      strategy.taskTypes[Object.keys(strategy.taskTypes)[0]];
-    if (!variant) return { error: `不支持的任务变体 ${taskVariant}` };
-
-    const taskParams = variant.prepareTask(params);
-    const taskData = {
-      ...taskParams,
-      type: variant.type
-    };
-
-    return withRetry(
-      async () => {
-        const result = await axios.post(`${this.baseUrl}/createTask`, {
-          clientKey: this.clientKey,
-          task: taskData
-        });
-
-        // 处理业务层面的错误
-        if (result.data.errorId > 0) {
-          throw new Error(result.data.errorDescription || '未知错误');
-        }
-
-        if (!result.data.taskId) {
-          throw new Error('服务器返回的taskId为空');
-        }
-
-        return result.data.taskId;
-      },
-      {
-        taskName: '创建验证任务',
-        logContext: {
-          "服务商": "YesCaptcha",
-          "任务类型": captchaType,
-          "任务变体": taskVariant || strategy.defaultTaskType
-        }
-      }
-    );
-  }
-
-  /**
-   * 获取任务结果
-   */
-  async getTaskResult(taskId, captchaType) {
-    if (!taskId) {
-      notificationManager.error({
-        "message": '获取结果失败',
-        "context": {
-          "服务商": "YesCaptcha",
-          "原因": "taskId不能为空"
-        }
-      });
-      return false;
-    }
-
-    const strategy = this.captchaStrategies[captchaType];
-
-    return withRetry(
-      async () => {
-        const result = await axios.post(`${this.baseUrl}/getTaskResult`, {
-          clientKey: this.clientKey,
-          taskId
-        });
-
-        // console.log('接收响应数据:', result.data);
-
-        if (result.data.errorId > 0) {
-          throw new Error(result.data.errorDescription || '未知错误');
-        }
-
-        // 如果任务还在处理中，则等待3秒后重试
-        if (result.data.status === 'processing') {
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          throw new Error('验证码处理超时');
-        }
-
-        if (result.data.status === 'ready') {
-          const solution = strategy.extractResult(result.data);
-          if (!solution) {
-            throw new Error('无法从结果中提取验证码');
-          }
-          return solution;
+    },
+    // hCaptcha 策略
+    hCaptcha: {
+      defaultTaskType: 'standard',
+      taskTypes: {
+        standard: {
+          type: 'HCaptchaTaskProxyless',
+          price: YESCAPTCHA_CNY_PER_POINT * 30,
+          prepareTask: ({ websiteURL, websiteKey, userAgent = '', isInvisible = false, rqdata = '' }) => ({
+            websiteURL,
+            websiteKey,
+            ...(userAgent ? { userAgent } : {}),
+            ...(isInvisible ? { isInvisible } : {}),
+            ...(rqdata ? { rqdata } : {})
+          })
         }
       },
-      {
-        taskName: '验证网站验证码',
-        logContext: {
-          "服务商": "YesCaptcha",
-        }
-      }
-    );
-  }
-
-  /**
-   * 验证网站验证码
-   */
-  async verifyWebsite({ captchaType = 'recaptchaV2', taskVariant, ...params }) {
-    try {
-      const taskId = await this.createTask({ captchaType, taskVariant, ...params });
-
-      const result = await this.getTaskResult(taskId, captchaType);
-      if (!result) return false;
-
-      return result;
-    } catch (error) {
-      notificationManager.error({
-        "message": '验证网站验证码',
-        "context": {
-          "服务商": "YesCaptcha",
-          "任务类型": captchaType,
-          "任务变体": taskVariant,
-          "原因": error.message
-        }
-      });
-      return false;
-    }
-  }
-}
-
-/**
- * NoCaptcha验证码服务客户端
- * 参考文档: https://chrisyp.github.io/
- */
-class NoCaptchaClient {
-  constructor(userToken = process.env.noCaptchaClientKey) {
-    this.userToken = userToken;
-    this.baseUrl = "http://api.nocaptcha.io";
-
-    const USDTOCNY = 7.3;
-    const CNY_PER_POINT = USDTOCNY / 66000;
-    /**
-     * NoCaptcha 验证码任务处理策略
-     */
-    this.captchaStrategies = {
-      // reCAPTCHA 策略
-      recaptcha: {
-        defaultTaskType: 'universal',
-        taskTypes: {
-          // 通用版本
-          universal: {
-            price: CNY_PER_POINT * 300,
-            apiEndpoint: '/api/wanda/recaptcha/universal',
-            prepareTask: ({
-              sitekey,
-              referer,
-              title,
-              size = 'normal',
-              action = '',
-              proxy = '',
-              ubd = false
-            }) => ({
-              sitekey,
-              referer,
-              title,
-              size,
-              ...(action ? { action } : {}),
-              ...(proxy ? { proxy } : {}),
-              ...(ubd ? { ubd } : {})
-            })
-          }
-        },
-        extractResult: (result) => result.data?.token
-      },
-
-      // hCaptcha 策略
-      hcaptcha: {
-        defaultTaskType: 'universal',
-        taskTypes: {
-          // 通用版本
-          universal: {
-            price: CNY_PER_POINT * 300,
-            apiEndpoint: '/api/wanda/hcaptcha/universal',
-            prepareTask: ({
-              sitekey,
-              referer,
-              rqdata = '',
-              domain = '',
-              proxy = '',
-              region = '',
-              invisible = false,
-              need_ekey = false,
-            }) => ({
-              sitekey,
-              referer,
-              ...(rqdata ? { rqdata } : {}),
-              ...(domain ? { domain } : {}),
-              ...(proxy ? { proxy } : {}),
-              ...(region ? { region } : {}),
-              ...(invisible ? { invisible } : {}),
-              ...(need_ekey ? { need_ekey } : {}),
-            })
-          }
-        },
-        extractResult: (result) => {
-          // hCaptcha 返回的是 generated_pass_UUID
-          return result.data?.generated_pass_UUID;
-        }
-      },
-
-      // Vercel 策略
-      vercel: {
-        defaultTaskType: 'universal',
-        taskTypes: {
-          // 通用版本
-          universal: {
-            price: CNY_PER_POINT * 1000, // 1000点/次
-            apiEndpoint: '/api/wanda/vercel/universal',
-            prepareTask: ({
-              href,
-              proxy = '',
-              user_agent = '',
-              timeout = 30
-            }) => ({
-              href,
-              ...(proxy ? { proxy } : {}),
-              ...(user_agent ? { user_agent } : {}),
-              ...(timeout ? { timeout } : {})
-            })
-          }
-        },
+      extractResult: (result) => result.solution?.gRecaptchaResponse
+    },
+    cloudflareTurnstile: {
+      standard: {
+        type: 'TurnstileTaskProxyless',
+        price: YESCAPTCHA_CNY_PER_POINT * 25,
+        prepareTask: ({ websiteURL, websiteKey }) => ({
+          websiteURL,
+          websiteKey
+        }),
         extractResult: (result) => ({
-          _vcrcs: result.data?._vcrcs,
-          extra: result.extra
+          token: result.solution?.token,
+          userAgent: result.solution?.userAgent,
         })
       },
-
-      // TLS 策略
-      tls: {
-        defaultTaskType: 'universal',
-        taskTypes: {
-          // 通用版本
-          universal: {
-            price: CNY_PER_POINT * 100,
-            apiEndpoint: '/api/wanda/tls/v1',
-            prepareTask: ({
-              url,
-              method = 'get',
-              headers = {},
-              cookies = {},
-              proxy = '',
-              data = '',
-              json = '',
-              timeout = 15,
-              http2 = false,
-              redirect = true,
-              ja3 = ''
-            }) => ({
-              url,
-              ...(method ? { method } : {}),
-              ...(Object.keys(headers).length ? { headers } : {}),
-              ...(Object.keys(cookies).length ? { cookies } : {}),
-              ...(proxy ? { proxy } : {}),
-              ...(data ? { data } : {}),
-              ...(json ? { json } : {}),
-              ...(timeout ? { timeout } : {}),
-              ...(http2 ? { http2 } : {}),
-              ...(redirect ? { redirect } : {}),
-              ...(ja3 ? { ja3 } : {})
-            })
-          }
-        },
+      m1: {
+        type: 'TurnstileTaskProxylessM1',
+        price: YESCAPTCHA_CNY_PER_POINT * 30,
+        prepareTask: ({ websiteURL, websiteKey }) => ({
+          websiteURL,
+          websiteKey
+        }),
         extractResult: (result) => ({
-          status: result.data?.response?.status,
-          text: result.data?.response?.text,
-          cookies: result.data?.response?.cookies,
-          tls: result.data?.response?.tls
+          token: result.solution?.token,
+          userAgent: result.solution?.user_agent,
         })
       }
-    };
-  }
-
-  /**
-   * 验证网站验证码
-   */
-  async verifyWebsite({ captchaType = 'recaptcha', taskVariant, ...params }) {
-    try {
-      // 获取对应的策略
-      const strategy = this.captchaStrategies[captchaType];
-      if (!strategy) return { error: `不支持的验证码类型 ${captchaType}` };
-
-      const variant = strategy.taskTypes[taskVariant] ||
-        strategy.taskTypes[strategy.defaultTaskType] ||
-        strategy.taskTypes[Object.keys(strategy.taskTypes)[0]];
-      if (!variant) return { error: `不支持的任务变体 ${taskVariant}` };
-
-      // 从任务变体中获取API端点
-      const apiEndpoint = variant.apiEndpoint;
-      if (!apiEndpoint) return { error: `未定义API端点` };
-
-      // 准备任务数据
-      const taskData = variant.prepareTask(params);
-
-      return withRetry(
-        async () => {
-
-          const headers = {
-            "User-Token": this.userToken,
-            "Content-Type": "application/json"
-          }
-
-          const result = await axios.post(`${this.baseUrl}${apiEndpoint}`, {
-            data: taskData
-          }, {
-            headers
-          });
-
-          // console.log('接收响应数据:', result.data);
-
-          // status不为1表示失败
-          if (result.data.status != 1) {
-            throw new Error(result.data.msg);
-          }
-
-          if (result.data.status === 1) {
-            const solution = strategy.extractResult(result.data);
-            if (!solution) {
-              throw new Error('无法从结果中提取验证码');
-            }
-            return solution;
-          }
-        },
-        {
-          taskName: '验证网站验证码',
-          logContext: {
-            "服务商": "NoCaptcha",
-            "任务类型": captchaType,
-            "任务变体": taskVariant
-          }
-        }
-      );
-    } catch (error) {
-      notificationManager.error({
-        "message": '验证网站验证码',
-        "context": {
-          "服务商": "NoCaptcha",
-          "任务类型": captchaType,
-          "任务变体": taskVariant,
-          "原因": error.message
-        }
-      });
-      return false;
+    },
+    // Cloudflare 5秒盾 策略
+    // 请使用返回的ua值、cookie值以及创建任务的代理ip进行后续操作，因为cloudflare要求三者一致
+    cloudflare5sShield: {
+      s2: {
+        type: 'CloudFlareTaskS2',
+        price: YESCAPTCHA_CNY_PER_POINT * 25,
+        prepareTask: ({ websiteURL, proxy, userAgent = '', waitLoad = false, requiredCookies = ['cf_clearance'], blockImage = false }) => ({
+          websiteURL,
+          type: 'CloudFlareTaskS2',
+          ...proxy,
+          ...(userAgent ? { userAgent } : {}),
+          ...(waitLoad ? { waitLoad } : {}),
+          ...(requiredCookies ? { requiredCookies } : {}),
+          ...(blockImage ? { blockImage } : {})
+        }),
+        extractResult: (result) => ({
+          cookies: result.solution?.cookies,
+          userAgent: result.solution?.user_agent
+        })
+      },
+      s3: {
+        type: 'CloudFlareTaskS3',
+        price: YESCAPTCHA_CNY_PER_POINT * 20,
+        prepareTask: ({ websiteURL, proxy, waitLoad = false, requiredCookies = ['cf_clearance'], blockImage = false }) => ({
+          websiteURL,
+          type: 'CloudFlareTaskS3',
+          ...proxy,
+          ...(waitLoad ? { waitLoad } : {}),
+          ...(requiredCookies ? { requiredCookies } : {}),
+          ...(blockImage ? { blockImage } : {})
+        }),
+        extractResult: (result) => ({
+          cookies: result.solution?.cookies,
+          userAgent: result.solution?.userAgent
+        })
+      }
     }
-  }
-}
+  },
 
-/**
- * CapSolver验证码服务客户端
- * 参考文档: https://docs.capsolver.com/guide/getting-started.html
- */
-class CapSolverClient {
-  constructor(clientKey = process.env.capSolverClientKey) {
-    this.clientKey = clientKey;
-    this.baseUrl = "https://api.capsolver.com";
-    const USDTOCNY = 7.3;
-    // CapSolver 验证码任务处理策略
-    this.captchaStrategies = {
-      // reCAPTCHA V2 策略
-      recaptchaV2: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          standard: {
-            type: 'ReCaptchaV2TaskProxyLess',
-            price: USDTOCNY * 0.8 / 1000,
-            prepareTask: ({ websiteURL, websiteKey, isInvisible = false }) => ({
-              type: 'ReCaptchaV2TaskProxyLess',
-              websiteURL,
-              websiteKey,
-              isInvisible
-            })
-          }
-        },
-        extractResult: (result) => result.solution?.gRecaptchaResponse
+  capSolver: {
+    requestType: 'taskId',
+    reCaptchaV2: {
+      standard: {
+        type: 'ReCaptchaV2TaskProxyLess',
+        price: USDTOCNY * 0.8 / 1000,
+        prepareTask: ({ websiteURL, websiteKey, isInvisible = false, pageAction = '', enterprisePayload = null, apiDomain = '', userAgent = '', cookies = [], anchor = '', reload = '' }) => ({
+          websiteURL,
+          websiteKey,
+          ...(isInvisible ? { isInvisible } : {}),
+          ...(pageAction ? { pageAction } : {}),
+          ...(enterprisePayload ? { enterprisePayload } : {}),
+          ...(apiDomain ? { apiDomain } : {}),
+          ...(userAgent ? { userAgent } : {}),
+          ...(cookies.length > 0 ? { cookies } : {}),
+          ...(anchor ? { anchor } : {}),
+          ...(reload ? { reload } : {})
+        }),
+        extractResult: (result) => ({
+          gRecaptchaResponse: result.solution?.gRecaptchaResponse,
+          userAgent: result.solution?.userAgent,
+          expireTime: result.solution?.expireTime
+        })
       },
-
-      // reCAPTCHA V3 策略
-      recaptchaV3: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          standard: {
-            type: 'ReCaptchaV3TaskProxyLess',
-            price: USDTOCNY * 1 / 1000,
-            prepareTask: ({ websiteURL, websiteKey, pageAction = 'verify', minScore = 0.7 }) => ({
-              websiteURL,
-              websiteKey,
-              pageAction,
-              minScore
-            })
-          }
-        },
-        extractResult: (result) => result.solution?.gRecaptchaResponse
+      advanced: {
+        type: 'ReCaptchaV2Task',
+        price: USDTOCNY * 0.8 / 1000,
+        prepareTask: ({ websiteURL, websiteKey, proxy, isInvisible = false, pageAction = '', enterprisePayload = null, apiDomain = '', userAgent = '', cookies = [], anchor = '', reload = '' }) => ({
+          websiteURL,
+          websiteKey,
+          proxy,
+          ...(isInvisible ? { isInvisible } : {}),
+          ...(pageAction ? { pageAction } : {}),
+          ...(enterprisePayload ? { enterprisePayload } : {}),
+          ...(apiDomain ? { apiDomain } : {}),
+          ...(userAgent ? { userAgent } : {}),
+          ...(cookies.length > 0 ? { cookies } : {}),
+          ...(anchor ? { anchor } : {}),
+          ...(reload ? { reload } : {})
+        }),
+        extractResult: (result) => ({
+          gRecaptchaResponse: result.solution?.gRecaptchaResponse,
+          userAgent: result.solution?.userAgent,
+          expireTime: result.solution?.expireTime
+        })
+      }
+    },
+    reCaptchaV3: {
+      standard: {
+        type: 'ReCaptchaV3TaskProxyLess',
+        price: USDTOCNY * 1 / 1000,
+        prepareTask: ({ websiteURL, websiteKey, pageAction = 'verify', minScore = 0.7, enterprisePayload = null, apiDomain = '', userAgent = '', cookies = [] }) => ({
+          websiteURL,
+          websiteKey,
+          pageAction,
+          ...(minScore ? { minScore } : {}),
+          ...(enterprisePayload ? { enterprisePayload } : {}),
+          ...(apiDomain ? { apiDomain } : {}),
+          ...(userAgent ? { userAgent } : {}),
+          ...(cookies.length > 0 ? { cookies } : {})
+        }),
+        extractResult: (result) => ({
+          gRecaptchaResponse: result.solution?.gRecaptchaResponse,
+          userAgent: result.solution?.userAgent,
+          expireTime: result.solution?.expireTime
+        })
       },
-
-      // Cloudflare Turnstile 策略
-      CloudflareTurnstile: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          standard: {
-            type: 'AntiTurnstileTaskProxyLess',
-            price: USDTOCNY * 1.2 / 1000,
-            prepareTask: ({ websiteURL, websiteKey }) => ({
-              websiteURL,
-              websiteKey
-            })
-          }
-        },
-        extractResult: (result) => result.solution?.token
-      },
-
-      // GeeTest V3 策略
-      geeTestV3: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          standard: {
-            type: 'GeeTestTaskProxyLess',
-            price: USDTOCNY * 1.2 / 1000,
-            prepareTask: ({ websiteURL, gt, challenge, geetestApiServerSubdomain }) => ({
-              websiteURL,
-              gt,
-              challenge,
-              ...(geetestApiServerSubdomain ? { geetestApiServerSubdomain } : {})
-            })
-          }
-        },
+      advanced: {
+        type: 'ReCaptchaV3Task',
+        price: USDTOCNY * 1 / 1000,
+        prepareTask: ({ websiteURL, websiteKey, proxy, pageAction = 'verify', minScore = 0.7, enterprisePayload = null, apiDomain = '', userAgent = '', cookies = [] }) => ({
+          websiteURL,
+          websiteKey,
+          proxy,
+          pageAction,
+          ...(minScore ? { minScore } : {}),
+          ...(enterprisePayload ? { enterprisePayload } : {}),
+          ...(apiDomain ? { apiDomain } : {}),
+          ...(userAgent ? { userAgent } : {}),
+          ...(cookies.length > 0 ? { cookies } : {})
+        }),
+        extractResult: (result) => ({
+          gRecaptchaResponse: result.solution?.gRecaptchaResponse,
+          userAgent: result.solution?.userAgent,
+          expireTime: result.solution?.expireTime
+        })
+      }
+    },
+    cloudflareTurnstile: {
+      standard: {
+        type: 'AntiTurnstileTaskProxyLess',
+        price: USDTOCNY * 1.2 / 1000,
+        prepareTask: ({ websiteURL, websiteKey, metadata = {} }) => ({
+          websiteURL,
+          websiteKey,
+          ...(metadata.action ? { action: metadata.action } : {}),
+          ...(metadata.cdata ? { cdata: metadata.cdata } : {})
+        }),
+        extractResult: (result) => ({
+          token: result.solution?.token,
+          userAgent: result.solution?.userAgent,
+        })
+      }
+    },
+    geeTestV3: {
+      standard: {
+        type: 'GeeTestTaskProxyLess',
+        price: USDTOCNY * 1.2 / 1000,
+        prepareTask: ({ websiteURL, gt, challenge, geetestApiServerSubdomain = '' }) => ({
+          websiteURL,
+          gt,
+          challenge,
+          ...(geetestApiServerSubdomain ? { geetestApiServerSubdomain } : {})
+        }),
         extractResult: (result) => ({
           challenge: result.solution?.challenge,
           validate: result.solution?.validate
         })
       },
-
-      // GeeTest V4 策略
-      geeTestV4: {
-        defaultTaskType: 'standard',
-        taskTypes: {
-          standard: {
-            type: 'GeeTestTaskProxyLess',
-            price: USDTOCNY * 1.2 / 1000,
-            prepareTask: ({ websiteURL, captchaId, geetestApiServerSubdomain }) => ({
-              websiteURL,
-              captchaId,
-              ...(geetestApiServerSubdomain ? { geetestApiServerSubdomain } : {})
-            })
-          }
-        },
+    },
+    geeTestV4: {
+      standard: {
+        type: 'GeeTestTaskProxyLess',
+        price: USDTOCNY * 1.2 / 1000,
+        prepareTask: ({ websiteURL, captchaId, geetestApiServerSubdomain = '' }) => ({
+          websiteURL,
+          captchaId,
+          ...(geetestApiServerSubdomain ? { geetestApiServerSubdomain } : {})
+        }),
         extractResult: (result) => ({
           captchaId: result.solution?.captcha_id,
           captchaOutput: result.solution?.captcha_output,
@@ -629,310 +316,485 @@ class CapSolverClient {
           passToken: result.solution?.pass_token,
           riskType: result.solution?.risk_type
         })
-      },
-    };
+      }
+    }
+  },
+
+  noCaptcha: {
+    requestType: 'direct',
+    reCaptcha: {
+      universal: {
+        price: NOCAPTCHA_CNY_PER_POINT * 300,
+        apiEndpoint: '/api/wanda/recaptcha/universal',
+        prepareTask: ({ sitekey, referer, size = 'normal', title, action = '', proxy = '', ubd = false }) => ({
+          sitekey,
+          referer,
+          size,
+          title,
+          ...(action ? { action } : {}),
+          ...(proxy ? { proxy } : {}),
+          ...(ubd ? { ubd } : {})
+        }),
+        extractResult: (result) => result.data?.token
+      }
+    },
+    hCaptcha: {
+      universal: {
+        price: NOCAPTCHA_CNY_PER_POINT * 300,
+        apiEndpoint: '/api/wanda/hcaptcha/universal',
+        prepareTask: ({ sitekey, referer, rqdata = '', domain = '', proxy = '', region = '', invisible = false, need_ekey = false }) => ({
+          sitekey,
+          referer,
+          ...(rqdata ? { rqdata } : {}),
+          ...(domain ? { domain } : {}),
+          ...(proxy ? { proxy } : {}),
+          ...(region ? { region } : {}),
+          ...(invisible ? { invisible } : {}),
+          ...(need_ekey ? { need_ekey } : {})
+        }),
+        extractResult: (result) => ({
+          generatedPassUUID: result.data?.generated_pass_UUID,
+          userAgent: result.data?.user_agent
+        })
+      }
+    },
+    cloudflareTurnstile: {
+      universal: {
+        price: NOCAPTCHA_CNY_PER_POINT * 300,
+        apiEndpoint: '/api/wanda/cloudflare/universal',
+        prepareTask: ({ href, sitekey, proxy = '', explicit = false, action = '', cdata = '', user_agent = '', alpha = false }) => ({
+          href,
+          sitekey,
+          ...(proxy ? { proxy } : {}),
+          ...(explicit ? { explicit } : {}),
+          ...(action ? { action } : {}),
+          ...(cdata ? { cdata } : {}),
+          ...(user_agent ? { user_agent } : {}),
+          ...(alpha ? { alpha } : {})
+        }),
+        extractResult: (result) => ({
+          token: result.data?.token,
+          extra: result.extra
+        })
+      }
+    },
+    cloudflare5sShield: {
+      universal: {
+        price: NOCAPTCHA_CNY_PER_POINT * 1000,
+        apiEndpoint: '/api/wanda/cloudflare/universal',
+        prepareTask: ({ href, proxy, user_agent = '', alpha = false }) => ({
+          href,
+          proxy,
+          ...(user_agent ? { user_agent } : {}),
+          ...(alpha ? { alpha } : {})
+        }),
+        extractResult: (result) => ({
+          cookies: result.data?.cookies,
+          extra: result.extra
+        })
+      }
+    },
+    vercel: {
+      universal: {
+        price: NOCAPTCHA_CNY_PER_POINT * 150,
+        apiEndpoint: '/api/wanda/vercel/universal',
+        prepareTask: ({ href, proxy = '', user_agent = '', timeout = 15 }) => ({
+          href,
+          ...(proxy ? { proxy } : {}),
+          ...(user_agent ? { user_agent } : {}),
+          ...(timeout ? { timeout } : {})
+        }),
+        extractResult: (result) => ({
+          _vcrcs: result.data?._vcrcs,
+          extra: result.extra
+        })
+      }
+    },
+    tls: {
+      universal: {
+        price: NOCAPTCHA_CNY_PER_POINT * 100,
+        apiEndpoint: '/api/wanda/tls/v1',
+        prepareTask: ({ url, method = 'get', headers = {}, cookies = {}, proxy = '', data = '', json = '', timeout = 15, http2 = false, redirect = true, ja3 = '' }) => ({
+          url,
+          ...(method ? { method } : {}),
+          ...(Object.keys(headers).length > 0 ? { headers } : {}),
+          ...(Object.keys(cookies).length > 0 ? { cookies } : {}),
+          ...(proxy ? { proxy } : {}),
+          ...(data ? { data } : {}),
+          ...(json ? { json } : {}),
+          ...(timeout ? { timeout } : {}),
+          ...(http2 ? { http2 } : {}),
+          ...(redirect !== undefined ? { redirect } : {}),
+          ...(ja3 ? { ja3 } : {})
+        }),
+        extractResult: (result) => ({
+          text: result.data?.response?.text,
+          cookies: result.data?.response?.cookies,
+          tls: result.data?.response?.tls
+        })
+      }
+    }
+  }
+};
+
+class CaptchaClient {
+  constructor(serviceName, config) {
+    this.serviceName = serviceName;
+    this.config = config;
+    this.taskTypes = serviceTaskTypes[serviceName];
   }
 
-  /**
-   * 创建验证码任务
-   */
-  async createTask({ captchaType = 'recaptchaV2', taskVariant, ...params }) {
+  getTaskType(params) {
+    // 获取验证码类型配置
+    const captchaTypes = this.taskTypes[params.captchaType];
+    // 获取任务类型配置
+    return captchaTypes[params.taskVariant];
+  }
 
-    const strategy = this.captchaStrategies[captchaType];
-    if (!strategy) return { error: `不支持的验证码类型 ${captchaType}` };
+  buildTaskParams(params) {
+    const taskType = this.getTaskType(params);
+    // 使用任务类型的prepareTask方法构建参数
+    let taskParams = taskType.prepareTask(params);
+    // 只有非noCaptcha服务才添加type参数
+    if (this.serviceName !== 'noCaptcha') {
+      taskParams = {
+        ...taskParams,
+        type: taskType.type
+      };
+    }
+    return taskParams;
+  }
 
-    // 确定任务变体
-    const variant = strategy.taskTypes[taskVariant] ||
-      strategy.taskTypes[strategy.defaultTaskType] ||
-      strategy.taskTypes[Object.keys(strategy.taskTypes)[0]];
-    if (!variant) return { error: `不支持的任务变体 ${taskVariant}` };
-    // console.log('variant', variant)
+  extractResult(result, taskType) {
+    if (!taskType.extractResult) {
+      throw new Error('任务类型未定义extractResult方法');
+    }
+    return taskType.extractResult(result);
+  }
 
-    // 准备任务数据
-    const taskParams = variant.prepareTask(params);
-    // 添加任务类型
-    const taskData = {
-      ...taskParams,
-      type: variant.type
-    };
+  async verifyWebsite(params) {
+    const taskType = this.getTaskType(params);
+    const taskParams = this.buildTaskParams(params);
 
+    // console.log('params', params);
+    // console.log('taskType', taskType);
+    // console.log('taskParams', taskParams);
+
+    // 根据requestType选择验证方式
+    let result;
+    if (this.taskTypes.requestType === 'direct') {
+      result = await this.directVerify(taskParams, taskType.apiEndpoint);
+    } else {
+      // taskId方式处理流程
+      const taskId = await this.createTask(taskParams);
+      result = await this.getTaskResult(taskId);
+    }
+
+    // 统一提取结果
+    return this.extractResult(result, taskType);
+  }
+
+  async createTask(taskParams) {
     return withRetry(
       async () => {
-        const result = await axios.post(`${this.baseUrl}/createTask`, {
-          clientKey: this.clientKey,
-          task: taskData
+
+        // console.log('验证码请求数据:', taskParams);
+
+        const response = await axios.post(`${this.config.baseUrl}/createTask`, {
+          clientKey: this.config.clientKey,
+          task: taskParams
         });
 
-        // 处理业务层面的错误
-        if (result.data.errorId > 0) {
-          throw new Error(result.data.errorDescription || '未知错误');
+        const result = response.data;
+
+        // console.log('创建验证任务响应数据:', result);
+
+        // 统一检查错误和结果
+        if (result.errorId > 0 || !result.taskId) {
+          throw new Error(result.errorDescription || '服务器返回的taskId为空');
         }
 
-        if (!result.data.taskId) {
-          throw new Error('服务器返回的taskId为空');
-        }
-
-        return result.data.taskId;
+        return result.taskId;
       },
       {
         taskName: '创建验证任务',
         logContext: {
-          "服务商": "CapSolver",
-          "任务类型": captchaType,
-          "任务变体": taskVariant || strategy.defaultTaskType
+          "服务商": this.serviceName,
+          "验证码类型": taskParams.captchaType,
+          "任务类型": taskParams.taskVariant,
         }
       }
     );
   }
 
-  /**
-   * 获取任务结果
-   */
-  async getTaskResult(taskId, captchaType) {
+  async getTaskResult(taskId) {
     if (!taskId) {
       notificationManager.error({
         "message": '获取结果失败',
         "context": {
-          "服务商": "CapSolver",
+          "服务商": this.serviceName,
           "原因": "taskId不能为空"
         }
       });
       return false;
     }
 
-    const strategy = this.captchaStrategies[captchaType];
-
     return withRetry(
       async () => {
-        const result = await axios.post(`${this.baseUrl}/getTaskResult`, {
-          clientKey: this.clientKey,
+        const response = await axios.post(`${this.config.baseUrl}/getTaskResult`, {
+          clientKey: this.config.clientKey,
           taskId
         });
+        const result = response.data;
+        
+        // console.log('获取验证结果响应数据:', result);
 
-        // console.log('接收响应数据:', result.data);
-
-        if (result.data.errorId > 0) {
-          throw new Error(result.data.errorDescription || '未知错误');
-        }
-
-        // 如果任务还在处理中，则等待3秒后重试
-        if (result.data.status === 'processing') {
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          throw new Error('验证码处理超时');
-        }
-
-        if (result.data.status === 'ready') {
-          const solution = strategy.extractResult(result.data);
-          if (!solution) {
-            throw new Error('无法从结果中提取验证码');
+        // 检查错误和状态
+        if (result.errorId > 0 || result.status !== 'ready') {
+          // 处理中状态特殊处理
+          if (result.status === 'processing') {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            throw new Error('验证码处理超时');
           }
-          return solution;
+          // 其他错误状态
+          throw new Error(result.errorDescription || `验证码状态异常: ${result.status}`);
         }
+
+        return result;
       },
       {
-        taskName: '验证网站验证码',
+        taskName: '获取验证结果',
         logContext: {
-          "服务商": "CapSolver",
+          "服务商": this.serviceName,
+          "任务ID": taskId
         }
       }
     );
   }
 
-  /**
-  * 验证网站验证码
-  */
-  async verifyWebsite({ captchaType = 'recaptchaV2', taskVariant, ...params }) {
+  async directVerify(taskParams, apiEndpoint) {
+    return withRetry(
+      async () => {
+        const headers = {
+          "User-Token": this.config.userToken,
+          "Content-Type": "application/json",
+        };
+        
+        // console.log('验证码请求头:', headers);
+        // console.log('验证码请求数据:', taskParams);
+        // console.log('验证码请求URL:', `${this.config.baseUrl}${apiEndpoint}`);
+
+        const response = await axios.post(
+          `${this.config.baseUrl}${apiEndpoint}`,
+          taskParams,
+          { headers }
+        );
+
+        const result = response.data;
+
+        // console.log('获取验证结果响应数据:', result);
+
+        // 统一检查状态
+        if (result.status !== 1) {
+          throw new Error(result.msg || '验证失败');
+        }
+
+        return result;
+      },
+      {
+        taskName: '直接验证',
+        logContext: {
+          "服务商": this.serviceName,
+          "验证码类型": taskParams.captchaType,
+          "任务类型": taskParams.taskVariant,
+          "API": taskParams.apiEndpoint
+        }
+      }
+    );
+  }
+}
+
+// 统一管理器
+class CaptchaManager {
+  constructor() {
+    this.services = {};
+  }
+
+  initService(serviceName) {
+    try {
+      // 如果已经初始化过，直接返回
+      if (this.services[serviceName]) {
+        return this.services[serviceName];
+      }
+
+      // 检查环境变量
+      const envKey = `${serviceName}ClientKey`;
+      if (!process.env[envKey]) {
+        notificationManager.error({
+          "message": '初始化失败',
+          "context": {
+            "服务商": serviceName,
+            "原因": "未配置API密钥"
+          }
+        });
+        return null;
+      }
+
+      // 创建配置
+      const config = {
+        ...(serviceName === 'noCaptcha'
+          ? { userToken: process.env[envKey] }
+          : { clientKey: process.env[envKey] }),
+        baseUrl: serviceName === 'yesCaptcha'
+          ? 'https://api.yescaptcha.com'
+          : serviceName === 'noCaptcha'
+            ? 'http://api.nocaptcha.io'
+            : 'https://api.capsolver.com'
+      };
+      // console.log('配置:', config);
+
+      this.services[serviceName] = new CaptchaClient(serviceName, config);
+
+      return this.services[serviceName];
+    } catch (error) {
+      notificationManager.error({
+        "message": '初始化失败',
+        "context": {
+          "服务商": serviceName,
+          "原因": error.message,
+          // "错误信息": error.stack
+        }
+      });
+      return null;
+    }
+  }
+
+  async verifyWebsite(params) {
+    // 验证服务商
+    if (!params.captchaService || !serviceTaskTypes[params.captchaService]) {
+      const supportedServices = Object.keys(serviceTaskTypes).join(', ');
+      notificationManager.error({
+        "message": '验证失败',
+        "context": {
+          "服务商": params.captchaService,
+          "原因": `未指定或不支持的服务商，支持: ${supportedServices}`
+        }
+      });
+      return false;
+    }
+
+    // 初始化服务
+    const service = this.initService(params.captchaService);
+    if (!service) {
+      return false;
+    }
+
+    // 验证验证码类型
+    const serviceTypes = serviceTaskTypes[params.captchaService];
+    if (!serviceTypes[params.captchaType]) {
+      const supportedTypes = Object.keys(serviceTypes).join(', ');
+      notificationManager.error({
+        "message": '验证失败',
+        "context": {
+          "服务商": params.captchaService,
+          "原因": `未指定或不支持的验证码类型 ${params.captchaType}，支持: ${supportedTypes}`
+        }
+      });
+      return false;
+    }
+
+    // 验证任务类型
+    const captchaTypes = serviceTypes[params.captchaType];
+    if (!captchaTypes[params.taskVariant]) {
+      const supportedTaskTypes = Object.keys(captchaTypes).join(', ');
+      notificationManager.error({
+        "message": '验证失败',
+        "context": {
+          "服务商": params.captchaService,
+          "验证码类型": params.captchaType,
+          "原因": `未指定或不支持的任务类型 ${params.taskVariant}，支持: ${supportedTaskTypes}`
+        }
+      });
+      return false;
+    }
+
 
     try {
-      const taskId = await this.createTask({ captchaType, taskVariant, ...params });
 
-      const result = await this.getTaskResult(taskId, captchaType);
-      if (!result) return false;
+      // 获取任务类型配置和价格
+      const taskType = service.getTaskType(params);
+      const price = taskType.price;
+
+      notificationManager.info({
+        "message": '开始验证网站验证码',
+        "context": {
+          "服务商": params.captchaService,
+          "验证码类型": params.captchaType,
+          "任务类型": params.taskVariant,
+          "价格": `¥${price.toFixed(4)}/次`
+        }
+      });
+
+      const result = await service.verifyWebsite(params);
+
+
+      notificationManager.info({
+        "message": '网站验证码验证完成',
+        "context": {
+          "服务商": params.captchaService,
+          "验证码类型": params.captchaType,
+          "任务类型": params.taskVariant,
+        }
+      });
 
       return result;
     } catch (error) {
       notificationManager.error({
-        "message": '验证网站验证码',
+        "message": '网站验证码验证失败',
         "context": {
-          "服务商": "CapSolver",
-          "任务类型": captchaType,
-          "任务变体": taskVariant,
+          "服务商": params.captchaService,
+          "验证码类型": params.captchaType,
+          "任务类型": params.taskVariant,
           "原因": error.message
         }
       });
       return false;
     }
   }
-}
 
-/**
- * 验证码服务管理器
- * 负责管理多个验证码服务商,自动选择最优服务或使用指定服务
- */
-class CaptchaManager {
-  constructor() {
-    this.services = {
-      yesCaptcha: new YesCaptchaClient(),
-      noCaptcha: new NoCaptchaClient(),
-      capSolver: new CapSolverClient()
-    };
-  }
-
-  // 显示价格排序作为参考
-  showPriceSorting(captchaType, taskVariant) {
+  // 显示价格排序
+  showPriceSorting(captchaType, version, taskType) {
     const providers = [];
-    for (const [provider, service] of Object.entries(this.services)) {
-      const strategy = service.captchaStrategies[captchaType];
-      if (!strategy) continue;
 
-      if (taskVariant) {
-        const variant = strategy.taskTypes[taskVariant];
-        if (variant) {
+    for (const [provider, service] of Object.entries(this.services)) {
+      try {
+        const taskTypeInfo = service.getTaskType({
+          captchaType,
+          version,
+          taskType
+        });
+
+        if (taskTypeInfo) {
           providers.push({
             provider,
-            variant: taskVariant,
-            price: variant.price
+            type: taskTypeInfo.type,
+            price: taskTypeInfo.price
           });
         }
-      } else {
-        const defaultVariant = strategy.taskTypes[strategy.defaultTaskType];
-        providers.push({
-          provider,
-          variant: strategy.defaultTaskType,
-          price: defaultVariant.price
-        });
+      } catch (e) {
+        // 忽略不支持的服务商
       }
     }
 
     if (providers.length > 0) {
       providers.sort((a, b) => a.price - b.price);
-      notificationManager.info(`价格排序 [任务类型 ${captchaType}${taskVariant ? ` (${taskVariant})` : ''}]`);
-      providers.forEach(({ provider, variant, price }, index) => {
-        notificationManager.info(`[排名 ${index + 1}] [服务商 ${provider}] [变体 ${variant}] [价格 ¥${price.toFixed(4)}/次]`);
+      console.log(`\n价格排序 [${captchaType} ${version || ''} ${taskType || ''}]`);
+      providers.forEach(({ provider, type, price }, index) => {
+        console.log(`[${index + 1}] ${provider} - ${type}: ¥${price.toFixed(4)}/次`);
       });
     }
-  }
-
-  async verifyWebsite({ captchaService, captchaType, taskVariant, ...params }) {
-    // 验证服务商
-    if (!captchaService || !this.services[captchaService]) {
-      const supportedServices = Object.keys(this.services).join(', ');
-      notificationManager.error({
-        "message": '验证失败',
-        "context": {
-          "服务商": captchaService,
-          "原因": `不支持的服务商，支持: ${supportedServices}`
-        }
-      });
-      return false;
-    }
-
-    const service = this.services[captchaService];
-
-    // 验证验证码类型
-    if (!service.captchaStrategies[captchaType]) {
-      const supportedTypes = Object.keys(service.captchaStrategies).join(', ');
-      notificationManager.error({
-        "message": '验证失败',
-        "context": {
-          "服务商": captchaService,
-          "原因": `不支持的验证码类型 ${captchaType}，支持: ${supportedTypes}`
-        }
-      });
-      return false;
-    }
-
-    const strategy = service.captchaStrategies[captchaType];
-
-    // 验证任务变体
-    if (taskVariant && !strategy.taskTypes[taskVariant]) {
-      const supportedVariants = Object.keys(strategy.taskTypes).join(', ');
-      notificationManager.error({
-        "message": '验证失败',
-        "context": {
-          "服务商": captchaService,
-          "原因": `不支持的任务变体 ${taskVariant}，支持: ${supportedVariants}`
-        }
-      });
-      return false;
-    }
-
-    // 使用指定的服务商
-    const variant = strategy && (taskVariant ? strategy.taskTypes[taskVariant] : strategy.taskTypes[strategy.defaultTaskType]);
-    const price = variant ? variant.price : 0;
-
-    // 显示价格排序
-    // this.showPriceSorting(captchaType, taskVariant);
-
-    // 开始验证
-    notificationManager.info({
-      "message": '开始验证网站验证码',
-      "context": {
-        "服务商": captchaService,
-        "任务类型": captchaType,
-        "任务变体": taskVariant,
-        "价格": `¥${price.toFixed(4)}/次`
-      }
-    });
-
-    const result = await service.verifyWebsite({ captchaType, taskVariant, ...params });
-    // console.log('验证码结果', result)
-    notificationManager.info({
-      "message": '网站验证码验证完成',
-      "context": {
-        "服务商": captchaService,
-        "任务类型": captchaType,
-        "任务变体": taskVariant,
-        // "结果": result
-      }
-    });
-    return result;
   }
 }
 
 // 只导出验证码管理器实例
 export const captchaManager = new CaptchaManager();
-
-/**
- * 在浏览器中查找reCAPTCHA信息
- * 在控制台中运行此函数可获取页面上所有reCAPTCHA实例的信息
- */
-function findRecaptchaClients() {
-  // eslint-disable-next-line camelcase
-  if (typeof (___grecaptcha_cfg) !== 'undefined') {
-    // eslint-disable-next-line camelcase, no-undef
-    return Object.entries(___grecaptcha_cfg.clients).map(([cid, client]) => {
-      const data = { id: cid, version: cid >= 10000 ? 'V3' : 'V2' };
-      const objects = Object.entries(client).filter(([_, value]) => value && typeof value === 'object');
-
-      objects.forEach(([toplevelKey, toplevel]) => {
-        const found = Object.entries(toplevel).find(([_, value]) => (
-          value && typeof value === 'object' && 'sitekey' in value && 'size' in value
-        ));
-
-        if (typeof toplevel === 'object' && toplevel instanceof HTMLElement && toplevel['tagName'] === 'DIV') {
-          data.pageurl = toplevel.baseURI;
-        }
-
-        if (found) {
-          const [sublevelKey, sublevel] = found;
-
-          data.sitekey = sublevel.sitekey;
-          const callbackKey = data.version === 'V2' ? 'callback' : 'promise-callback';
-          const callback = sublevel[callbackKey];
-          if (!callback) {
-            data.callback = null;
-            data.function = null;
-          } else {
-            data.function = callback;
-            const keys = [cid, toplevelKey, sublevelKey, callbackKey].map((key) => `['${key}']`).join('');
-            data.callback = `___grecaptcha_cfg.clients${keys}`;
-          }
-        }
-      });
-      return data;
-    });
-  }
-  return [];
-}
-findRecaptchaClients();
