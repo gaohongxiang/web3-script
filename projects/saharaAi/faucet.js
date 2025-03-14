@@ -18,14 +18,14 @@ export async function faucet({ chromeNumber, address, httpProxyUrl, fingerprint 
         // 创建 HTTP 代理实例
         const agent = new HttpsProxyAgent(httpProxyUrl);
 
-        const recaptchaToken = await captchaManager.verifyWebsite({
+        const { token: cfToken } = await captchaManager.verifyWebsite({
             captchaService: 'capSolver',
-            captchaType: 'CloudflareTurnstile',
+            captchaType: 'cloudflareTurnstile',
             taskVariant: 'standard',
             websiteURL: 'https://faucet.saharalabs.ai/',
             websiteKey: '0x4AAAAAAA8hNPuIp1dAT_d9'
         });;
-        if (!recaptchaToken) { console.log('验证码获取失败'); return false; }
+        if (!cfToken) { console.log('验证码获取失败'); return false; }
 
         await withRetry(
             async () => {
@@ -36,7 +36,7 @@ export async function faucet({ chromeNumber, address, httpProxyUrl, fingerprint 
                             'accept': '*/*',
                             'accept-language': 'en-US,en;q=0.9',
                             'content-type': 'application/json',
-                            'cf-turnstile-response': recaptchaToken,
+                            'cf-turnstile-response': cfToken,
                             'origin': 'https://faucet.saharalabs.ai',
                             'priority': 'u=1, i',
                             'referer': 'https://faucet.saharalabs.ai/',
