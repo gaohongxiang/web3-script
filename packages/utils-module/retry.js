@@ -158,7 +158,11 @@ export async function withRetry(task, options = {}) {
             const response = await task();
             
             // 如果返回值是HTTP响应,才检查状态
-            if (response instanceof Response || response?.status !== undefined) {
+            if (response instanceof Response || 
+                // 更严格地检查是否为 axios 响应
+                (response?.status !== undefined && 
+                 response?.config !== undefined && // axios 响应特有的 config 属性
+                 response?.headers !== undefined)) {
                 const isSuccess = await checkResponse(response);
                 if (!isSuccess.ok) {
                     throw new Error(isSuccess.error);
