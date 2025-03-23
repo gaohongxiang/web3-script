@@ -3,98 +3,98 @@
 <table>
   <thead>
     <tr>
-      <th>模块类别</th>
-      <th>子模块</th>
-      <th>功能描述</th>
+      <th align="center">模块类别</th>
+      <th align="center">模块内容</th>
+      <th align="center">功能描述</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><strong>🔐 加解密模块</strong></td>
-      <td>crypt</td>
-      <td>数据加密与解密功能</td>
+      <td align="center"><strong>🔐 加解密模块</strong></td>
+      <td align="center">crypt</td>
+      <td align="center">数据加密与解密功能</td>
     </tr>
     <tr>
-      <td rowspan="3"><strong>💱 交易所模块</strong></td>
-      <td>binance</td>
-      <td>币安交易所API交互</td>
+      <td rowspan="3" align="center"><strong>💱 交易所模块</strong></td>
+      <td align="center">binance</td>
+      <td align="center">币安交易所API交互</td>
     </tr>
     <tr>
-      <td>okx</td>
-      <td>OKX交易所API交互</td>
+      <td align="center">okx</td>
+      <td align="center">OKX交易所API交互</td>
     </tr>
     <tr>
-      <td>bybit</td>
-      <td>Bybit交易所API交互</td>
+      <td align="center">bybit</td>
+      <td align="center">Bybit交易所API交互</td>
     </tr>
     <tr>
-      <td rowspan="2"><strong>🤖 RPA模块</strong></td>
-      <td>bitbrowser</td>
-      <td>BitBrowser指纹浏览器自动化操作</td>
+      <td rowspan="2" align="center"><strong>🤖 RPA模块</strong></td>
+      <td align="center">bitbrowser</td>
+      <td align="center">BitBrowser指纹浏览器自动化操作</td>
     </tr>
     <tr>
-      <td>chrome</td>
-      <td>本地Chrome浏览器多开与控制</td>
+      <td align="center">chrome</td>
+      <td align="center">本地Chrome浏览器多开与控制</td>
     </tr>
     <tr>
-      <td rowspan="4"><strong>⛓️ 链上交互模块</strong></td>
-      <td>utxo-script</td>
-      <td>比特币等UTXO模型链交互</td>
+      <td rowspan="4" align="center"><strong>⛓️ 链上交互模块</strong></td>
+      <td align="center">utxo-script</td>
+      <td align="center">比特币等UTXO模型链交互</td>
     </tr>
     <tr>
-      <td>evm-script</td>
-      <td>以太坊等EVM兼容链交互</td>
+      <td align="center">evm-script</td>
+      <td align="center">以太坊等EVM兼容链交互</td>
     </tr>
     <tr>
-      <td>sol-script</td>
-      <td>Solana链交互</td>
+      <td align="center">sol-script</td>
+      <td align="center">Solana链交互</td>
     </tr>
     <tr>
-      <td>sui-script</td>
-      <td>Sui链交互</td>
+      <td align="center">sui-script</td>
+      <td align="center">Sui链交互</td>
     </tr>
     <tr>
-      <td rowspan="3"><strong>🌐 社交自动化</strong></td>
-      <td>X</td>
-      <td>X自动化操作</td>
+      <td rowspan="3" align="center"><strong>🌐 社交自动化</strong></td>
+      <td align="center">X</td>
+      <td align="center">X自动化操作</td>
     </tr>
     <tr>
-      <td>gmail</td>
-      <td>Gmail自动化操作</td>
+      <td align="center">gmail</td>
+      <td align="center">Gmail自动化操作</td>
     </tr>
     <tr>
-      <td>galxe</td>
-      <td>Galxe自动化操作</td>
+      <td align="center">galxe</td>
+      <td align="center">Galxe自动化操作</td>
     </tr>
     <tr>
-      <td rowspan="2"><strong>📢 通知模块</strong></td>
-      <td>notification</td>
-      <td>消息通知与日志记录</td>
+      <td rowspan="2" align="center"><strong>📢 通知模块</strong></td>
+      <td align="center">notification</td>
+      <td align="center">消息通知与日志记录</td>
     </tr>
     <tr>
-      <td>notifier</td>
-      <td>钉钉机器人提醒</td>
+      <td align="center">notifier</td>
+      <td align="center">钉钉机器人提醒</td>
     </tr>
      <tr>
-      <td rowspan="5"><strong>🛠️ 工具库模块</strong></td>
-      <td>generatewallet</td>
-      <td>多链钱包生成工具</td>
+      <td rowspan="5" align="center"><strong>🛠️ 工具库模块</strong></td>
+      <td align="center">generatewallet</td>
+      <td align="center">多链钱包生成工具</td>
     </tr>
     <tr>
-      <td>captcha</td>
-      <td>验证码自动识别与解决</td>
+      <td align="center">captcha</td>
+      <td align="center">验证码自动识别与解决</td>
     </tr>
     <tr>
-      <td>otp</td>
-      <td>两因素认证(2FA)工具</td>
+      <td align="center">otp</td>
+      <td align="center">两因素认证(2FA)工具</td>
     </tr>
     <tr>
-      <td>formatdata</td>
-      <td>数据格式化与处理</td>
+      <td align="center">formatdata</td>
+      <td align="center">数据格式化与处理</td>
     </tr>
     <tr>
-      <td>其他</td>
-      <td>一些细碎的辅助工具</td>
+      <td align="center">其他</td>
+      <td align="center">一些细碎的辅助工具</td>
     </tr>
   </tbody>
 </table>
@@ -228,4 +228,3 @@ BTC: bc1pvw4w2kj6f97kqkfsalfk804tv60lwrx5pqlf34c595m2pggwyfysr3l4ld
 EVM: 0xbc7fe470be2a5a1ea8db55be44e234b0224b3198
 
 SOL: 8yJyYESPppRDb67GUzC4brCaY8UVVZU3JzBJ4DtkMc45
-```
