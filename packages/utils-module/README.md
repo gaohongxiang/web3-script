@@ -2,16 +2,16 @@
 
 ## 创建钱包 `generateWallet.js`
 
-创建的钱包文件存储在data目录下，敏感字段自动加密存储，文件名称（以btc示例）：`walletEth-2024-10-24_06-24-08.csv`。添加时间是为了防止已经存在同名文件，生成的新地址会追加到存在的文件中，将文件数据搞乱。实际使用中文件名称需要跟`filesConfig.json`中保持一致。
+创建的钱包文件存储在data目录下，敏感字段自动加密存储，文件名称（eth示例）：`walletEth-2024-10-24_06-24-08.csv`。添加时间是为了防止已经存在同名文件，生成的新地址会追加到存在的文件中，将文件数据搞乱。实际使用中文件名称需要跟`filesConfig.json`中保持一致。
 
 ```
 import { generateBtcWallet, generateEthWallet, generateSolWallet, generateSuiWallet } from './generateWallet.js';
 
-// 批量生成eth地址（默认生成10个地址）字段：indexId,ethAddress,enEthPrivateKey,enEthMnemonic。
-generateBtcWallet(num = 50);
-generateEthWallet(num = 50);
-generateSolWallet(num = 50);
-generateSuiWallet(num = 50);
+// 批量生成各链地址（默认生成10个地址）字段（eth示例）：indexId,ethAddress,enEthPrivateKey,enEthMnemonic
+generateBtcWallet(num);
+generateEthWallet(num);
+generateSolWallet(num);
+generateSuiWallet(num);
 ```
 
 ## 格式化数据 `formatdata.js`
@@ -47,10 +47,10 @@ myFormatData(1, [2, 4], 6) // 1 2 3 4 6
     okxBtcAddress: '地址1',
     okxSolAddress: '地址1',
     okxStarknetAddress: '地址1',
-    baseProxy: 'wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
-    socksProxyUrl: 'socks5://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
-    httpProxyUrl: 'http://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
-    httpsProxyUrl: 'https://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
+    baseProxy: 'username:password@ip:port',
+    socksProxyUrl: 'socks5://username:password@ip:port',
+    httpProxyUrl: 'http://username:password@ip:port',
+    httpsProxyUrl: 'https://username:password@ip:port',
     ......
   },
   {
@@ -72,10 +72,10 @@ myFormatData(1, [2, 4], 6) // 1 2 3 4 6
     okxBtcAddress: '地址2',
     okxSolAddress: '地址2',
     okxStarknetAddress: '地址2',
-    baseProxy: 'wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
-    socksProxyUrl: 'socks5://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
-    httpProxyUrl: 'http://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
-    httpsProxyUrl: 'https://wuliuxiansheng11:wuliuxiansheng11@161.123.209.254:6754',
+    baseProxy: 'username:password@ip:port',
+    socksProxyUrl: 'socks5://username:password@ip:port',
+    httpProxyUrl: 'http://username:password@ip:port',
+    httpsProxyUrl: 'https://username:password@ip:port',
     ......
   },
     ......
@@ -129,16 +129,16 @@ await check({winFilePath, ourCsvPath, columnName});
 import { captchaManager } from './captcha.js';
 
 await captchaManager.verifyWebsite({
-  captchaService: 'yesCaptcha', // captcha服务商，yesCaptcha|noCatpcha|capsolver等
-  captchaType: 'recaptchaV2',   // 任务类型，recaptchaV2|recaptchaV3|hcaptcha等
+  captchaService: 'yesCaptcha', // captcha服务商，yesCaptcha|noCatpcha|capSolver等
+  captchaType: 'reCaptchaV2',   // 任务类型，reCaptchaV2|reCaptchaV3|hCaptcha等
   taskVariant: 'standard',      // 类型变体，standard|advanced|k1|m1|m1s7|m1s9等
   websiteURL: '',
   websiteKey: ''
   });
 
 await captchaManager.verifyWebsite({
-  captchaService: 'noCaptcha', // captcha服务商，yesCaptcha|noCatpcha|capsolver等
-  captchaType: 'recaptcha',     // 任务类型，recaptcha|hcaptcha等
+  captchaService: 'noCaptcha', // captcha服务商，yesCaptcha|noCatpcha|capSolver等
+  captchaType: 'reCaptcha',     // 任务类型，reCaptcha|hCaptcha等
   taskVariant: 'universal',     // 类型变体，universal等
   sitekey: '',
   referer: '',
@@ -147,8 +147,8 @@ await captchaManager.verifyWebsite({
 });
 
 await captchaManager.verifyWebsite({
-  captchaService: 'capSolver', // captcha服务商，yesCaptcha|noCatpcha|capsolver等
-  captchaType: 'geeTestV4',   // 任务类型，recaptchaV2|recaptchaV3|hcaptcha|geeTestV3|geeTestV4等
+  captchaService: 'capSolver', // captcha服务商，yesCaptcha|noCatpcha|capSolver等
+  captchaType: 'geeTestV4',   // 任务类型，reCaptchaV2|reCaptchaV3|hCaptcha|geeTestV3|geeTestV4等
   taskVariant: 'standard',      // 类型变体，standard|advanced|k1|m1|m1s7|m1s9等
   websiteURL: '',
   captchaId: ''
