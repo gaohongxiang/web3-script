@@ -7,7 +7,7 @@ import * as ecc from 'tiny-secp256k1';
 import { ECPairFactory } from 'ecpair';
 import * as bitcoin from 'bitcoinjs-lib';
 
-import { ethers } from 'ethers';
+import { ethers } from 'ethers-v6';
 
 import solanaWeb3 from '@solana/web3.js';
 

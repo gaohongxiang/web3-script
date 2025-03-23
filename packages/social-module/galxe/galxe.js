@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ethers } from 'ethers';
+import { ethers } from 'ethers-v6';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { faker } from '@faker-js/faker';
 import { XClient } from '../x/x.js';

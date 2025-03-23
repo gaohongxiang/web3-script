@@ -1,5 +1,5 @@
 import { OkxWalletUtil } from '../../packages/rpa-module/chrome/okxWallet.js';
-import { ethers } from 'ethers';
+import { ethers } from 'ethers-v6';
 import axios from 'axios';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { deCryptText } from '../../packages/crypt-module/crypt.js';
