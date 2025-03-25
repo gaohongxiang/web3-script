@@ -28,15 +28,6 @@
       <td align="center">Bybit交易所API交互</td>
     </tr>
     <tr>
-      <td rowspan="2" align="center"><strong>🤖 RPA模块</strong></td>
-      <td align="center">bitbrowser</td>
-      <td align="center">BitBrowser指纹浏览器自动化操作</td>
-    </tr>
-    <tr>
-      <td align="center">chrome</td>
-      <td align="center">本地Chrome浏览器多开与控制</td>
-    </tr>
-    <tr>
       <td rowspan="4" align="center"><strong>⛓️ 链上交互模块</strong></td>
       <td align="center">utxo-script</td>
       <td align="center">比特币等UTXO模型链交互</td>
@@ -54,7 +45,16 @@
       <td align="center">Sui链交互</td>
     </tr>
     <tr>
-      <td rowspan="3" align="center"><strong>🌐 社交自动化</strong></td>
+      <td rowspan="2" align="center"><strong>🤖 RPA模块</strong></td>
+      <td align="center">bitbrowser</td>
+      <td align="center">BitBrowser指纹浏览器自动化操作</td>
+    </tr>
+    <tr>
+      <td align="center">chrome</td>
+      <td align="center">本地Chrome浏览器多开与控制</td>
+    </tr>
+    <tr>
+      <td rowspan="3" align="center"><strong>🌐 社交自动化模块</strong></td>
       <td align="center">X</td>
       <td align="center">X自动化操作</td>
     </tr>
@@ -125,6 +125,9 @@ pnpm install
 - 更快的并行安装速度
 
 比如我的代码里用的ethersV6版本，而uniswap的sdk还用的ethersV5版本，那么就会产生冲突。可以如下解决
+
+> 注意：ethers两个版本必须起别名，否则行为未知。比如v6版本叫ethers，不改名为ethers-v6，uniswap还是会用v6版本，因为他默认找名字为ethers的包。
+
 ```json
 {
     "dependencies": {
@@ -219,6 +222,8 @@ xxxxxx:xxxxxx:xxxxxx:xxxxxx
 
 使用示例详见各模块文档。
 
+---
+---
 
 如果觉得本脚本对您有帮助，欢迎支持，您的鼓励是我持续更新的动力！☕☕☕
 
