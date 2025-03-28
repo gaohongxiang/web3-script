@@ -37,7 +37,7 @@ const txHash = await client.transfer({
 });
 
 // 授权代币
-await clientWithWallet.checkAndApproveToken({
+await client.checkAndApproveToken({
   token: 'USDT',             // 代币名称，如 USDT/WETH 等（ETH无需授权）
   amount: 100,               // 交易金额(数字类型)
   permit2Amount: 1000,       // [可选] 授权给permit2的金额，应大于amount
