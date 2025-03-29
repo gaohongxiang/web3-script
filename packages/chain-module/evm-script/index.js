@@ -16,15 +16,16 @@ export class EVMClient {
 		// 主网
 		[['eth', 'ethereum', 'erc20'], {
 			formattedChain: 'ethereum',
+			nativeToken: 'ETH',
 			rpcUrls: {
 				infura: `https://mainnet.infura.io/v3/${process.env.infuraKey}`,
 				alchemy: `https://eth-mainnet.g.alchemy.com/v2/${process.env.alchemyKey}`,
 				public: 'https://eth.llamarpc.com'
-
 			}
 		}],
 		[['arb', 'arbitrum'], {
 			formattedChain: 'arbitrum',
+			nativeToken: 'ETH',
 			rpcUrls: {
 				infura: `https://arbitrum-mainnet.infura.io/v3/${process.env.infuraKey}`,
 				alchemy: `https://arb-mainnet.g.alchemy.com/v2/${process.env.alchemyKey}`,
@@ -32,6 +33,7 @@ export class EVMClient {
 		}],
 		[['op', 'optimism'], {
 			formattedChain: 'optimism',
+			nativeToken: 'ETH',
 			rpcUrls: {
 				infura: `https://optimism-mainnet.infura.io/v3/${process.env.infuraKey}`,
 				alchemy: `https://opt-mainnet.g.alchemy.com/v2/${process.env.alchemyKey}`,
@@ -39,12 +41,14 @@ export class EVMClient {
 		}],
 		[['zk', 'zks', 'zksync'], {
 			formattedChain: 'zksync',
+			nativeToken: 'ETH',
 			rpcUrls: {
 				infura: `https://zksync-mainnet.infura.io/v3/${process.env.infuraKey}`
 			}
 		}],
 		[['base'], {
 			formattedChain: 'base',
+			nativeToken: 'ETH',
 			rpcUrls: {
 				infura: `https://base-mainnet.infura.io/v3/${process.env.infuraKey}`,
 				alchemy: `https://base-mainnet.g.alchemy.com/v2/${process.env.alchemyKey}`,
@@ -52,6 +56,7 @@ export class EVMClient {
 		}],
 		[['linea'], {
 			formattedChain: 'linea',
+			nativeToken: 'ETH',
 			rpcUrls: {
 				infura: `https://linea-mainnet.infura.io/v3/${process.env.infuraKey}`,
 				alchemy: `https://linea-mainnet.g.alchemy.com/v2/${process.env.alchemyKey}`,
@@ -59,6 +64,7 @@ export class EVMClient {
 		}],
 		[['blast'], {
 			formattedChain: 'blast',
+			nativeToken: 'ETH',
 			rpcUrls: {
 				infura: `https://blast-mainnet.infura.io/v3/${process.env.infuraKey}`,
 				alchemy: `https://blast-mainnet.g.alchemy.com/v2/${process.env.alchemyKey}`,
@@ -66,12 +72,14 @@ export class EVMClient {
 		}],
 		[['scroll'], {
 			formattedChain: 'scroll',
+			nativeToken: 'ETH',
 			rpcUrls: {
 				infura: `https://scroll-mainnet.infura.io/v3/${process.env.infuraKey}`
 			}
 		}],
 		[['bsc', 'bep20'], {
 			formattedChain: 'bsc',
+			nativeToken: 'BNB',
 			rpcUrls: {
 				infura: `https://bsc-mainnet.infura.io/v3/${process.env.infuraKey}`,
 				custom: 'https://bsc-dataseed.binance.org/'
@@ -79,12 +87,14 @@ export class EVMClient {
 		}],
 		[['opbnb'], {
 			formattedChain: 'opbnb',
+			nativeToken: 'BNB',
 			rpcUrls: {
 				infura: `https://opbnb-mainnet.infura.io/v3/${process.env.infuraKey}`
 			}
 		}],
 		[['matic', 'pol', 'polygon'], {
 			formattedChain: 'polygon',
+			nativeToken: 'POL',
 			rpcUrls: {
 				infura: `https://polygon-mainnet.infura.io/v3/${process.env.infuraKey}`,
 				alchemy: `https://polygon-mainnet.g.alchemy.com/v2/${process.env.alchemyKey}`,
@@ -92,15 +102,9 @@ export class EVMClient {
 		}],
 		[['avax', 'avalanche', 'avax-c'], {
 			formattedChain: 'avalanche',
+			nativeToken: 'AVAX',
 			rpcUrls: {
 				infura: `https://avalanche-mainnet.infura.io/v3/${process.env.infuraKey}`
-			}
-		}],
-		// 测试网
-		[['monad'], {
-			formattedChain: 'monad',
-			rpcUrls: {
-				public: 'https://testnet-rpc.monad.xyz/'
 			}
 		}]
 	]);
@@ -109,26 +113,27 @@ export class EVMClient {
 	 * 创建EVM客户端实例
 	 * @param {Object} options - 配置选项
 	 * @param {string} options.chain - 链名称
-	 * @param {string} [options.rpcProvider='infura'] - RPC提供商名称
+	 * @param {string} [options.rpcProvider='infura'] - RPC提供商名称，如'infura'、'alchemy'、'public'等
+	 * @param {Object} [options.customChainOptions={}] - 自定义链配置选项
+	 * @param {string} [options.customChainOptions.rpc] - 自定义RPC URL
+	 * @param {string} [options.customChainOptions.nativeToken] - 自定义链的原生代币符号
 	 * @param {string} [options.socksProxyUrl=null] - 代理URL
 	 * @param {string} [options.tokenFile='./data/token.json'] - 代币信息文件路径
 	 */
-	constructor({ chain, rpcProvider = 'infura', socksProxyUrl = null, tokenFile = './data/token.json' }) {
+	constructor({ chain, rpcProvider = 'infura', customChainOptions = {}, socksProxyUrl = null, tokenFile = './data/token.json' }) {
 		this.wallet = null;
 		this.address = null;
 		this.chainId = null;
 
 		// 初始化provider
-		const { formattedChain, provider } = this._getNetworkProvider(chain, rpcProvider, socksProxyUrl);
+		const { formattedChain, nativeToken, provider } = this.initializeChainConfig(chain, rpcProvider, customChainOptions, socksProxyUrl);
 		this.formattedChain = formattedChain;
+		this.nativeToken = nativeToken;
 		this.provider = provider;
 
 		// 读取保存的代币信息，包括地址、ABI和小数位数
 		const tokens = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
 		this.tokens = tokens[formattedChain];
-
-		// 设置主网代币列表为实例属性
-		this.nativeTokens = ['ETH', 'BNB', 'POL', 'AVAX', 'MON'];
 	}
 
 	/**
@@ -136,13 +141,16 @@ export class EVMClient {
 	 * @param {Object} options - 配置选项
 	 * @param {string} options.chain - 链名称
 	 * @param {string} [options.rpcProvider='infura'] - RPC提供商名称
+	 * @param {Object} [options.customChainOptions={}] - 自定义链配置选项
+	 * @param {string} [options.customChainOptions.rpc] - 自定义RPC URL
+	 * @param {string} [options.customChainOptions.nativeToken] - 自定义链的原生代币符号
 	 * @param {string} [options.socksProxyUrl=null] - 代理URL
 	 * @param {string} [options.tokenFile='./data/token.json'] - 代币信息文件路径
 	 * @param {string} [options.enPrivateKey] - 加密的私钥，如果提供则自动连接钱包
 	 * @returns {Promise<EVMClient>} - 初始化完成的EVM客户端实例
 	 */
-	static async create({ chain, rpcProvider = 'infura', enPrivateKey, socksProxyUrl = null, tokenFile = './data/token.json' }) {
-		const instance = new this({ chain, rpcProvider, socksProxyUrl, tokenFile });
+	static async create({ chain, rpcProvider = 'infura', customChainOptions = {}, enPrivateKey, socksProxyUrl = null, tokenFile = './data/token.json' }) {
+		const instance = new this({ chain, rpcProvider, customChainOptions, socksProxyUrl, tokenFile });
 
 		// 初始化chainId
 		instance.chainId = await instance.getChainId();
@@ -162,58 +170,98 @@ export class EVMClient {
 	}
 
 	/**
-	 * 获取指定网络的JSON-RPC提供者
+	 * 初始化链配置并获取提供者
 	 * @private
 	 * @param {string} chain - 链名称
-	 * @param {string} rpcProvider - RPC提供商名称
+	 * @param {string} [rpcProvider='infura'] - RPC提供商名称，仅在不使用自定义配置时有效
+	 * @param {Object} [customChainOptions={}] - 自定义链配置选项
+	 * @param {string} [customChainOptions.rpc] - 自定义RPC URL
+	 * @param {string} [customChainOptions.nativeToken] - 自定义链的原生代币符号
 	 * @param {string} [socksProxyUrl=null] - 代理URL
-	 * @returns {Object} - 包含格式化链名称和提供者实例的对象
-	 * @throws {Error} 当链不存在或提供商不支持该链时抛出错误
+	 * @returns {Object} - 包含格式化链名称、原生代币符号和提供者实例的对象
+	 * @throws {Error} 当链不存在且无自定义RPC时抛出错误
+	 * @throws {Error} 当使用自定义链但未提供原生代币符号时抛出错误
 	 */
-	_getNetworkProvider(chain, rpcProvider, socksProxyUrl = null) {
-		chain = chain.toLowerCase();
-
+	initializeChainConfig(chain, rpcProvider = 'infura', customChainOptions = {}, socksProxyUrl = null) {
+		// 转为小写进行查找
+		const chainLower = chain.toLowerCase();
+		const customRpc = customChainOptions.rpc;
+		
 		// 查找链配置
 		let chainConfig = null;
 		for (const [aliases, config] of EVMClient.CHAIN_CONFIG) {
-			if (aliases.includes(chain)) {
+			if (aliases.includes(chainLower)) {
 				chainConfig = config;
 				break;
 			}
 		}
-
-		if (!chainConfig) {
-			const supportedChains = Array.from(EVMClient.CHAIN_CONFIG.keys()).flat().join(', ');
-			throw new Error(`不支持的链: ${chain}。支持的链包括: ${supportedChains}`);
+		
+		// 确定最终使用的链名和RPC URL
+		let formattedChain, rpcUrl, nativeToken;
+		
+		// 情况1: 现有链 + 现有RPC (最常见情况)
+		if (chainConfig && !customRpc) {
+			formattedChain = chainConfig.formattedChain;
+			nativeToken = chainConfig.nativeToken;
+			
+			// 检查提供商是否支持该链
+			if (!chainConfig.rpcUrls[rpcProvider]) {
+				const supportedProviders = Object.keys(chainConfig.rpcUrls).join(', ');
+				throw new Error(`${formattedChain}链没有 ${rpcProvider} 提供商。可用的提供商: ${supportedProviders}，或者可以提供自定义RPC URL`);
+			}
+			
+			rpcUrl = chainConfig.rpcUrls[rpcProvider];
+			// console.log(`使用链 ${formattedChain} 的 ${rpcProvider} RPC提供商，原生代币: ${nativeToken}`);
 		}
-
-		const { formattedChain, rpcUrls } = chainConfig;
-
-		// 检查提供商是否支持该链
-		if (!rpcUrls[rpcProvider]) {
-			const supportedProviders = Object.keys(rpcUrls).join(', ');
-			throw new Error(`提供商 ${rpcProvider} 不支持链 ${formattedChain}。支持的提供商: ${supportedProviders}`);
+		// 情况2: 现有链 + 自定义RPC
+		else if (chainConfig && customRpc) {
+			formattedChain = chainConfig.formattedChain;
+			nativeToken = chainConfig.nativeToken;
+			rpcUrl = customRpc;
+			console.log(`为链 ${formattedChain} 使用自定义RPC URL ${customRpc}，原生代币: ${nativeToken}。请自行确保链配置的正确性`);
 		}
-
-		const rpcUrl = rpcUrls[rpcProvider];
-
-		// 创建provider
+		// 情况3: 自定义链 + 自定义RPC
+		else if (!chainConfig && customRpc) {
+			formattedChain = chainLower;
+			
+			// 检查是否提供了原生代币符号
+			if (!customChainOptions.nativeToken) {
+				throw new Error(`使用自定义链 ${formattedChain} 时必须提供原生代币符号(nativeToken)。请在customChainOptions中设置nativeToken属性。`);
+			}
+			
+			nativeToken = customChainOptions.nativeToken;
+			rpcUrl = customRpc;
+			console.log(`使用完全自定义链 ${formattedChain} 和自定义RPC ${customRpc}，原生代币: ${nativeToken}。请自行确保链配置的正确性`);
+		}
+		// 错误情况: 自定义链但是没有自定义RPC
+		else if (!chainConfig && !customRpc) {
+			 // 获取所有支持的格式化链名
+			 const supportedFormattedChains = Array.from(EVMClient.CHAIN_CONFIG.values())
+			   .map(config => config.formattedChain).join(', ');
+			throw new Error(`使用自定义链, 但是没有提供自定义RPC URL。您可以: 1) 使用支持的链名: ${supportedFormattedChains}，或 2) 为该自定义链提供自定义customChainOptions配置，包含rpc和nativeToken字段`);
+		}
+		
+		// 确保原生代币符号为大写
+		if (nativeToken) {
+			nativeToken = nativeToken.toUpperCase();
+		}
+		
+		// 统一创建provider
 		let provider;
-		if (socksProxyUrl) {
-			// 创建 SOCKS 代理
-			const agent = new SocksProxyAgent(socksProxyUrl);
-
-			// 注册全局的 getUrl 函数
-			ethers.FetchRequest.registerGetUrl(ethers.FetchRequest.createGetUrlFunc({ agent }));
-
-			// 创建以太坊提供者，使用 FetchRequest 以确保走代理
-			const ethFetchReq = new ethers.FetchRequest(rpcUrl);
-			provider = new ethers.JsonRpcProvider(ethFetchReq);
-		} else {
-			provider = new ethers.JsonRpcProvider(rpcUrl);
+		try {
+			if (socksProxyUrl) {
+				const agent = new SocksProxyAgent(socksProxyUrl);
+				ethers.FetchRequest.registerGetUrl(ethers.FetchRequest.createGetUrlFunc({ agent }));
+				const ethFetchReq = new ethers.FetchRequest(rpcUrl);
+				provider = new ethers.JsonRpcProvider(ethFetchReq);
+			} else {
+				provider = new ethers.JsonRpcProvider(rpcUrl);
+			}
+		} catch (error) {
+			throw new Error(`创建Provider失败: ${error.message}。请检查RPC URL是否有效。`);
 		}
-
-		return { formattedChain, provider };
+		
+		return { formattedChain, nativeToken, provider };
 	}
 
 	/**
@@ -298,7 +346,8 @@ export class EVMClient {
 	 * 判断是否是原生代币
 	 */
 	isNativeToken(token) {
-		return this.nativeTokens.includes(token) ? true : false;
+		token = token.toUpperCase();
+		return this.nativeToken === token ? true : false;
 	}
 
 	/**

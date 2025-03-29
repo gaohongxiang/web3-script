@@ -1,7 +1,7 @@
 # EVM链交互脚本
 
 ## 注意事项
-- 本脚本支持多个RPC提供商（Infura、Alchemy、QuickNode等），需要在.env文件中配置相应的API密钥
+- 本脚本支持多个RPC提供商（Infura、Alchemy、公共节点等），私有节点需要在.env文件中配置相应的API密钥
 - 创建钱包文件，并加密私钥、助记词数据
 - erc20代币信息存储在`./data/token.json`文件,需要的token信息可自行添加
 
@@ -10,14 +10,36 @@
 ```js
 import { evmClient } from "./index.js";
 
-// 创建客户端实例
+// 创建客户端实例（支持自定义链配置）
+// 方式1: 使用现有的链和现有RPC提供商
 const client = await evmClient.create({ 
-  chain: 'eth',                        // 链名称
-  rpcProvider: 'infura',               // RPC提供商名称，可选值：infura、alchemy、public(公共节点）)
+  chain: 'eth',                        // 链名称，支持多种别名，如'eth'/'ethereum'/'erc20'
+  rpcProvider: 'infura',               // RPC提供商名称，可选值：infura、alchemy、public等（取决于链支持）
   enPrivateKey: '加密私钥',             // 通过加密模块加密过的私钥
   socksProxyUrl: null,                 // 可选，代理URL，默认null
   tokenFile: './data/token.json'       // 可选，代币信息文件，存储代币address、abi、decimals等，默认'./data/token.json'。根据你的数据文件位置改
 });
+
+// 方式2: 使用现有的链和自定义RPC（可以不传nativeToken）
+const client = await evmClient.create({
+  chain: 'eth',
+  customChainOptions: {
+    rpc: 'https://your-custom-rpc-url.com',  // 自定义RPC URL，优先级高于rpcProvider
+  }
+  ...
+});
+
+// 方式3: 使用自定义链和自定义RPC
+const client = await evmClient.create({
+  chain: 'custom_chain_name',               // 自定义链名称
+  customChainOptions: {
+    rpc: 'https://your-custom-rpc-url.com', // 使用自定义链时必须提供自定义RPC
+    nativeToken: 'token'                    // 使用自定义链时必须提供原生token
+  }
+  ...
+});
+
+
 
 // 获取地址余额
 const balance = await client.getBalance({ 
