@@ -161,8 +161,8 @@ export class ChromeBrowserUtil {
           });
           chromeProcess.unref();
 
-          // 等待浏览器启动
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // 增加启动等待时间，确保Chrome完全初始化。时间太短也会导致检查失败。
+          await new Promise(resolve => setTimeout(resolve, 5000));
 
           // 检查浏览器是否就绪
           const response = await fetch(`http://localhost:${this.debugPort}/json/version`);
@@ -342,6 +342,57 @@ export class ChromeBrowserUtil {
       return false;
     }
   }
+
+  /**
+   * 查询IP信息，通过ping0.cc获取IP的地理位置、风控值、IP类型等信息
+   * @param {string} ip - 要查询的IP地址
+   * @returns {Promise<Object|undefined>} 返回包含IP信息的对象，如果查询失败则返回undefined
+   * @property {string} location - IP的地理位置，如"日本 东京"
+   * @property {string} risk - IP的风控值及风险等级，如"16% 纯净"
+   * @property {string} ipType - IP类型，可能包含多个值，如"家庭ip"
+   * @property {string} isNativeIp - 是否为原生IP
+   */
+  async queryIp(ip) {
+    try {
+      await this.page.goto(`https://ping0.cc/ip/${ip}`, { timeout: 60000 });
+      // 获取IP位置
+      let location = await this.page.getByText('IP 位置').locator('xpath=following-sibling::div').textContent();
+      // 移除可能出现的"错误提交"等多余文本
+      if (location.includes('错误提交')) { location = location.replace(/\s*错误提交.*$/, '').trim(); }
+
+      // 获取风控值
+      const riskValue = await this.page.getByText('风控值').locator('xpath=../../div[contains(@class, "content")]//span[@class="value"]').textContent();
+      const riskLabel = await this.page.getByText('风控值').locator('xpath=../../div[contains(@class, "content")]//span[@class="lab"]').textContent();
+      const risk = `${riskValue}${riskLabel}`;
+
+      // 获取IP类型（可能有多个标签）
+      const ipTypeLabels = await this.page.getByText('IP类型').locator('xpath=../following-sibling::div/span').all();
+      const ipTypeValues = await Promise.all(ipTypeLabels.map(label => label.textContent()));
+      const ipType = ipTypeValues.join(', ');
+
+      // 获取原生IP信息
+      const isNativeIp = await this.page.getByText('原生 IP').locator('xpath=../following-sibling::div/span').textContent();
+
+      notificationManager.success({
+        "message": "查询IP成功",
+        "context": {
+          "IP:": ip,
+          "IP位置:": location,
+          "风控值:": risk,
+          "IP类型:": ipType,
+          "是否原生IP:": isNativeIp
+        }
+      });
+      return { location, risk, ipType, isNativeIp };
+    } catch (error) {
+      notificationManager.error({
+        "message": "查询IP失败",
+        "context": {
+          "原因": error.message
+        }
+      });
+    }
+  }
 }
 
 /**
@@ -380,8 +431,8 @@ export function shutdownChrome(chromeNumber) {
     notificationManager.error({
       "message": "进程关闭失败",
       "context": {
-          "Chrome": chromeNumber,
-          "原因": error.message
+        "Chrome": chromeNumber,
+        "原因": error.message
       }
     });
     return false;
