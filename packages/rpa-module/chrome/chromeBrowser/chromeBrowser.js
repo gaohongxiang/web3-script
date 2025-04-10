@@ -38,9 +38,10 @@ export class ChromeBrowserUtil {
    * @param {number} params.chromeNumber - Chrome实例编号
    * @param {number} [params.screenWidth=1680] - 屏幕宽度
    * @param {number} [params.screenHeight=1050] - 屏幕高度
+   * @param {number} [params.waitTime=6] - 启动等待时间
    * @returns {Promise<ChromeBrowserUtil>} 初始化完成的实例
    */
-  static async create({ chromeNumber, screenWidth = 1680, screenHeight = 1050 }) {
+  static async create({ chromeNumber, screenWidth = 1680, screenHeight = 1050, waitTime = 6 }) {
     // 创建实例
     const instance = new this(chromeNumber, screenWidth, screenHeight);
 
@@ -49,7 +50,7 @@ export class ChromeBrowserUtil {
 
     switch (status) {
       case 'disconnected':
-        await instance.launchNewInstance();
+        await instance.launchNewInstance(waitTime);
         await instance.connectToInstance(true);
         break;
 
@@ -124,7 +125,7 @@ export class ChromeBrowserUtil {
    * 启动新的Chrome实例
    * 使用双重派生技术启动进程，确保父进程退出后浏览器仍保持运行
    */
-  async launchNewInstance() {
+  async launchNewInstance(waitTime) {
     try {
       // 1. 启动前先清理可能存在的旧进程
       await this.killExistingProcesses();
@@ -161,8 +162,8 @@ export class ChromeBrowserUtil {
           });
           chromeProcess.unref();
 
-          // 增加启动等待时间，确保Chrome完全初始化。时间太短也会导致检查失败。
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          // 增加启动等待时间，确保Chrome完全初始化。时间太短也会导致检查失败，改为根据网络情况自行调整时间，默认6秒
+          await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
 
           // 检查浏览器是否就绪
           const response = await fetch(`http://localhost:${this.debugPort}/json/version`);
