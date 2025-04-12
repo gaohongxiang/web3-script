@@ -8,6 +8,41 @@ import { deCryptText } from '../../crypt-module/crypt.js';
 import { getTokenInfo } from '../../utils-module/utils.js';
 
 /**
+ * 将 Solana 密钥字节数组转换为Base58格式的私钥和公钥
+ * @param {number[]} secretKeyBytes - Solana钱包的密钥字节数组（通常是32或64字节）
+ * @returns {Promise<{privateKey: string, publicKey: string}>} 返回Base58格式的私钥和公钥
+ * @throws {Error} 如果转换过程出错会抛出异常
+ * @example
+ * const keyBytes = [135, 172, 119, ...];
+ * const { privateKey, publicKey } = await convertSolanaKeyBytes(keyBytes);
+ */
+export async function convertSolanaKeyBytes(secretKeyBytes) {
+    try {
+        // 将数字数组转换为Uint8Array格式
+        // Solana使用Uint8Array来处理密钥数据
+        const uint8Array = new Uint8Array(secretKeyBytes);
+        
+        // 使用Solana web3.js创建密钥对
+        // fromSecretKey方法需要Uint8Array格式的密钥
+        const keypair = Keypair.fromSecretKey(uint8Array);
+        
+        // 转换为Base58格式
+        // Base58是Solana生态常用的密钥格式，便于导入各类钱包
+        const privateKey = bs58.encode(keypair.secretKey);
+        const publicKey = keypair.publicKey.toBase58();
+        
+        return {
+            privateKey,  // Base58格式的私钥
+            publicKey   // Base58格式的公钥
+        };
+        
+    } catch (error) {
+        console.error('Solana密钥转换失败:', error);
+        throw new Error(`Solana密钥转换失败: ${error.message}`);
+    }
+}
+
+/**
  * 创建与 Solana 网络的连接。
  * 
  * 该函数尝试连接到多个 RPC 提供者，并返回第一个成功的连接。
