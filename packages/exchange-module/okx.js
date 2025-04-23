@@ -1,6 +1,10 @@
 import fs from 'fs';
+import dns from 'dns';
 import ccxt from 'ccxt';
 import { deCryptText } from '../crypt-module/crypt.js';
+
+// 奇怪，这里要强制 Node.js 使用 IPv4，才能跑通请求。为啥默认是 IPv6？之前使用也没出现这个问题。先这么解决，后续再研究。
+dns.setDefaultResultOrder('ipv4first');  // 优先使用 IPv4
 
 /**
  * 根据输入的链名称返回标准化的链名称。
@@ -20,6 +24,10 @@ function normalizeChain(chain) {
         return 'TRC20';
     } else if (['POLYGON', 'MATIC'].includes(upperChain)) {
         return 'Polygon';
+    } else if (['BSC', 'BNB'].includes(upperChain)) {
+        return 'BSC';
+    } else if (['APT', 'APTOS'].includes(upperChain)) {
+        return 'Aptos';
     } else if (['AVAL', 'AVALANCHE', 'AVAX'].includes(upperChain)) {
         return 'Avalanche C-Chain';
     } else if (['ARB', 'ARBITRUM', 'ARBITRUM ONE'].includes(upperChain)) {
@@ -120,7 +128,7 @@ export async function withdraw({ account, chain, toAddress, coin, amount, withdr
 
         try { // 获取币种信息
             const currencyInfo = await okx.privateGetAssetCurrencies({ ccy: coin });
-            // console.log(currencyInfo)
+            // console.log(currencyInfo['data'])
             const currencyData = currencyInfo['data'].find(data => data.chain === `${coin}-${chain}`);
             // console.log(currencyData)
             handlingFee = parseFloat(currencyData.minFee);

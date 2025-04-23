@@ -26,6 +26,8 @@ function normalizeChain(chain) {
         return 'TRX';
     } else if (['BSC', 'BEP20'].includes(upperChain)) {
         return 'BSC';
+    } else if (['APT', 'APTOS'].includes(upperChain)) {
+        return 'APT';
     } else if (['POLYGON', 'MATIC'].includes(upperChain)) {
         return 'MATIC';
     } else if (['AVAL', 'AVALANCHE', 'AVAX'].includes(upperChain)) {
@@ -137,6 +139,7 @@ export async function withdraw({ account, chain, toAddress, coin, amount, apiFil
         try {
             // GET /sapi/v1/capital/config/getall
             const currencyInfo = await binance.fetchCurrencies();
+            // console.log(currencyInfo[coin]['info'])
             const currencyData = currencyInfo[coin]['info']['networkList'].find(data => data.network === chain)
             // console.log(currencyData)
             outMinWithdrawAmount = parseFloat(currencyData.withdrawMin);
