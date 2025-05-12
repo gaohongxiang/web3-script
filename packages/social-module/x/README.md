@@ -65,13 +65,12 @@ xRedirectUri = '你的重定向URI'
 ## 使用示例
 
 ```js
-import { XAuthenticator } from './x.js';
-import { XClient } from './x.js';
-import { XRpa } from './x.js';
+import { XAuthenticator, XClient, XRpa } from './x.js';
 
-// OAuth2.0授权示例（需要指纹浏览器配合）
+// OAuth2.0授权示例
 const xAuth = await XAuthenticator.create({ 
-    chromeNumber: 1,  // 指纹浏览器编号
+    browserType: 'chrome',     // 浏览器类型：'chrome'或'bitbrowser'
+    browserId: 1,              // Chrome实例编号或BitBrowser浏览器ID
     socksProxyUrl: 'socks5://username:password@ip:port'  // 代理地址
 });
 await xAuth.authorizeAndSaveToken({ 
@@ -104,7 +103,8 @@ await xClient.follow('elonmusk');
 
 // RPA操作示例（需要指纹浏览器配合）
 const xRpa = await XRpa.create({ 
-    chromeNumber: 1  // 指纹浏览器编号
+    browserType: 'chrome',     // 浏览器类型：'chrome'或'bitbrowser'
+    browserId: 1               // Chrome实例编号或BitBrowser浏览器ID
 });
 
 // 登录账号

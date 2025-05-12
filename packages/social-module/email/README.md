@@ -172,12 +172,13 @@ outlookRedirectUri = 'http://localhost:3000/auth/redirect'
 ## 使用示例
 
 ```js
-import { GmailAuthenticator, waitForGmailVerificationCode } from './gmail.js';
+import { GmailAuthenticator, waitForGmailVerificationCode, GmailRpa } from './gmail.js';
 import { OutlookAuthenticator, waitForOutlookVerificationCode } from './outlook.js';
 
-// Gmail授权示例（需要指纹浏览器配合）
+// Gmail授权示例
 const gmailAuth = await GmailAuthenticator.create({ 
-    chromeNumber: 1,  // 指纹浏览器编号
+    browserType: 'chrome',     // 浏览器类型：'chrome'或'bitbrowser'
+    browserId: 1,              // Chrome实例编号或BitBrowser浏览器ID
     socksProxyUrl: 'socks5://username:password@ip:port'  // 代理地址
 });
 await gmailAuth.authorizeAndSaveToken({ 
@@ -199,9 +200,29 @@ const gmailVerifyCode = await waitForGmailVerificationCode({
 });
 console.log(gmailVerifyCode);
 
+// Gmail RPA操作示例
+const gmailRpa = await GmailRpa.create({
+    browserType: 'chrome',     // 浏览器类型：'chrome'或'bitbrowser'
+    browserId: 1               // Chrome实例编号或BitBrowser浏览器ID
+});
+
+// 登录Gmail账号
+await gmailRpa.login('username@gmail.com', 'password', 'otpSecretKey');
+
+// 切换界面语言为中文
+await gmailRpa.changeLanguage();
+
+// 设置两步验证
+await gmailRpa.addOrChange2fa({
+    password: 'yourPassword',
+    matchValue: 'username@gmail.com'
+});
+
+
 // Outlook授权示例（需要指纹浏览器配合）
 const outlookAuth = await OutlookAuthenticator.create({ 
-    chromeNumber: 1,  // 指纹浏览器编号
+    browserType: 'chrome',     // 浏览器类型：'chrome'或'bitbrowser'
+    browserId: 1,              // Chrome实例编号或BitBrowser浏览器ID
     socksProxyUrl: 'socks5://username:password@ip:port'  // 代理地址
 });
 await outlookAuth.authorizeAndSaveToken({ 
