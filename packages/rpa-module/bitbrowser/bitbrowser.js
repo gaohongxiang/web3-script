@@ -14,11 +14,11 @@ const bitbrowserUrl = 'http://127.0.0.1:54345'
  * @param {string} browserId - bitbrowser浏览器id。此参数空值时代表创建浏览器。有值时代表修改浏览器信息
  * @returns {Promise<string>} 浏览器id
  */
-export const createOrUpdateBrowser = async (browserOs = 'mac', browserId = '') => {
+export const createOrUpdateBrowser = async ({ browserOs = 'mac', browserId = '', coreVersion = '134', browserVersion = '130' }) => {
     // 操作系统
-    browserOs = ['mac', 'macos'].includes(browserOs) ? 'MacIntel' 
-              : ['win', 'windows'].includes(browserOs) ? 'Win32' 
-              : browserOs;
+    browserOs = ['mac', 'macos'].includes(browserOs) ? 'MacIntel'
+        : ['win', 'windows'].includes(browserOs) ? 'Win32'
+            : browserOs;
 
     const body = {
         id: browserId, // 有值时为修改，无值是添加
@@ -30,11 +30,11 @@ export const createOrUpdateBrowser = async (browserOs = 'mac', browserId = '') =
         // 自定义代理类型 ['noproxy', 'http', 'https', 'socks5', '911s5']
         proxyType: 'noproxy', // 先不设置代理。可在修改代理接口去设置
         browserFingerPrint: {
-            coreVersion: '104', // 内核版本，默认104，可选92
+            coreVersion, // 内核版本
             ostype: 'PC', // 操作系统平台 PC | Android | IOS
-            version: '106', // 浏览器版本，建议92以上，不填则会从92以上版本随机。目前106最高
+            version: browserVersion, // 浏览器版本，建议92以上，不填则会从92以上版本随机。
             os: browserOs, // 为navigator.platform值 Win32 | Linux i686 | Linux armv7l | MacIntel
-            userAgent: '', // ua，不填则自动生成
+            // userAgent: "", // ua，不填则自动生成
             isIpCreateTimeZone: false, // 基于IP生成对应的时区
             timeZone: 'GMT+08:00', // 时区，isIpCreateTimeZone 为false时，参考附录中的时区列表
             position: '1', // 网站请求获取您当前位置时，是否允许 0询问|1允许|2禁止
@@ -50,32 +50,33 @@ export const createOrUpdateBrowser = async (browserOs = 'mac', browserId = '') =
         }
     };
 
-    const { data: { data: { id } } } = await axios.post(`${bitbrowserUrl}/browser/update`, body);
-    console.log('创建或修改浏览器成功,浏览器id为:', id);
-    return id;
+    const response = await axios.post(`${bitbrowserUrl}/browser/update`, body);
+    // console.log(response.data)
+    console.log('创建或修改浏览器成功,浏览器id为:', response.data.data.id);
+    return response.data.data.id;
 };
 
 
-export async function updateBitbrowserProxy(id, host, post, username, password) {
-    try{
+export async function updateBitbrowserProxy({ id, host, post, username, password }) {
+    try {
         const response = await axios.post(`${bitbrowserUrl}/browser/proxy/update`, {
             ids: [id],
-            ipCheckService:'ip-api',
-            proxyMethod:2, //自定义代理
-            proxyType:'socks5',
-            host:host,
-            port:post,
-            proxyUserName:username,
-            proxyPassword:password
+            ipCheckService: 'ip-api',
+            proxyMethod: 2, //自定义代理
+            proxyType: 'socks5',
+            host: host,
+            port: post,
+            proxyUserName: username,
+            proxyPassword: password
         });
 
         // console.log(response)
-        if(response.data.success){
+        if (response.data.success) {
             console.log('修改代理成功')
-        }else{
+        } else {
             console.log('修改代理失败')
         }
-    }catch(error){console.log(error)}
+    } catch (error) { console.log(error) }
 }
 
 export class BitBrowserUtil {
@@ -108,7 +109,7 @@ export class BitBrowserUtil {
     static async create({ browserId, navigationWaitTime = 30, allWaitTime = 30, maxRetries = 3 }) {
         // 创建实例
         const instance = new this(browserId);
-        
+
         // 执行初始化
         await instance.start(navigationWaitTime, allWaitTime, maxRetries);
         return instance;
@@ -120,22 +121,22 @@ export class BitBrowserUtil {
      * @returns {Promise<{ws: string, chromeDriverPath: string, http: string}>} 浏览器连接信息
      * @throws {Error} 如果打开浏览器失败
      */
-    async open() { 
+    async open() {
         try {
 
-            const response = await axios.post(`${bitbrowserUrl}/browser/open`, {id: this.browserId});
-            if(response.data.success === true) {
+            const response = await axios.post(`${bitbrowserUrl}/browser/open`, { id: this.browserId });
+            if (response.data.success === true) {
                 const { ws, driver: chromeDriverPath, http } = response.data.data;
-                return { ws, chromeDriverPath, http };  
+                return { ws, chromeDriverPath, http };
             } else {
                 throw new Error('ws请求失败,请重试');
             }
-        } catch(error) {
+        } catch (error) {
             console.error('打开浏览器失败:', error);
             throw error;
         }
     }
-  
+
     /**
      * 启动并初始化浏览器实例
      * @private
@@ -154,28 +155,28 @@ export class BitBrowserUtil {
                 }
                 const { ws, chromeDriverPath, http } = await this.open();
                 this.browser = await playwright.chromium.connectOverCDP(ws);
-    
+
                 const allContexts = this.browser.contexts();
                 this.context = allContexts[0];
-    
+
                 const allPages = this.context.pages();
                 this.page = allPages[0];
-    
+
                 // this.defaultWaitTime(this.context, navigationWaitTime, allWaitTime);
-    
+
                 // 设置全屏
                 // this.browser.maximize();
-    
+
                 // 关闭其他页面
                 allPages.forEach(page => {
                     if (page != this.page) {
                         page.close();
                     }
                 });
-    
+
                 // 初始化完毕后设为true，下次调用不会再次初始化
                 this.isStarted = true;
-    
+
                 // 如果成功初始化，跳出循环
                 break;
             } catch (error) {
@@ -190,61 +191,61 @@ export class BitBrowserUtil {
             }
         }
     }
-    
+
     async newContext() {
         // Create new context 
         return await this.browser.newContext()
     }
 
-    async newPage(context='') {
+    async newPage(context = '') {
         // 创建新的page.不传context就是使用默认的context创建page
         if (!context) { context = this.context }
         return await context.newPage()
     }
 
-    async getPages(context='') {
+    async getPages(context = '') {
         // 获取所有页面及长度
-        if (!context){ context = this.context } 
+        if (!context) { context = this.context }
         const pages = context.pages()
         const pagesCount = pages.length
         return { pages, pagesCount }
     }
 
-    async isElementExist(selector, { waitTime=5, page='' }={}) { 
+    async isElementExist(selector, { waitTime = 5, page = '' } = {}) {
         // 判断元素是否存在
-        if (!page){ page = this.page } 
+        if (!page) { page = this.page }
         try {
-            await page.waitForSelector(selector, {timeout:waitTime*1000})
+            await page.waitForSelector(selector, { timeout: waitTime * 1000 })
             return true
-        }catch(error) {
+        } catch (error) {
             // console.log(error)
             return false
-        }       
+        }
     }
 
-    async isEnabled(selector, { waitTime=5, page='' }){
+    async isEnabled(selector, { waitTime = 5, page = '' }) {
         // 判断元素是否可操作，如点击
-        if (!page){ page = this.page }
+        if (!page) { page = this.page }
         const element = await page.$(selector);
-        while(true){
+        while (true) {
             let i = 1
             // 等待元素可用（包括可点击）
             const isEnabled = await element.isEnabled();
             console.log(isEnabled)
-            if(isEnabled){
+            if (isEnabled) {
                 await element.click()
                 break
             }
             await page.waitForTimeout(10000)
             // 等待太久退出
             i++
-            if(i > 8){break}
+            if (i > 8) { break }
         }
     }
 
-    async pause(page='') {
+    async pause(page = '') {
         // Pause page
-        if (!page){ page = this.page } 
+        if (!page) { page = this.page }
         page.pause()
     }
 
@@ -257,17 +258,17 @@ export class BitBrowserUtil {
         // 用bitbrowser的api关闭浏览器
         // const body = {'id': this.browserId}
         // body = {'id': this.browserId,'args': [{'openWidth':200000,'openHeight':200000}]}
-        await axios.post(`${bitbrowserUrl}/browser/close`, {id: this.browserId});
+        await axios.post(`${bitbrowserUrl}/browser/close`, { id: this.browserId });
     }
-    
-    async closeOtherWindows(context='') {
+
+    async closeOtherWindows(context = '') {
         // 关闭上下文中的无关页面。
-        if (!context){ context = this.context } 
+        if (!context) { context = this.context }
         const allPages = context.pages()
         allPages.forEach(page => {
             if (page != this.page) {
                 page.close();
-            } 
+            }
         });
     }
 }
