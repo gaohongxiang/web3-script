@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { ChromeBrowserUtil } from '../../rpa-module/chrome/chromeBrowser/chromeBrowser.js';
+import { createBrowserUtil } from '../../rpa-module/browserConfig.js';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import { updateCsvFieldValueByMatch } from '../../utils-module/utils.js';
@@ -9,37 +9,55 @@ import { getOTP } from '../../utils-module/otp.js';
 /**
  * Gmail OAuth2认证工具类
  * 用于处理Gmail的OAuth2.0认证流程，获取和管理refresh token
- * @extends ChromeBrowserUtil
  */
-export class GmailAuthenticator extends ChromeBrowserUtil {
+export class GmailAuthenticator {
+    /**
+     * GmailAuthenticator构造函数
+     * @param {Object} browserUtil - 浏览器工具实例
+     */
+    constructor(browserUtil) {
+        this.browserUtil = browserUtil;
+        this.page = browserUtil.page;
+        this.context = browserUtil.context;
+    }
 
     /**
      * 创建并初始化GmailAuthenticator实例
-     * @param {Object} params - 初始化参数
-     * @param {number} params.chromeNumber - Chrome实例编号
-     * @param {string} params.socksProxyUrl - 代理服务器地址
+     * @static
+     * @param {Object} options - 初始化参数
+     * @param {string} [options.browserType='chrome'] - 浏览器类型，'chrome'或'bitbrowser'
+     * @param {number|string} options.browserId - Chrome实例编号或BitBrowser浏览器ID
+     * @param {string} options.socksProxyUrl - 代理服务器地址
      * @returns {Promise<GmailAuthenticator>} 初始化完成的实例
-     * @throws {Error} 缺少必要的环境变量配置时抛出错误
+     * @throws {Error} 缺少必要的环境变量配置或初始化失败时抛出错误
      */
-    static async create({ chromeNumber, socksProxyUrl }) {
-        // 1. 检查必要的环境变量
-        if (!process.env.gmailClientId || !process.env.gmailClientSecret || !process.env.gmailRedirectUri) {
-            throw new Error('缺少必要的环境变量配置');
+    static async create({ browserType = 'chrome', browserId, socksProxyUrl }) {
+        try {
+            // 1. 检查必要的环境变量
+            if (!process.env.gmailClientId || !process.env.gmailClientSecret || !process.env.gmailRedirectUri) {
+                throw new Error('缺少必要的环境变量配置');
+            }
+
+            // 2. 使用共享的浏览器工具创建函数
+            const browserUtil = await createBrowserUtil({ browserType, browserId });
+
+            // 3. 创建GmailAuthenticator实例
+            const instance = new GmailAuthenticator(browserUtil);
+
+            // 4. 初始化OAuth2客户端
+            const options = {
+                clientId: process.env.gmailClientId,
+                clientSecret: process.env.gmailClientSecret,
+                redirectUri: process.env.gmailRedirectUri,
+                httpAgent: new SocksProxyAgent(socksProxyUrl)
+            };
+            instance.oauth2Client = new OAuth2Client(options);
+
+            return instance;
+        } catch (error) {
+            console.error('创建GmailAuthenticator实例失败:', error);
+            throw error;
         }
-
-        // 2. 创建实例并初始化Chrome
-        const instance = await super.create({ chromeNumber });
-
-        // 3. 初始化OAuth2客户端
-        const options = {
-            clientId: process.env.gmailClientId,
-            clientSecret: process.env.gmailClientSecret,
-            redirectUri: process.env.gmailRedirectUri,
-            httpAgent: new SocksProxyAgent(socksProxyUrl)
-        };
-        instance.oauth2Client = new OAuth2Client(options);
-
-        return instance;
     }
 
     /**
@@ -87,12 +105,12 @@ export class GmailAuthenticator extends ChromeBrowserUtil {
             }
             await this.page.locator(`div[data-email*="${matchValue}" i]`).click();
             await this.page.waitForTimeout(2000);
-            const needVerify = await this.isElementExist('text="验证账户"', { waitTime: 10 });
+            const needVerify = await this.browserUtil.isElementExist('text="验证账户"', { waitTime: 10 });
             if (needVerify) {
                 console.log('账户需要验证，请先完成验证');
                 return false;
             } else { console.log('账户正常，不需要验证'); }
-            const isDangerWarning = await this.isElementExist('text="此应用未经 Google 验证"', { waitTime: 10 });
+            const isDangerWarning = await this.browserUtil.isElementExist('text="此应用未经 Google 验证"', { waitTime: 10 });
             if (isDangerWarning) {
                 console.log('检测到安全警告页面，尝试处理...');
                 await this.page.getByText('高级').click();
@@ -276,19 +294,40 @@ function getTextFromParts(parts) {
 /**
  * Gmail RPA自动化工具类
  * 用于模拟用户操作，如登录、修改语言、设置2FA等
- * @extends ChromeBrowserUtil
  */
-export class GmailRpa extends ChromeBrowserUtil {
+export class GmailRpa {
+    /**
+     * GmailRpa构造函数
+     * @param {Object} browserUtil - 浏览器工具实例
+     */
+    constructor(browserUtil) {
+        this.browserUtil = browserUtil;
+        this.page = browserUtil.page;
+        this.context = browserUtil.context;
+    }
+
     /**
      * 创建并初始化GmailRpa实例
-     * @param {Object} params - 初始化参数
-     * @param {number} params.chromeNumber - Chrome实例编号
+     * @static
+     * @param {Object} options - 初始化参数
+     * @param {string} [options.browserType='chrome'] - 浏览器类型，'chrome'或'bitbrowser'
+     * @param {number|string} options.browserId - Chrome实例编号或BitBrowser浏览器ID
      * @returns {Promise<GmailRpa>} 初始化完成的实例
+     * @throws {Error} 初始化失败时抛出错误
      */
-    static async create({ chromeNumber }) {
-        // 创建实例并初始化Chrome
-        const instance = await super.create({ chromeNumber });
-        return instance;
+    static async create({ browserType = 'chrome', browserId }) {
+        try {
+            // 1. 使用共享的浏览器工具创建函数
+            const browserUtil = await createBrowserUtil({ browserType, browserId });
+
+            // 2. 创建GmailRpa实例
+            const instance = new GmailRpa(browserUtil);
+            
+            return instance;
+        } catch (error) {
+            console.error('创建GmailRpa实例失败:', error);
+            throw error;
+        }
     }
 
     /**
@@ -409,6 +448,6 @@ export class GmailRpa extends ChromeBrowserUtil {
             matchValue,
             targetField,
             targetValue: otpSecretKey
-        })
+        });
     }
 }

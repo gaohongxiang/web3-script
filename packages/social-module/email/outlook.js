@@ -1,11 +1,10 @@
 import 'dotenv/config';
-import { ChromeBrowserUtil } from '../../rpa-module/chrome/chromeBrowser/chromeBrowser.js';
+import { createBrowserUtil } from '../../rpa-module/browserConfig.js';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { updateCsvFieldValueByMatch } from '../../utils-module/utils.js';
 import express from 'express';
 import { SocksProxyAgent } from 'socks-proxy-agent';
-import fetch from 'node-fetch';
 
 // OAuth2所需的权限范围
 const scopes = [
@@ -71,32 +70,55 @@ function createMsalConfig(socksProxyUrl) {
 
 /**
  * Outlook授权类
- * 继承自ChromeBrowserUtil，用于处理Outlook的OAuth2.0授权流程
+ * 用于处理Outlook的OAuth2.0授权流程
  */
-export class OutlookAuthenticator extends ChromeBrowserUtil {
+export class OutlookAuthenticator {
+    /**
+     * OutlookAuthenticator构造函数
+     * @param {Object} browserUtil - 浏览器工具实例
+     * @param {string} redirectUri - 重定向URI
+     * @param {Object} msalClient - MSAL客户端实例
+     */
+    constructor(browserUtil, redirectUri, msalClient) {
+        this.browserUtil = browserUtil;
+        this.page = browserUtil.page;
+        this.context = browserUtil.context;
+        this.REDIRECT_URI = redirectUri;
+        this.msalClient = msalClient;
+    }
+
     /**
      * 创建并初始化OutlookAuthenticator实例
      * @static
      * @param {Object} options - 初始化选项
-     * @param {number} options.chromeNumber - Chrome浏览器实例编号
+     * @param {string} [options.browserType='chrome'] - 浏览器类型，'chrome'或'bitbrowser'
+     * @param {number|string} options.browserId - Chrome浏览器实例编号或BitBrowser浏览器ID
      * @param {string} options.socksProxyUrl - 代理服务器地址
      * @returns {Promise<OutlookAuthenticator>} 返回初始化完成的实例
      * @throws {Error} 如果初始化失败则抛出错误
      */
-    static async create({ chromeNumber, socksProxyUrl }) {
-        // 验证必要的环境变量
-        if (!process.env.outlookClientId || !process.env.outlookClientSecret || !process.env.outlookRedirectUri) {
-            throw new Error('缺少必要的环境变量: outlookClientId, outlookClientSecret, outlookRedirectUri');
+    static async create({ browserType = 'chrome', browserId, socksProxyUrl }) {
+        try {
+            // 验证必要的环境变量
+            if (!process.env.outlookClientId || !process.env.outlookClientSecret || !process.env.outlookRedirectUri) {
+                throw new Error('缺少必要的环境变量: outlookClientId, outlookClientSecret, outlookRedirectUri');
+            }
+
+            // 使用共享的浏览器工具创建函数
+            const browserUtil = await createBrowserUtil({ browserType, browserId });
+
+            // 设置MSAL客户端
+            const redirectUri = process.env.outlookRedirectUri;
+            const msalClient = new ConfidentialClientApplication(createMsalConfig(socksProxyUrl));
+
+            // 创建实例
+            const instance = new OutlookAuthenticator(browserUtil, redirectUri, msalClient);
+
+            return instance;
+        } catch (error) {
+            console.error('创建OutlookAuthenticator实例失败:', error);
+            throw error;
         }
-
-        // 使用父类的create方法初始化浏览器
-        const instance = await ChromeBrowserUtil.create({ chromeNumber });
-
-        // 设置代理和MSAL客户端
-        instance.REDIRECT_URI = process.env.outlookRedirectUri;
-        instance.msalClient = new ConfidentialClientApplication(createMsalConfig(socksProxyUrl));
-
-        return instance;
     }
 
     /**
@@ -232,12 +254,12 @@ export class OutlookAuthenticator extends ChromeBrowserUtil {
                 await this.page.waitForTimeout(3000);
                 // 检查是否需要点击继续按钮
                 try {
-                    const isElementExist1 = await this.isElementExist('input[name="appConfirmContinue"]', { waitTime: 5 });
+                    const isElementExist1 = await this.browserUtil.isElementExist('input[name="appConfirmContinue"]', { waitTime: 5, page: this.page });
                     if (isElementExist1) {
                         await this.page.click('input[name="appConfirmContinue"]');
                     }
                     await this.page.waitForTimeout(3000);
-                    const isElementExist2 = await this.isElementExist('input[name="appConfirmContinue"]', { waitTime: 5 });
+                    const isElementExist2 = await this.browserUtil.isElementExist('input[name="appConfirmContinue"]', { waitTime: 5, page: this.page });
                     if (isElementExist2) {
                         await this.page.click('input[name="appConfirmContinue"]');
                     }

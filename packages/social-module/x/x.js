@@ -1,6 +1,6 @@
 import { TwitterApi } from 'twitter-api-v2';
 import { SocksProxyAgent } from 'socks-proxy-agent';
-import { ChromeBrowserUtil } from "../../rpa-module/chrome/chromeBrowser/chromeBrowser.js";
+import { createBrowserUtil } from '../../rpa-module/browserConfig.js';
 import { getOTP } from "../../utils-module/otp.js";
 import { generateRandomString, updateCsvFieldValueByMatch } from "../../utils-module/utils.js";
 import { notificationManager } from '../../notification-module/notification.js';
@@ -8,34 +8,51 @@ import { notificationManager } from '../../notification-module/notification.js';
 /**
  *  X OAuth2认证工具类
  * 用于处理X的OAuth2.0认证流程，获取和管理refresh token
- * @extends ChromeBrowserUtil
  */
-export class XAuthenticator extends ChromeBrowserUtil {
+export class XAuthenticator {
+    /**
+     * XAuthenticator构造函数
+     * @param {Object} browserUtil - 浏览器工具实例
+     * @param {Object} proxy - 代理对象
+     * @param {Object} client - Twitter API客户端
+     */
+    constructor(browserUtil, proxy, client) {
+        this.browserUtil = browserUtil;
+        this.page = browserUtil.page;
+        this.context = browserUtil.context;
+        this.proxy = proxy;
+        this.client = client;
+    }
+
     /**
      * 创建并初始化XAuthenticator实例
      * @static
      * @param {Object} params - 初始化参数
-     * @param {number} params.chromeNumber - Chrome实例编号
+     * @param {string} [params.browserType='chrome'] - 浏览器类型，'chrome'或'bitbrowser'
+     * @param {number|string} params.browserId - Chrome实例编号或BitBrowser浏览器ID
      * @param {string} params.socksProxyUrl - 代理服务器地址
      * @returns {Promise<XAuthenticator>} 初始化完成的实例
      * @throws {Error} 缺少必要的环境变量配置时抛出错误
      */
-    static async create({ chromeNumber, socksProxyUrl }) {
+    static async create({ browserType = 'chrome', browserId, socksProxyUrl }) {
         // 1. 检查必要的环境变量
         if (!process.env.xClientId || !process.env.xClientSecret || !process.env.xRedirectUri) {
             throw new Error('缺少必要的环境变量配置');
         }
 
-        // 2. 创建实例并初始化Chrome
-        const instance = await super.create({ chromeNumber });
+        // 2. 使用共享的浏览器工具创建函数
+        const browserUtil = await createBrowserUtil({ browserType, browserId });
 
         // 3. 初始化API客户端
-        instance.proxy = new SocksProxyAgent(socksProxyUrl);
-        instance.client = new TwitterApi({
+        const proxy = new SocksProxyAgent(socksProxyUrl);
+        const client = new TwitterApi({
             clientId: process.env.xClientId,
             clientSecret: process.env.xClientSecret,
-            httpAgent: instance.proxy
+            httpAgent: proxy
         });
+
+        // 4. 创建XAuthenticator实例
+        const instance = new XAuthenticator(browserUtil, proxy, client);
 
         return instance;
     }
@@ -105,19 +122,33 @@ export class XAuthenticator extends ChromeBrowserUtil {
 /**
  * X RPA自动化工具类
  * 用于模拟用户操作，如登录、修改密码等
- * @extends ChromeBrowserUtil
  */
-export class XRpa extends ChromeBrowserUtil {
+export class XRpa {
+    /**
+     * XRpa构造函数
+     * @param {Object} browserUtil - 浏览器工具实例
+     */
+    constructor(browserUtil) {
+        this.browserUtil = browserUtil;
+        this.page = browserUtil.page;
+        this.context = browserUtil.context;
+    }
+
     /**
      * 创建并初始化XRpa实例
      * @static
      * @param {Object} params - 初始化参数
-     * @param {number} params.chromeNumber - Chrome实例编号
+     * @param {string} [params.browserType='chrome'] - 浏览器类型，'chrome'或'bitbrowser'
+     * @param {number|string} params.browserId - Chrome实例编号或BitBrowser浏览器ID
      * @returns {Promise<XRpa>} 初始化完成的实例
      */
-    static async create({ chromeNumber }) {
-        // 创建实例并初始化Chrome
-        const instance = await super.create({ chromeNumber });
+    static async create({ browserType = 'chrome', browserId }) {
+        // 使用共享的浏览器工具创建函数
+        const browserUtil = await createBrowserUtil({ browserType, browserId });
+
+        // 创建XRpa实例
+        const instance = new XRpa(browserUtil);
+        
         return instance;
     }
 

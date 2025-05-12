@@ -1,4 +1,4 @@
-import { OkxWalletUtil } from '../../packages/rpa-module/chrome/okxWallet.js';
+import { OkxWalletUtil } from '../../packages/rpa-module/okxWallet.js';
 import { ethers } from 'ethers-v6';
 import axios from 'axios';
 import { SocksProxyAgent } from 'socks-proxy-agent';
@@ -7,7 +7,6 @@ import { maskValue, generateUUID } from '../../packages/utils-module/utils.js';
 import { withRetry } from '../../packages/utils-module/retry.js';
 import { notificationManager } from '../../packages/notification-module/notification.js';
 import { GalxeClient } from '../../packages/social-module/galxe/galxe.js';
-
 
 async function getWallet(enPrivateKey) {
     const rpcUrl = 'https://testnet.saharalabs.ai';
@@ -371,31 +370,46 @@ export class SaharaAi {
 
 export class SaharaAiRpa extends OkxWalletUtil {
     /**
-     * 创建并初始化SaharaAi实例
-     * @static
-     * @param {Object} params - 初始化参数
-     * @param {number} params.chromeNumber - Chrome实例编号
-     * @returns {Promise<SaharaAi>} 初始化完成的实例
+     * 创建并初始化SaharaAiRpa实例 - 超级简单版本
      */
-    static async create({ chromeNumber }) {
-        // 创建实例并初始化Chrome
-        const instance = await super.create({ chromeNumber });
-        return instance;
+    static async create({ browserType = 'chrome', browserId, walletID }) {
+        try {
+            // 直接调用父类create方法，并传入SaharaAiRpa作为classType
+            return await OkxWalletUtil.create({ 
+                browserType, 
+                browserId, 
+                walletID,
+                classType: SaharaAiRpa 
+            });
+        } catch (error) {
+            console.error('创建SaharaAiRpa实例失败:', error);
+            throw error;
+        }
     }
 
     async legends() {
-        await this.connectWallet('https://legends.saharalabs.ai/');
-        await this.page.waitForTimeout(2000);
-        await this.page.locator('//*[@src="/assets/all-normal-BQuqrsj0.png"]').click();
-        await this.page.waitForTimeout(2000);
-        await this.page.getByText('Daily Check-in').click();
-        await this.page.waitForTimeout(2000);
+        try {
+            await this.connectWallet('https://legends.saharalabs.ai/');
+            await this.page.waitForTimeout(2000);
+            await this.page.locator('//*[@src="/assets/all-normal-BQuqrsj0.png"]').click();
+            await this.page.waitForTimeout(2000);
+            await this.page.getByText('Daily Check-in').click();
+            await this.page.waitForTimeout(2000);
 
-        const taskNames = ['Visit the Sahara AI blog', 'Visit @SaharaLabsAI on X', 'Generate at least one transaction on Sahara Testnet'];
-        await this.handleTaskButtons(this.page, taskNames);
+            const taskNames = ['Visit the Sahara AI blog', 'Visit @SaharaLabsAI on X', 'Generate at least one transaction on Sahara Testnet'];
+            await this.handleTaskButtons(this.page, taskNames);
+        } catch (error) {
+            console.log(error);
+        }
     }
 
+    /**
+     * 处理任务按钮
+     * @param {Page} page - Playwright页面对象
+     * @param {string[]} taskNames - 任务名称数组
+     */
     async handleTaskButtons(page, taskNames) {
+        // 使用Promise.all并行处理所有任务
         await Promise.all(taskNames.map(async taskName => {
             try {
                 const button = page.locator(`.task-item:has-text("${taskName}") .task-buttons`);
@@ -404,32 +418,32 @@ export class SaharaAiRpa extends OkxWalletUtil {
                 const buttonText = await button.textContent();
 
                 if (buttonText.includes('claimed')) {
-                    console.log(`第${this.chromeNumber}个账号 任务 "${taskName}" 已经是 claimed状态`);
+                    console.log(`任务 "${taskName}" 已经是 claimed状态`);
                     return;
                 }
 
                 if (buttonText.includes('claim')) {
                     await button.click();
-                    console.log(`第${this.chromeNumber}个账号 任务 "${taskName}" 已 claim`);
+                    console.log(`任务 "${taskName}" 已 claim`);
                     return;
                 }
 
                 const hasSvg = await button.locator('svg').count() > 0;
                 if (hasSvg) {
                     await button.click();
-                    console.log(`第${this.chromeNumber}个账号 任务 "${taskName}" 已 刷新结果`);
+                    console.log(`任务 "${taskName}" 已 刷新结果`);
                     await page.waitForTimeout(10000);
                     const newButtonText = await button.textContent();
                     if (newButtonText.includes('claim')) {
                         await button.click();
-                        console.log(`第${this.chromeNumber}个账号 任务 "${taskName}" 已 claim`);
+                        console.log(`任务 "${taskName}" 已 claim`);
                         return;
                     } else {
-                        console.log(`第${this.chromeNumber}个账号 任务 "${taskName}" 没完成`);
+                        console.log(`任务 "${taskName}" 没完成`);
                     }
                 }
             } catch (error) {
-                console.log(`第${this.chromeNumber}个账号 任务 "${taskName}" 失败:`, error.message);
+                console.log(`任务 "${taskName}" 失败:`, error.message);
             }
         }));
     }
