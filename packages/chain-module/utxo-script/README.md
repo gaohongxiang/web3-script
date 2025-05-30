@@ -10,23 +10,27 @@
 #### 2、使用示例
 
 ```
-import { getAddressUTXOs, getBalance as getBtcBalance, transfer as utxoTransfer, speedUp, splitUTXO } from './packages/utxo-script/index.js';
+import { getAddressUTXOs, getBalance as getBtcBalance, transfer as utxoTransfer, collect as utxoCollect, speedUp, splitUTXO } from './index.js';
 
 // 获取地址余额
 // 参数： { address, chain = 'btc' }
 // await getBtcBalance({address:'地址', chain:'fb'});
 
-const toData = [
-    ['bc1pn6dzd2a4509kwlf2vtlnmr7w8nfltd9zcrxeznn9g4hw8ernzsjq8cleeg', 0.01],
-    ['bc1p2nh0peenas49guh6jqpzfxt9cup2vhpwv2ndvs60tz04h2prlglqufvy3p', 0.01],
-]
+
 // 发送交易（引申：如果toData中有多个相同地址，即是拆分utxo）
 // 参数：{ enBtcMnemonicOrWif, toData, chain = 'btc', filterMinUTXOSize = 10000, scriptType='P2TR'(bc1p) | P2WPKH(bc1q) | P2PKH(1), GasSpeed = 'high', highGasRate = 1.1 }
+const toData = [['bc1pn64509kwl......nn9g4hj8cleg', 0.01], ['bc1pas49g......vhpwtz04fy3p', 0.01]];
 // await utxoTransfer({ enBtcMnemonicOrWif: d['enBtcMnemonic'], toData, chain: 'fractal', filterMinUTXOSize: 10000, scriptType:'p2tr' })
+
+// 归集（将每个地址大于filterMinUTXOSize的utxo全部归集）
+// 参数 { fromData, toAddress, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed = 'high', highGasRate = 1.1 }
+const fromData = ['加密助记词或WIF私钥1', '加密助记词或WIF私钥2']; // 都是P2TR类型
+const fromData = [['加密助记词或WIF私钥1', 'P2TR'], ['加密助记词或WIF私钥2', 'P2WPKH']]; // 指定类型
+// await utxoCollect({ fromData, toAddress: 'bc1pmle2uwj......u34zxhkcd3', chain: 'btc', filterMinUTXOSize: 10, GasSpeed: 'high', highGasRate: 1 });
 
 // 加速交易
 // 参数：{ enBtcMnemonicOrWif, txid, chain = 'btc', filterMinUTXOSize = 10000, scriptType='P2TR'(bc1p) | P2WPKH(bc1q) | P2PKH(1), GasSpeed='high', highGasRate=1.1 }
-// await speedUp({ enBtcMnemonicOrWif: d['enBtcMnemonic'], chain: 'fractal', txid: 'c9476ad8d752342d1b768397f0183fd8e0c30d75b48c9ee12b710ab02d2224f5', filterMinUTXOSize: 1000, scriptType:'p2tr' });
+// await speedUp({ enBtcMnemonicOrWif: d['enBtcMnemonic'], chain: 'fractal', txid: 'c9476ad42d1b7......ee12b71224f5', filterMinUTXOSize: 1000, scriptType:'p2tr' });
 
 // 获取地址utxo
 // 参数：{ address, chain = 'btc', filterMinUTXOSize = 0 }

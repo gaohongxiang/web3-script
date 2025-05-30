@@ -142,10 +142,10 @@ export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', filt
 
     // 设置 gas费
     const size = estimateTransactionSize({ inputCount: psbt.data.inputs.length, outputCount: (toData.length + 1), scriptType });
-    const fee = Math.ceil(gas * size); 
+    const fee = Math.ceil(gas * size);
     // console.log(`交易大小：${size}`);
     // console.log(`交易手续费：${fee}`);
-    
+
     // 找零输出
     const changeValue = inputValue - outputValue - fee;
 
@@ -171,6 +171,189 @@ export async function transfer({ enBtcMnemonicOrWif, toData, chain = 'btc', filt
     const psbtHex = psbt.extractTransaction().toHex();
     console.log(`正在广播交易 hex: ${psbtHex}`);
     await broadcastTx(psbtHex)
+}
+
+/**
+ * 进行比特币多地址归集操作。
+ * 
+ * @param {Array} fromData - 源地址信息数组，支持两种格式：
+ * 1. 简单格式（全部使用P2TR）：['加密助记词或WIF私钥1', '加密助记词或WIF私钥2', ...]
+ * 2. 指定脚本格式：[['加密助记词或WIF私钥1', 'P2TR'], ['加密助记词或WIF私钥2'], ['加密助记词或WIF私钥3', 'P2WPKH'], ...]
+ *    如果不指定脚本类型，默认使用'P2TR'
+ * @param {string} toAddress - 归集目标地址
+ * @param {string} [chain='btc'] - 使用的区块链类型，默认为 'btc'
+ * @param {number} [filterMinUTXOSize=10000] - 过滤的最小 UTXO 大小，默认为 10000聪，防止烧资产
+ * @param {string} [GasSpeed='high'] - 交易的 gas 速度，默认为 'high'
+ * @param {number} [highGasRate=1.1] - 高速交易的 gas 费率，默认为 1.1。只有GasSpeed='high'时才生效
+ * 
+ * @returns {Promise<void>} - 返回一个 Promise，表示归集操作的完成
+ * 
+ * 具体执行流程：
+ * 1. 收集所有源地址的UTXO(大于filterMinUTXOSize的UTXO)：
+ *    - 遍历每个源地址
+ *    - 获取每个地址的所有可用UTXO
+
+ * 2. 计算总金额和gas：
+ *    inputValue = 所有UTXO的总和
+ *    gas = 根据输入数量计算预估gas费
+ *   
+ * 3. 创建交易：
+ *   输入：所有地址的所有UTXO
+ *   输出：目标地址，金额为(inputValue - gas)
+ *   
+ * 4. 签名：
+ *    - 使用每个地址对应的私钥
+ *    - 对其拥有的UTXO进行签名
+ */
+export async function collect({ fromData, toAddress, chain = 'btc', filterMinUTXOSize = 10000, GasSpeed = 'high', highGasRate = 1.1 }) {
+    // 获取network信息
+    const { network } = getNetwork(chain);
+
+    // 创建PSBT实例
+    const psbt = new bitcoin.Psbt({ network });
+
+    // 1. 收集所有地址的UTXO和签名信息
+    let totalInputValue = 0;
+    const signingData = []; // 存储每个输入的签名信息
+
+    // 处理fromData数组
+    const processFromData = (fromData) => {
+        // 判断是否是简单格式（检查第一个元素是否为数组）
+        const isSimpleFormat = !Array.isArray(fromData[0]);
+
+        if (isSimpleFormat) {
+            // 简单格式：转换为标准格式，全部使用P2TR
+            return fromData.map(enBtcMnemonicOrWif => [enBtcMnemonicOrWif, 'P2TR']);
+        }
+
+        // 标准格式：补充默认的脚本类型
+        return fromData.map(([enBtcMnemonicOrWif, scriptType = 'P2TR']) => [enBtcMnemonicOrWif, scriptType]);
+    };
+
+    // 在函数中使用
+    const standardFromData = processFromData(fromData);
+
+    // 创建一个处理单个地址的异步函数
+    async function processAddress(enBtcMnemonicOrWif, scriptType) {
+        // 获取地址信息
+        const { keyPair, address, output: outputScript } = await getKeyPairAndAddressInfo(enBtcMnemonicOrWif, scriptType);
+
+        // 获取地址的UTXO
+        const { filteredUTXOs, unconfirmedUTXOs } = await getAddressUTXOs({
+            address,
+            chain,
+            filterMinUTXOSize
+        });
+
+        // 检查未确认交易
+        if (unconfirmedUTXOs.length !== 0) {
+            throw new Error(`地址 ${address} 有未确认交易，终止归集操作`);
+        }
+
+        // 如果没有可用UTXO，返回空结果
+        if (filteredUTXOs.length === 0) {
+            console.log(`地址 ${address} 无可用utxos，跳过该地址`);
+            return {
+                inputs: [],
+                signingInfos: [],
+                value: 0
+            };
+        }
+
+        // 处理所有UTXO
+        const inputs = [];
+        const signingInfos = [];
+        let value = 0;
+
+        for (const utxo of filteredUTXOs) {
+            const input = {
+                hash: utxo.txid,
+                index: utxo.vout,
+                witnessUtxo: {
+                    script: outputScript,
+                    value: utxo.value,
+                }
+            };
+
+            if (scriptType.toUpperCase() === 'P2TR') {
+                input.tapInternalKey = convertToXOnly(keyPair.publicKey);
+            }
+
+            inputs.push(input);
+            signingInfos.push({ keyPair, scriptType });
+            value += utxo.value;
+        }
+
+        return { inputs, signingInfos, value };
+    }
+
+    try {
+        // 并行处理所有地址
+        const results = await Promise.all(
+            standardFromData.map(([enBtcMnemonicOrWif, scriptType]) =>
+                processAddress(enBtcMnemonicOrWif, scriptType)
+            )
+        );
+
+        // 合并所有结果
+        for (const result of results) {
+            // 添加所有输入到psbt
+            result.inputs.forEach(input => psbt.addInput(input));
+            // 合并签名信息
+            signingData.push(...result.signingInfos);
+            // 累加总值
+            totalInputValue += result.value;
+        }
+
+        // 2. 计算gas费
+        const gas = await getGas({ GasSpeed, highGasRate });
+        // 只有一个输出（目标地址），不需要找零
+        const size = estimateTransactionSize({
+            inputCount: psbt.data.inputs.length,
+            outputCount: 1,
+            scriptType: 'P2TR' // 使用最大的脚本类型估算
+        });
+        const fee = Math.ceil(gas * size);
+
+        // 3. 添加输出（归集地址）
+        const outputValue = totalInputValue - fee;
+        if (outputValue <= 0) {
+            console.log('归集金额太小，不足以支付gas费');
+            return;
+        }
+
+        psbt.addOutput({
+            address: toAddress,
+            value: outputValue
+        });
+
+        // 4. 使用对应的私钥签名每个输入
+        for (let i = 0; i < psbt.data.inputs.length; i++) {
+            const { keyPair, scriptType } = signingData[i];
+
+            // 只签名当前输入
+            if (scriptType.toUpperCase() === 'P2TR') {
+                const tweakedChildNode = keyPair.tweak(
+                    bitcoin.crypto.taggedHash('TapTweak', convertToXOnly(keyPair.publicKey))
+                );
+                psbt.signInput(i, tweakedChildNode);
+            } else {
+                psbt.signInput(i, keyPair);
+            }
+        }
+
+        // 5. 完成所有签名
+        psbt.finalizeAllInputs();
+
+        // 6. 广播交易
+        const psbtHex = psbt.extractTransaction().toHex();
+        console.log(`正在广播归集交易 hex: ${psbtHex}`);
+        await broadcastTx(psbtHex);
+    } catch (error) {
+        console.log(error)
+        console.error(error.message);
+        return;
+    }
 }
 
 /**
